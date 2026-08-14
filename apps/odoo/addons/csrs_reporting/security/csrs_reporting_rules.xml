@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="rule_csrs_progress_entry_participant" model="ir.rule">
+    <field name="name">Progressions des tâches CSRS accessibles</field>
+    <field name="model_id" ref="model_csrs_progress_entry"/>
+    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    <field name="domain_force">['|', ('task_id.user_ids', 'in', [user.id]), ('task_id.csrs_manager_id', '=', user.id)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+</odoo>

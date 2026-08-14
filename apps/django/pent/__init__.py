@@ -1,0 +1,1 @@
+"""PENT Django project."""

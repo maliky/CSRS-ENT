@@ -1,0 +1,49 @@
+* PENT
+
+PENT est le socle Python de l'ENT du CSRS. Il associe une interface Django/React à Odoo 19 Community sans dupliquer les modèles métier : Odoo conserve les comptes, l'organigramme, les tâches et leur historique; Django expose les pages, les API et la passerelle adaptées aux usages CSRS.
+
+** État actuel
+
+Le dépôt contient un bootstrap technique, pas encore une préproduction fonctionnelle : une passerelle Django sans ORM métier, les sondes =/healthz/= et =/readyz/=, un premier module Odoo de progression des tâches et une stack Compose locale. L'authentification relayée, la migration des comptes, l'organigramme, le frontend React et le déploiement restent à implémenter et à valider.
+
+La future interface sera hybride, avec React comme interface principale et Django pour l'intégration, les sessions, les réponses serveur utiles et les surfaces qui ne justifient pas encore un portage React.
+
+** Structure
+
+- =apps/django/= : projet Django =pent=, sans ORM métier.
+- =apps/django/gateway/= : frontière unique des appels Odoo.
+- =apps/odoo/addons/csrs_reporting/= : extensions métier CSRS dans Odoo.
+- =infrastructure/compose/= : stack Django, Odoo et PostgreSQL réservé à Odoo.
+- =docs/architecture.md= : frontières et correspondance avec =csrs_report=.
+- =DEV.org= : décisions, plan de préproduction et questions ouvertes.
+
+** Branches
+
+- =dev= : intégration des changements.
+- =preprod= : commit validé et déployé en préproduction.
+- =master= : production.
+
+Les promotions suivent =dev= vers =preprod= puis =master= sans réimplémenter le changement entre les branches.
+
+** Démarrage local
+
+#+begin_src sh
+cp .env.example .env
+# Remplacer toutes les valeurs replace-with-... dans .env.
+docker-compose --env-file .env -f infrastructure/compose/compose.yaml up --build
+#+end_src
+
+Django répond sur =http://127.0.0.1:18007/= et Odoo sur =http://127.0.0.1:18069/=. Les routes =/healthz/= et =/readyz/= distinguent la santé de Django de la disponibilité d'Odoo.
+
+La première initialisation installe le module =csrs_reporting= et prépare l'administrateur Odoo. Les évolutions fonctionnelles continuent dans Odoo; Django ne devient pas une seconde base métier.
+
+** Vérification
+
+#+begin_src sh
+PYENV_VERSION=csrs python apps/django/manage.py check
+PYENV_VERSION=csrs pytest
+PYENV_VERSION=csrs python -m ruff check apps/django
+docker-compose --env-file .env.example -f infrastructure/compose/compose.yaml config --quiet
+#+end_src
+
+Cet hôte utilise =docker-compose= 1.29.2; =docker compose= peut remplacer la commande lorsqu'un greffon Compose v2 est disponible. Les contrôles de syntaxe Python, XML et Bash complètent cette vérification. Les contrôles stricts Python et TypeScript seront ajoutés avec leurs configurations respectives.

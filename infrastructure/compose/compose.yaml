@@ -1,0 +1,129 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  odoo-db:
+    image: postgres:15-alpine@sha256:3d0f7584ed7d04e27fa050d6683a74746608faf21f202be78460d679cc56461f
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      POSTGRES_DB: ${ODOO_DB_NAME}
+      POSTGRES_USER: ${ODOO_DB_USER}
+      POSTGRES_PASSWORD: ${ODOO_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    networks:
+      - private
+    volumes:
+      - odoo_postgres_data:/var/lib/postgresql/data
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+
+  odoo-bootstrap:
+    image: ${ODOO_IMAGE:-pent-odoo:local}
+    build:
+      context: ../..
+      dockerfile: infrastructure/compose/odoo/image/Dockerfile
+    restart: "no"
+    environment: &odoo-environment
+      HOST: odoo-db
+      PORT: "5432"
+      USER: ${ODOO_DB_USER}
+      PASSWORD: ${ODOO_DB_PASSWORD}
+      ODOO_DB_NAME: ${ODOO_DB_NAME}
+      ODOO_MASTER_PASSWORD: ${ODOO_MASTER_PASSWORD}
+      ODOO_ADMIN_LOGIN: ${ODOO_ADMIN_LOGIN}
+      ODOO_ADMIN_PASSWORD: ${ODOO_ADMIN_PASSWORD}
+    command: ["/usr/local/bin/pent-odoo-runtime", "bootstrap"]
+    networks:
+      - private
+    volumes:
+      - odoo_data:/var/lib/odoo
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  odoo:
+    image: ${ODOO_IMAGE:-pent-odoo:local}
+    build:
+      context: ../..
+      dockerfile: infrastructure/compose/odoo/image/Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 90s
+    environment: *odoo-environment
+    command: ["/usr/local/bin/pent-odoo-runtime", "server"]
+    networks:
+      - private
+    ports:
+      - "${ODOO_EXTERNAL_BIND_ADDRESS:-127.0.0.1}:${ODOO_EXTERNAL_PORT:-18069}:8069"
+    volumes:
+      - odoo_data:/var/lib/odoo
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+      odoo-bootstrap:
+        condition: service_completed_successfully
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/login', timeout=4)"
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
+
+  django:
+    build:
+      context: ../../apps/django
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      ODOO_URL: http://odoo:8069
+      ODOO_DB_NAME: ${ODOO_DB_NAME}
+    networks:
+      - private
+    ports:
+      - "${DJANGO_BIND_ADDRESS:-127.0.0.1}:${DJANGO_PORT:-18007}:8000"
+    depends_on:
+      odoo:
+        condition: service_healthy
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+networks:
+  private:
+    name: pent_private
+    internal: true
+
+volumes:
+  odoo_data:
+    name: pent_odoo_data
+  odoo_postgres_data:
+    name: pent_odoo_postgres_data

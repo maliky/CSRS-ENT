@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "pent.settings"
+pythonpath = ["apps/django"]
+python_files = ["test_*.py", "*_tests.py"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 90
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "W"]
+
+[tool.ruff.format]
+quote-style = "double"

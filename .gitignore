@@ -1,0 +1,47 @@
+# Secrets and local configuration
+.python-version
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Django runtime and generated assets
+staticfiles/
+media/
+*.sqlite3
+
+# Odoo runtime, PostgreSQL dumps and backups
+odoo-data/
+*.dump
+*.sql
+*.sql.gz
+*.tar
+*.tar.gz
+backups/
+
+# Local tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+.#*
+\#*\#
