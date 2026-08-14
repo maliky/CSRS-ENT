@@ -13,6 +13,6 @@ fi
 cd "$ROOT_DIR"
 docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
 docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build odoo-bootstrap django
-docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up odoo-bootstrap
-docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --force-recreate odoo django redis mailpit
+docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up --renew-anon-volumes odoo-bootstrap
+docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --force-recreate --renew-anon-volumes odoo django redis mailpit
 docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
