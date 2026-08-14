@@ -95,6 +95,10 @@ class CsrsPermissionTests(TransactionCase):
         [stored_legacy_hash] = self.env.cr.fetchone()
 
         context = self.agent._crypt_context()
+        self.assertLess(
+            context.schemes().index("django_pbkdf2_sha256"),
+            context.schemes().index("plaintext"),
+        )
         self.assertEqual(
             context.identify(stored_legacy_hash), "django_pbkdf2_sha256"
         )

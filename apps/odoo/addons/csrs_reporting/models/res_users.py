@@ -3,6 +3,7 @@
 import re
 
 from odoo import _, api, fields, models, tools
+from odoo.addons.base.models.res_users import CryptContext, MIN_ROUNDS
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 
@@ -55,13 +56,15 @@ class ResUsers(models.Model):
 
     @tools.ormcache(cache="stable")
     def _crypt_context(self):
-        context = super()._crypt_context().copy()
-        schemes = list(context.schemes())
-        if "django_pbkdf2_sha256" not in schemes:
-            plaintext_index = schemes.index("plaintext")
-            schemes.insert(plaintext_index, "django_pbkdf2_sha256")
-        context.update(schemes=schemes, deprecated=["auto"])
-        return context
+        config = self.env["ir.config_parameter"].sudo()
+        return CryptContext(
+            ["pbkdf2_sha512", "django_pbkdf2_sha256", "plaintext"],
+            deprecated=["auto"],
+            pbkdf2_sha512__rounds=max(
+                MIN_ROUNDS,
+                int(config.get_param("password.hashing.rounds", 0)),
+            ),
+        )
 
     def _get_session_token_fields(self):
         return super()._get_session_token_fields() | {"csrs_alias"}
