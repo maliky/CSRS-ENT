@@ -80,7 +80,7 @@ class CsrsPermissionTests(TransactionCase):
         with self.assertRaises(UserError):
             task.action_csrs_close(expected_revision=1)
 
-    def test_django_hash_is_accepted_then_marked_for_odoo_upgrade(self):
+    def test_django_hash_survives_registry_init_then_upgrades_on_login(self):
         password_hash = django_pbkdf2_sha256.using(rounds=1_000_000).hash(
             "LegacyPassword123!"
         )
@@ -88,13 +88,27 @@ class CsrsPermissionTests(TransactionCase):
         self.agent.csrs_import_legacy_password_hash(
             password_hash, replace_native=True
         )
+        self.env["res.users"].init()
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [self.agent.id]
+        )
+        [stored_legacy_hash] = self.env.cr.fetchone()
 
         context = self.agent._crypt_context()
-        valid, replacement = context.verify_and_update(
-            "LegacyPassword123!", password_hash
+        self.assertEqual(
+            context.identify(stored_legacy_hash), "django_pbkdf2_sha256"
         )
-        self.assertTrue(valid)
-        self.assertTrue(replacement.startswith("$pbkdf2-sha512$"))
+        authenticated = self.agent.with_user(self.agent)._check_credentials(
+            {"type": "password", "password": "LegacyPassword123!"},
+            {"interactive": True},
+        )
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [self.agent.id]
+        )
+        [stored_native_hash] = self.env.cr.fetchone()
+
+        self.assertEqual(authenticated["uid"], self.agent.id)
+        self.assertEqual(context.identify(stored_native_hash), "pbkdf2_sha512")
 
     def test_reimport_does_not_downgrade_an_upgraded_odoo_hash(self):
         legacy_hash = django_pbkdf2_sha256.using(rounds=1_000_000).hash(

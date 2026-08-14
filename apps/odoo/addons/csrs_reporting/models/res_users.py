@@ -31,6 +31,21 @@ class ResUsers(models.Model):
         "Cet identifiant court CSRS appartient déjà à un autre compte.",
     )
 
+    def init(self):
+        """Encrypt plaintext rows while preserving recognized legacy hashes."""
+        self.env.cr.execute(
+            r"""
+            SELECT id, password FROM res_users
+            WHERE password IS NOT NULL
+              AND password !~ '^\$[^$]+\$[^$]+\$.'
+            """
+        )
+        users = self.sudo()
+        context = users._crypt_context()
+        for user_id, password in self.env.cr.fetchall():
+            if context.identify(password) == "plaintext":
+                users.browse(user_id).password = password
+
     @api.model
     def _get_login_domain(self, login):
         normalized = (login or "").strip().lower()
