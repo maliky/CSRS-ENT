@@ -1,46 +1,167 @@
-"""Technical views for the PENT gateway."""
+"""Thin HTTP views for pages, health checks and relayed Odoo sessions."""
+
+from __future__ import annotations
+
+import json
+from typing import TypedDict
 
 from django.conf import settings
-from django.http import JsonResponse
-from django.views.decorators.http import require_GET
+from django.core.cache import cache
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from .odoo import OdooClient, OdooError
+from .auth import LoginRateLimiter, client_ip, normalize_login
+from .odoo import OdooAuthenticationError, OdooClient, OdooError, OdooIdentity
 
 
-@require_GET
-def index(request: object) -> JsonResponse:
-    """Describe the deliberately small initial application surface."""
-    return JsonResponse(
-        {
-            "application": "PENT",
-            "role": "Passerelle Django vers Odoo",
-            "source_of_truth": "odoo",
-        }
+class LoginPayload(TypedDict):
+    login: str
+    password: str
+
+
+def _client() -> OdooClient:
+    return OdooClient(
+        base_url=settings.ODOO_URL,
+        database=settings.ODOO_DATABASE,
+        timeout=settings.ODOO_TIMEOUT,
     )
 
 
+def _login_payload(request: HttpRequest) -> LoginPayload | None:
+    if request.content_type != "application/json" or len(request.body) > 8192:
+        return None
+    try:
+        value = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(value, dict):
+        return None
+    login = value.get("login")
+    password = value.get("password")
+    if not isinstance(login, str) or not isinstance(password, str):
+        return None
+    normalized = normalize_login(login)
+    if not normalized or not password or len(normalized) > 254 or len(password) > 4096:
+        return None
+    return {"login": normalized, "password": password}
+
+
+def _session_identity(request: HttpRequest) -> OdooIdentity | None:
+    session_id = request.session.get("odoo_session_id")
+    if not isinstance(session_id, str) or not session_id:
+        return None
+    try:
+        return _client().session_identity(session_id)
+    except (OdooAuthenticationError, OdooError):
+        request.session.flush()
+        return None
+
+
+@ensure_csrf_cookie
 @require_GET
-def health(request: object) -> JsonResponse:
+def index(request: HttpRequest) -> HttpResponse:
+    """Keep the classic Django entry point available during React adoption."""
+    return render(request, "gateway/index.html")
+
+
+@ensure_csrf_cookie
+@require_GET
+def react_app(request: HttpRequest) -> HttpResponse:
+    """Serve the progressively enhanced React shell at /app/."""
+    return render(request, "gateway/react.html")
+
+
+@ensure_csrf_cookie
+@require_GET
+def login_page(request: HttpRequest) -> HttpResponse:
+    """Serve the server-rendered connection surface."""
+    return render(request, "gateway/login.html")
+
+
+@require_GET
+def health(request: HttpRequest) -> JsonResponse:
     """Report that the Django process can serve requests."""
     return JsonResponse({"status": "ok", "service": "django"})
 
 
 @require_GET
-def readiness(request: object) -> JsonResponse:
+def readiness(request: HttpRequest) -> JsonResponse:
     """Report whether Django can reach its authoritative Odoo service."""
-    client = OdooClient(
-        base_url=settings.ODOO_URL,
-        database=settings.ODOO_DATABASE,
-        timeout=settings.ODOO_TIMEOUT,
-    )
     try:
-        version = client.version()
+        version = _client().version()
     except OdooError:
         return JsonResponse({"status": "unavailable", "service": "odoo"}, status=503)
     return JsonResponse(
         {
             "status": "ok",
             "service": "odoo",
-            "server_version": version.get("server_version", "unknown"),
+            "server_version": version.server_version,
         }
     )
+
+
+@ensure_csrf_cookie
+@require_http_methods(["GET"])
+def session_detail(request: HttpRequest) -> JsonResponse:
+    """Return the current Odoo-backed identity without exposing its session id."""
+    identity = _session_identity(request)
+    if identity is None:
+        return JsonResponse({"authenticated": False})
+    return JsonResponse(
+        {
+            "authenticated": True,
+            "user": {
+                "id": identity.user_id,
+                "login": identity.login,
+                "name": identity.name,
+            },
+        }
+    )
+
+
+@require_POST
+def session_login(request: HttpRequest) -> JsonResponse:
+    """Authenticate with Odoo and keep only its opaque session id in Redis."""
+    payload = _login_payload(request)
+    if payload is None:
+        return JsonResponse({"error": "invalid_request"}, status=400)
+    ip_address = client_ip(dict(request.META), settings.TRUSTED_PROXY_ADDRESSES)
+    limiter = LoginRateLimiter(cache=cache)
+    if limiter.is_blocked(ip_address, payload["login"]):
+        return JsonResponse({"error": "rate_limited"}, status=429)
+    try:
+        odoo_session = _client().authenticate(payload["login"], payload["password"])
+    except OdooAuthenticationError:
+        limiter.record_failure(ip_address, payload["login"])
+        return JsonResponse({"error": "invalid_credentials"}, status=401)
+    except OdooError:
+        return JsonResponse({"error": "odoo_unavailable"}, status=503)
+    limiter.clear(ip_address, payload["login"])
+    request.session.cycle_key()
+    request.session["odoo_session_id"] = odoo_session.session_id
+    request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+    return JsonResponse(
+        {
+            "authenticated": True,
+            "user": {
+                "id": odoo_session.identity.user_id,
+                "login": odoo_session.identity.login,
+                "name": odoo_session.identity.name,
+            },
+        }
+    )
+
+
+@require_POST
+def session_logout(request: HttpRequest) -> JsonResponse:
+    """Revoke Odoo best-effort and always remove the local technical session."""
+    session_id = request.session.get("odoo_session_id")
+    if isinstance(session_id, str) and session_id:
+        try:
+            _client().destroy_session(session_id)
+        except OdooError:
+            pass
+    request.session.flush()
+    return JsonResponse({"authenticated": False})

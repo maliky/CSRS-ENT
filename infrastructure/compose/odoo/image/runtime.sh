@@ -10,6 +10,8 @@ readonly DATABASE_PASSWORD="${PASSWORD:?PASSWORD is required}"
 readonly DATABASE_NAME="${ODOO_DB_NAME:?ODOO_DB_NAME is required}"
 readonly BASE_CONFIG=/etc/odoo/odoo.conf
 readonly RUNTIME_CONFIG=/tmp/pent-odoo.conf
+readonly SMTP_HOST="${ODOO_SMTP_HOST:-mailpit}"
+readonly SMTP_PORT="${ODOO_SMTP_PORT:-1025}"
 
 if [[ ! $DATABASE_NAME =~ ^[A-Za-z0-9_]+$ ]]; then
   echo "ODOO_DB_NAME may contain only letters, digits and underscores." >&2
@@ -25,6 +27,9 @@ sed \
 printf 'admin_passwd = %s\n' "$MASTER_PASSWORD" >>"$RUNTIME_CONFIG"
 printf 'db_name = %s\n' "$DATABASE_NAME" >>"$RUNTIME_CONFIG"
 printf 'dbfilter = ^%s$\n' "$DATABASE_NAME" >>"$RUNTIME_CONFIG"
+printf 'smtp_server = %s\n' "$SMTP_HOST" >>"$RUNTIME_CONFIG"
+printf 'smtp_port = %s\n' "$SMTP_PORT" >>"$RUNTIME_CONFIG"
+printf 'smtp_ssl = False\n' >>"$RUNTIME_CONFIG"
 
 case "$MODE" in
   bootstrap)
@@ -40,8 +45,26 @@ case "$MODE" in
       --db_user="$DATABASE_USER" \
       --db_password="$DATABASE_PASSWORD"
     ;;
+  import)
+    export ODOO_RUNTIME_CONFIG="$RUNTIME_CONFIG"
+    exec /usr/local/bin/pent-odoo-import
+    ;;
+  test)
+    exec odoo server \
+      --config="$RUNTIME_CONFIG" \
+      --database="$DATABASE_NAME" \
+      --db_host="$DATABASE_HOST" \
+      --db_port="$DATABASE_PORT" \
+      --db_user="$DATABASE_USER" \
+      --db_password="$DATABASE_PASSWORD" \
+      --update=csrs_reporting \
+      --test-enable \
+      --test-tags=/csrs_reporting \
+      --workers=0 \
+      --stop-after-init
+    ;;
   *)
-    echo "Usage: pent-odoo-runtime bootstrap|server" >&2
+    echo "Usage: pent-odoo-runtime bootstrap|server|import|test" >&2
     exit 2
     ;;
 esac

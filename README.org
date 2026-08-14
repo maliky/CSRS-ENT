@@ -4,16 +4,18 @@ PENT est le socle Python de l'ENT du CSRS. Il associe une interface Django/React
 
 ** État actuel
 
-Le dépôt contient un bootstrap technique, pas encore une préproduction fonctionnelle : une passerelle Django sans ORM métier, les sondes =/healthz/= et =/readyz/=, un premier module Odoo de progression des tâches et une stack Compose locale. L'authentification relayée, la migration des comptes, l'organigramme, le frontend React et le déploiement restent à implémenter et à valider.
+Le bootstrap de préproduction est fonctionnel : authentification Odoo relayée par Django, sessions techniques Redis, organigramme et autorisations dans Odoo, progression auditée des tâches, interface Django/React et stack Compose privée. Les comptes et l'état actif de l'organigramme ont une reprise explicite, validée et idempotente depuis l'ancienne application CSRS.
 
-La future interface sera hybride, avec React comme interface principale et Django pour l'intégration, les sessions, les réponses serveur utiles et les surfaces qui ne justifient pas encore un portage React.
+L'interface est hybride, avec React comme surface principale et Django pour l'intégration, les sessions, les réponses serveur utiles et les surfaces qui ne justifient pas encore un portage React.
 
 ** Structure
 
 - =apps/django/= : projet Django =pent=, sans ORM métier.
 - =apps/django/gateway/= : frontière unique des appels Odoo.
 - =apps/odoo/addons/csrs_reporting/= : extensions métier CSRS dans Odoo.
-- =infrastructure/compose/= : stack Django, Odoo et PostgreSQL réservé à Odoo.
+- =frontend/= : application React en TypeScript strict.
+- =infrastructure/compose/= : stack Django, Odoo, PostgreSQL, Redis et Mailpit.
+- =scripts/= : génération d'environnement, export en lecture seule, import Odoo et déploiement préprod.
 - =docs/architecture.md= : frontières et correspondance avec =csrs_report=.
 - =DEV.org= : décisions, plan de préproduction et questions ouvertes.
 
@@ -28,14 +30,13 @@ Les promotions suivent =dev= vers =preprod= puis =master= sans réimplémenter l
 ** Démarrage local
 
 #+begin_src sh
-cp .env.example .env
-# Remplacer toutes les valeurs replace-with-... dans .env.
+./scripts/bootstrap_env.sh .env
 docker-compose --env-file .env -f infrastructure/compose/compose.yaml up --build
 #+end_src
 
-Django répond sur =http://127.0.0.1:18007/= et Odoo sur =http://127.0.0.1:18069/=. Les routes =/healthz/= et =/readyz/= distinguent la santé de Django de la disponibilité d'Odoo.
+Django répond sur =http://127.0.0.1:18007/=, Odoo sur =http://127.0.0.1:18069/= et la boîte de capture Mailpit sur =http://127.0.0.1:18025/=. Les trois ports restent liés à l'interface locale. Les routes =/healthz/= et =/readyz/= distinguent la santé de Django de la disponibilité d'Odoo.
 
-La première initialisation installe le module =csrs_reporting= et prépare l'administrateur Odoo. Les évolutions fonctionnelles continuent dans Odoo; Django ne devient pas une seconde base métier.
+La première initialisation installe le module =csrs_reporting= et prépare l'administrateur Odoo. =./scripts/import_csrs_odoo.sh dry-run FICHIER_JSON .env= valide une reprise sans écriture; le mode =apply= l'exécute de façon réentrante. Les évolutions fonctionnelles continuent dans Odoo; Django ne devient pas une seconde base métier.
 
 ** Vérification
 
@@ -43,7 +44,15 @@ La première initialisation installe le module =csrs_reporting= et prépare l'ad
 PYENV_VERSION=csrs python apps/django/manage.py check
 PYENV_VERSION=csrs pytest
 PYENV_VERSION=csrs python -m ruff check apps/django
+PYENV_VERSION=csrs mypy apps/django
+npm run format:check --prefix frontend
+npm test --prefix frontend
+npm run build --prefix frontend
 docker-compose --env-file .env.example -f infrastructure/compose/compose.yaml config --quiet
 #+end_src
 
-Cet hôte utilise =docker-compose= 1.29.2; =docker compose= peut remplacer la commande lorsqu'un greffon Compose v2 est disponible. Les contrôles de syntaxe Python, XML et Bash complètent cette vérification. Les contrôles stricts Python et TypeScript seront ajoutés avec leurs configurations respectives.
+Cet hôte utilise =docker-compose= 1.29.2; =docker compose= peut remplacer la commande lorsqu'un greffon Compose v2 est disponible. Les contrôles de syntaxe Python, XML et Bash et les tests transactionnels Odoo complètent cette vérification.
+
+** Préproduction
+
+=./scripts/deploy_preprod.sh /srv/apps/pent-preprod/config/.env= valide Compose, reconstruit les images, met à niveau le module Odoo sans supprimer les volumes, puis démarre les services. =ent.koba.sarl= expose uniquement Django par Nginx; Odoo, Mailpit et PostgreSQL ne sont pas publiés sur Internet.

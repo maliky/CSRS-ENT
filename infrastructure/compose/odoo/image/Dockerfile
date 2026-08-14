@@ -4,8 +4,13 @@ USER root
 
 COPY --chown=odoo:odoo infrastructure/compose/odoo/image/odoo.conf /etc/odoo/odoo.conf
 COPY --chown=odoo:odoo apps/odoo/addons /mnt/extra-addons
-COPY --chmod=0755 infrastructure/compose/odoo/image/bootstrap.sh /usr/local/bin/pent-odoo-bootstrap
-COPY --chmod=0755 infrastructure/compose/odoo/image/runtime.sh /usr/local/bin/pent-odoo-runtime
+COPY infrastructure/compose/odoo/image/bootstrap.sh /usr/local/bin/pent-odoo-bootstrap
+COPY infrastructure/compose/odoo/image/runtime.sh /usr/local/bin/pent-odoo-runtime
+COPY infrastructure/compose/odoo/image/import.sh /usr/local/bin/pent-odoo-import
+RUN chmod 0755 \
+    /usr/local/bin/pent-odoo-bootstrap \
+    /usr/local/bin/pent-odoo-runtime \
+    /usr/local/bin/pent-odoo-import
 
 USER odoo
 

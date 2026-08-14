@@ -7,111 +7,113 @@
 - Projet Django : =pent=
 - Référence fonctionnelle consultée en lecture seule : =/home/jil/csrs_report=, branche =dev=, application =report.ent.koba.sarl=.
 - Référence d'exploitation consultée en lecture seule : =/home/jil/git/ent.git=, branche =main=.
-- Phase : bootstrap Django + Odoo; aucun déploiement PENT ni aucune migration de données CSRS n'a encore été exécuté.
+- Phase : bootstrap Django + Odoo implémenté; reprise active CSRS validée dans la base préprod; cible publique =ent.koba.sarl=.
 - Outil Compose présent sur l'hôte : =docker-compose= 1.29.2; le greffon =docker compose= v2 n'est pas installé.
 
 * Décisions confirmées
 
-** Architecture
+** architecture
 
-Odoo est le système d'enregistrement unique. Django ne possède aucun modèle métier : il sert de façade web/API, porte les sessions techniques et appelle Odoo par une passerelle centralisée. Un stockage technique futur de sessions, files ou caches ne devra contenir aucun objet métier Odoo.
+odoo est le système d'enregistrement unique. django ne possède aucun modèle métier : il sert de façade web/api, porte les sessions techniques et appelle odoo par une passerelle centralisée. un stockage technique futur de sessions, files ou caches ne devra contenir aucun objet métier odoo.
 
-Le module Odoo =csrs_reporting= réutilise =res.users=, =res.partner=, =hr.department=, =hr.employee=, =project.project= et =project.task=. Le premier lot étend =project.task= avec un responsable CSRS, une révision optimiste et une progression; chaque évolution crée une entrée append-only =csrs.progress.entry= dans la même base Odoo.
+le module odoo =csrs_reporting= réutilise =res.users=, =res.partner=, =hr.department=, =hr.employee=, =project.project= et =project.task=. le premier lot étend =project.task= avec un responsable csrs, une révision optimiste et une progression; chaque évolution crée une entrée append-only =csrs.progress.entry= dans la même base odoo.
 
-Le portage n'est pas une réplication automatique des tables de =csrs_report=. Chaque capacité est rapprochée d'un modèle Odoo standard, puis complétée dans Odoo seulement lorsque le standard ne porte pas la règle confirmée.
+le portage n'est pas une réplication automatique des tables de =csrs_report=. chaque capacité est rapprochée d'un modèle odoo standard, puis complétée dans odoo seulement lorsque le standard ne porte pas la règle confirmée.
 
-** Interface
+** interface
 
-L'interface combine Django et React avec un accent sur React, dans la continuité de l'application actuelle. React porte progressivement les parcours principaux; Django conserve la passerelle, les sessions, les réponses serveur utiles et les écrans non encore migrés. Le routage précis sera fixé avant le premier lot frontend.
+l'interface combine django et react avec un accent sur react, dans la continuité de l'application actuelle. react porte progressivement les parcours principaux; django conserve la passerelle, les sessions, les réponses serveur utiles et les écrans non encore migrés. le routage précis sera fixé avant le premier lot frontend.
 
-** Authentification et comptes
+** authentification et comptes
 
-La cible initiale est une session Odoo relayée par Django : le navigateur s'authentifie auprès de Django en HTTPS, Django vérifie les identifiants auprès d'Odoo via la passerelle centrale, puis conserve uniquement une session technique révocable. Aucun mot de passe Odoo n'est stocké en clair dans Django, une session ou les journaux.
+la cible initiale est une session odoo relayée par django : le navigateur s'authentifie auprès de django en https, django vérifie les identifiants auprès d'odoo via la passerelle centrale, puis conserve uniquement une session technique révocable. aucun mot de passe odoo n'est stocké en clair dans django, une session ou les journaux.
 
-La base existante de =csrs_report= sur =report.ent.koba.sarl= est la source autorisée pour créer les comptes Odoo et reprendre l'organigramme. Elle est consultée en lecture seule; la migration est une commande explicite avec simulation, rapport d'écarts, clés stables et reprise sans doublon. Après validation, Odoo devient la seule source de vérité.
+la base existante de =csrs_report= sur =report.ent.koba.sarl= est la source autorisée pour créer les comptes odoo et reprendre l'organigramme. elle est consultée en lecture seule; la migration est une commande explicite avec simulation, rapport d'écarts, clés stables et reprise sans doublon. après validation, odoo devient la seule source de vérité.
 
-Les alternatives non retenues pour le premier lot sont :
+les alternatives non retenues pour le premier lot sont :
 
-- OAuth/OIDC : délègue l'identité à un fournisseur standard et évite de transmettre le mot de passe à PENT, mais exige un fournisseur configuré et une intégration Odoo correspondante.
-- SSO institutionnel : expérience de connexion unique à l'échelle de l'établissement, généralement bâtie sur OIDC ou SAML, mais dépend de l'infrastructure d'identité institutionnelle.
+- oauth/oidc : délègue l'identité à un fournisseur standard et évite de transmettre le mot de passe à pent, mais exige un fournisseur configuré et une intégration odoo correspondante.
+- sso institutionnel : expérience de connexion unique à l'échelle de l'établissement, généralement bâtie sur oidc ou saml, mais dépend de l'infrastructure d'identité institutionnelle.
 
-** Branches
+** branches
 
-Le dépôt utilise exactement trois branches : =dev= pour l'intégration, =preprod= pour le commit déployé sur cet hôte et =master= pour la production. Une promotion réutilise le même commit validé de =dev= vers =preprod= puis =master=. Le nom =main= ne sera pas maintenu comme quatrième alias sans décision explicite.
+le dépôt utilise exactement trois branches : =dev= pour l'intégration, =preprod= pour le commit déployé sur cet hôte et =master= pour la production. une promotion réutilise le même commit validé de =dev= vers =preprod= puis =master=. le nom =main= ne sera pas maintenu comme quatrième alias sans décision explicite.
 
-* Source de migration vérifiée
+* source de migration vérifiée
 
-Inventaire agrégé en lecture seule du 2026-08-14 :
+inventaire agrégé en lecture seule du 2026-08-14 :
 
 - 42 comptes, tous actifs, avec email et alias; un seul compte administrateur global.
-- 42 empreintes de mot de passe Django =pbkdf2_sha256=; aucune empreinte ni donnée personnelle n'a été affichée ou exportée.
+- 42 empreintes de mot de passe django =pbkdf2_sha256=; aucune empreinte ni donnée personnelle n'a été affichée ou journalisée.
 - 50 unités, dont 43 actives, et 47 liens entre unités.
 - 47 appartenances, dont 41 appartenances principales ouvertes.
 - 40 lignes hiérarchiques principales ouvertes et aucune ligne secondaire ouverte.
 
-Correspondance initiale proposée :
+correspondance initiale proposée :
 
-| Source =csrs_report= | Cible Odoo | Règle |
-|----------------------+-----------------------------------------------+----------------------------------------------------------------------------------|
-| =accounts_user= | =res.users= + =res.partner= + =hr.employee= | Email comme login proposé; conserver alias, nom, fonction, téléphone et état |
-| =OrganizationUnit= | =hr.department= | Conserver code stable, libellés et état actif |
-| =OrganizationUnitLink= | hiérarchie =hr.department= | Rejouer après création de toutes les unités; refuser les cycles |
-| =OrganizationMembership= | rattachement employé + extension CSRS datée si nécessaire | Préserver unité principale et périodes sans écraser l'historique |
-| =ReportingLine= | responsable de l'employé + extension CSRS datée | Préserver principal/secondaire et périodes; appliquer les règles Odoo |
+| source =csrs_report=     | cible odoo                                                | règle                                                                        |
+|--------------------------+-----------------------------------------------------------+------------------------------------------------------------------------------|
+| =accounts_user=          | =res.users= + =res.partner= + =hr.employee=               | email comme login proposé; conserver alias, nom, fonction, téléphone et état |
+| =organizationunit=       | =hr.department=                                           | conserver code stable, libellés et état actif                                |
+| =organizationunitlink=   | hiérarchie =hr.department=                                | rejouer après création de toutes les unités; refuser les cycles              |
+| =organizationmembership= | rattachement employé + extension csrs datée si nécessaire | préserver unité principale et périodes sans écraser l'historique             |
+| =reportingline=          | responsable de l'employé + extension csrs datée           | préserver principal/secondaire et périodes; appliquer les règles odoo        |
 
-La présence d'une empreinte Django ne garantit pas sa compatibilité avec Odoo. La migration ne copie ni n'affiche les empreintes tant qu'une stratégie d'authentification validée n'existe pas.
+les 42 empreintes django =pbkdf2_sha256= sont transférées par un fichier temporaire protégé, sans affichage ni journalisation. odoo les accepte transitoirement et les convertit vers son propre schéma après la première connexion réussie; une réimportation ne rétrograde jamais une empreinte déjà convertie.
 
-* Besoins fonctionnels repris de CSRS
+* besoins fonctionnels repris de csrs
 
-- Une saisie courte et responsive, utilisable sur téléphone et ordinateur.
-- Un responsable principal peut créer, modifier, valider et fermer; un responsable secondaire peut voir et commenter.
-- Le reporting est hebdomadaire et une progression à 100 % exige une validation du responsable principal.
-- Les affectations, validations et changements de progression restent auditables.
-- Les autorisations sont appliquées côté serveur et les écritures concurrentes utilisent une révision explicite.
+- une saisie courte et responsive, utilisable sur téléphone et ordinateur.
+- un responsable principal peut créer, modifier, valider et fermer; un responsable secondaire peut voir et commenter.
+- le reporting est hebdomadaire et une progression à 100 % exige une validation du responsable principal.
+- les affectations, validations et changements de progression restent auditables.
+- les autorisations sont appliquées côté serveur et les écritures concurrentes utilisent une révision explicite.
 
-* Approche de réalisation
+* approche de réalisation
 
-Le code suit un cœur fonctionnel fortement typé et une enveloppe impérative limitée à Django, RPC et Odoo. Les règles de validation, normalisation et correspondance sont déterministes et testables sans réseau; les entrées non fiables sont converties dès la frontière vers des types précis et, lorsque possible, immuables.
+le code suit un cœur fonctionnel fortement typé et une enveloppe impérative limitée à django, rpc et odoo. les règles de validation, normalisation et correspondance sont déterministes et testables sans réseau; les entrées non fiables sont converties dès la frontière vers des types précis et, lorsque possible, immuables.
 
-Chaque comportement commence par un test lisible Given/When/Then. Les fonctions pures ont des tests unitaires, la passerelle a des tests de contrat, Django a des tests HTTP et Odoo a des tests transactionnels des règles métier, ACL, règles d'enregistrement et conflits de révision. Les parcours critiques React recevront des tests de composant et des tests comportementaux navigateur.
+chaque comportement commence par un test lisible given/when/then. les fonctions pures ont des tests unitaires, la passerelle a des tests de contrat, django a des tests http et odoo a des tests transactionnels des règles métier, acl, règles d'enregistrement et conflits de révision. les parcours critiques react recevront des tests de composant et des tests comportementaux navigateur.
 
-* Frontières du bootstrap
+* frontières du bootstrap
 
-- [X] Projet Django =pent= sans =models.py= métier, sans migration métier et sans base applicative.
-- [X] Client RPC Odoo centralisé et sonde de disponibilité.
-- [X] Module Odoo initial avec progression append-only sur les tâches.
-- [X] Stack Compose locale avec un PostgreSQL réservé à Odoo.
-- [X] Documentation initiale et règles de contribution.
-- [ ] Authentification utilisateur Django/Odoo et règles de session.
-- [ ] Commande de reprise des comptes avec simulation et rapport d'écarts.
-- [ ] Organigramme daté, délégations et responsable secondaire dans Odoo.
-- [ ] Portage des propositions, agendas, processus, documents et notifications.
-- [ ] Interface Django/React responsive.
-- [ ] Stratégie de reprise des autres données existantes.
+- [x] projet django =pent= sans =models.py= métier, sans migration métier et sans base applicative.
+- [x] client rpc odoo centralisé et sonde de disponibilité.
+- [x] module odoo initial avec progression append-only sur les tâches.
+- [x] stack compose locale avec un postgresql réservé à odoo.
+- [x] documentation initiale et règles de contribution.
+- [x] authentification utilisateur django/odoo, csrf, limitation des tentatives, révocation et session redis de huit heures glissantes.
+- [x] commande de reprise des comptes avec simulation, import réentrant et rapport agrégé sans donnée personnelle.
+- [x] état actif de l'organigramme, délégations et responsables primaire/secondaire dans odoo.
+- [ ] portage des propositions, agendas, processus, documents et notifications.
+- [x] interface django/react responsive et TypeScript strict.
+- [ ] stratégie de reprise des autres données existantes.
 
-* Plan de préproduction sur cet hôte
+* plan de préproduction sur cet hôte
 
-1. Créer le dépôt nu =/home/jil/git/pent.git= et publier =dev=; créer localement =preprod= et =master= à partir du premier commit validé.
-2. Réserver le projet Compose =pent_preprod=, les volumes Odoo et PostgreSQL nommés, les ports locaux non publics et un fichier d'environnement réel hors Git.
-3. Ajouter les contrôles de types stricts Python et TypeScript, puis faire passer les tests Django, Odoo, React, Compose et les analyses statiques avant la première promotion.
-4. Implémenter l'authentification Odoo relayée et ses tests de session, CSRF, expiration, révocation et refus d'autorisation.
-5. Implémenter la migration idempotente des comptes et de l'organigramme depuis =csrs_report= avec =--dry-run=, rapport sans données sensibles, sauvegarde Odoo et procédure de retour arrière.
-6. Déployer le même commit sur =preprod=, vérifier Django puis Odoo sur leurs ports locaux, et seulement ensuite configurer Nginx, DNS et TLS.
-7. Effectuer une recette comportementale par rôle et promouvoir exactement le commit accepté vers =master=.
+1. créer le dépôt nu =/home/jil/git/pent.git= et publier =dev=; créer localement =preprod= et =master= à partir du premier commit validé.
+2. réserver le projet compose =pent_preprod=, les volumes odoo et postgresql nommés, les ports locaux non publics et un fichier d'environnement réel hors git.
+3. ajouter les contrôles de types stricts python et typescript, puis faire passer les tests django, odoo, react, compose et les analyses statiques avant la première promotion.
+4. implémenter l'authentification odoo relayée et ses tests de session, csrf, expiration, révocation et refus d'autorisation.
+5. implémenter la migration idempotente des comptes et de l'organigramme depuis =csrs_report= avec =--dry-run=, rapport sans données sensibles, sauvegarde odoo et procédure de retour arrière.
+6. déployer le même commit sur =preprod=, vérifier django puis odoo sur leurs ports locaux, et seulement ensuite configurer nginx, dns et tls.
+7. effectuer une recette comportementale par rôle et promouvoir exactement le commit accepté vers =master=.
 
-* Questions avant le déploiement de préproduction
+* réponses de cadrage appliquées
 
-1. Domaine public : puis-je retenir =preprod.ent.koba.sarl= pour Django et garder Odoo privé sur =127.0.0.1:18069=, ou souhaitez-vous aussi une adresse Odoo publique séparée ? Recommandation : exposer seulement Django au premier lot.
-2. Accès initial : les 42 comptes Odoo doivent-ils recevoir une invitation/réinitialisation de mot de passe, ou faut-il conserver les mots de passe actuels au moyen d'un mécanisme transitoire compatible avec les empreintes Django ? Recommandation : invitation/réinitialisation, plus simple à auditer et à retirer.
-3. Identifiant Odoo : confirmez-vous l'email comme login principal et l'alias court comme identifiant secondaire affiché ?
-4. Organigramme : faut-il migrer tout l'historique daté dès la préproduction, ou commencer par l'état actif puis importer l'historique après validation des correspondances ? Recommandation : état actif d'abord, rapport d'écarts, puis historique.
-5. Notifications : la préproduction doit-elle envoyer de vrais emails aux comptes migrés, ou utiliser une boîte de capture jusqu'à la recette ? Recommandation : aucune livraison réelle avant validation.
+- domaine public : =ent.koba.sarl= pour Django; Odoo reste privé sur =127.0.0.1:18069=.
+- accès initial : conservation transitoire des mots de passe actuels, sans texte clair ni réinitialisation collective.
+- identifiant : email principal et alias court secondaire.
+- organigramme : état actif d'abord; l'historique sera repris après validation si nécessaire.
+- notifications : aucune livraison réelle avant recette; Mailpit est la seule cible SMTP de préproduction.
 
-* Validation du bootstrap
+* validation du bootstrap
 
-- [X] Contrôle Django.
-- [X] Tests unitaires de la passerelle et des sondes : 4 tests réussis.
-- [X] Ruff et compilation Python.
-- [X] Analyse XML et syntaxe Bash.
-- [X] Résolution de la configuration Compose avec l'environnement d'exemple par =docker-compose= 1.29.2.
-- [X] Vérification de cohérence de la documentation et absence de commentaire agent non résolu.
+- [x] contrôle django.
+- [x] 19 tests Django de passerelle, session, CSRF, limitation et pages.
+- [x] 11 scénarios Odoo transactionnels et 4 tests React.
+- [x] Ruff, mypy strict, TypeScript strict et compilation Python.
+- [x] analyse xml et syntaxe bash.
+- [x] résolution de la configuration compose avec l'environnement d'exemple par =docker-compose= 1.29.2.
+- [x] vérification de cohérence de la documentation et absence de commentaire agent non résolu.
+- [x] reprise active : 42 comptes, 43 services, 41 rattachements, 40 lignes hiérarchiques et 5 délégations; une réexécution complète ne produit aucune écriture.

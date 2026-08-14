@@ -8,6 +8,8 @@
 **/.ruff_cache
 **/.mypy_cache
 .venv
+frontend/node_modules
+apps/django/gateway/static/react
 staticfiles
 media
 backups

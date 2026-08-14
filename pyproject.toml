@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "pent.settings"
 pythonpath = ["apps/django"]
+testpaths = ["apps/django/tests"]
 python_files = ["test_*.py", "*_tests.py"]
 addopts = "-q"
 
@@ -13,3 +14,14 @@ select = ["B", "E", "F", "W"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+strict = true
+warn_unused_configs = true
+mypy_path = ["apps/django"]
+exclude = ["apps/odoo/"]
+
+[tool.django-stubs]
+django_settings_module = "pent.settings"

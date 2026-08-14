@@ -1,13 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <record id="rule_csrs_progress_entry_participant" model="ir.rule">
-    <field name="name">Progressions des tâches CSRS accessibles</field>
-    <field name="model_id" ref="model_csrs_progress_entry"/>
-    <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-    <field name="domain_force">['|', ('task_id.user_ids', 'in', [user.id]), ('task_id.csrs_manager_id', '=', user.id)]</field>
+  <record id="rule_csrs_task_boundary" model="ir.rule">
+    <field name="name">Frontière globale des tâches CSRS</field>
+    <field name="model_id" ref="project.model_project_task"/>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_hr') or user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('csrs_manager_id', '=', False), ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
     <field name="perm_unlink" eval="False"/>
+  </record>
+  <record id="rule_csrs_task_participant" model="ir.rule">
+    <field name="name">Tâches CSRS des participants</field>
+    <field name="model_id" ref="project.model_project_task"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    <field name="domain_force">['|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+  <record id="rule_csrs_task_governance" model="ir.rule">
+    <field name="name">Gouvernance CSRS toutes tâches</field>
+    <field name="model_id" ref="project.model_project_task"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+  <record id="rule_csrs_progress_entry_participant" model="ir.rule">
+    <field name="name">Progressions CSRS des participants</field>
+    <field name="model_id" ref="model_csrs_progress_entry"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    <field name="domain_force">['|', '|', ('task_id.user_ids', 'in', [user.id]), ('task_id.csrs_manager_id', '=', user.id), ('task_id.csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+  <record id="rule_csrs_progress_entry_governance" model="ir.rule">
+    <field name="name">Progressions CSRS de gouvernance</field>
+    <field name="model_id" ref="model_csrs_progress_entry"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+  <record id="rule_csrs_membership_own" model="ir.rule">
+    <field name="name">Rattachement CSRS personnel</field>
+    <field name="model_id" ref="model_csrs_organization_membership"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    <field name="domain_force">[('user_id', '=', user.id)]</field>
+  </record>
+  <record id="rule_csrs_membership_governance" model="ir.rule">
+    <field name="name">Rattachements CSRS de gouvernance</field>
+    <field name="model_id" ref="model_csrs_organization_membership"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+  </record>
+  <record id="rule_csrs_role_grant_own" model="ir.rule">
+    <field name="name">Délégations CSRS personnelles</field>
+    <field name="model_id" ref="model_csrs_role_grant"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    <field name="domain_force">[('user_id', '=', user.id)]</field>
+  </record>
+  <record id="rule_csrs_role_grant_governance" model="ir.rule">
+    <field name="name">Délégations CSRS de gouvernance</field>
+    <field name="model_id" ref="model_csrs_role_grant"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
   </record>
 </odoo>

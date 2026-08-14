@@ -1,2 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_csrs_progress_entry_user,csrs.progress.entry user,model_csrs_progress_entry,base.group_user,1,0,0,0
+access_csrs_progress_entry_agent,csrs.progress.entry agent,model_csrs_progress_entry,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_membership_agent,csrs.organization.membership agent,model_csrs_organization_membership,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_membership_it,csrs.organization.membership it,model_csrs_organization_membership,csrs_reporting.group_csrs_it,1,1,1,0
+access_csrs_role_grant_agent,csrs.role.grant agent,model_csrs_role_grant,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_role_grant_it,csrs.role.grant it,model_csrs_role_grant,csrs_reporting.group_csrs_it,1,1,1,0

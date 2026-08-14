@@ -1,0 +1,25 @@
+{% load static %}<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connexion — PENT</title>
+    <link rel="stylesheet" href="{% static 'gateway/base.css' %}">
+  </head>
+  <body>
+    <main class="page-shell compact">
+      <p class="eyebrow">ENT du CSRS</p>
+      <h1>Connexion</h1>
+      <p>Utilisez votre adresse email ou votre identifiant court habituel.</p>
+      <form id="login-form" class="login-form">
+        <label for="login">Identifiant</label>
+        <input id="login" name="login" autocomplete="username" required>
+        <label for="password">Mot de passe</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <p id="login-error" class="error" role="alert" hidden>Connexion refusée.</p>
+        <button class="button" type="submit">Se connecter</button>
+      </form>
+    </main>
+    <script src="{% static 'gateway/login.js' %}" defer></script>
+  </body>
+</html>

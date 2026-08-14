@@ -5,6 +5,34 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    networks:
+      - private
+    volumes:
+      - redis_data:/data
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    networks:
+      - private
+    ports:
+      - "${MAILPIT_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_PORT:-18025}:8025"
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
   odoo-db:
     image: postgres:15-alpine@sha256:3d0f7584ed7d04e27fa050d6683a74746608faf21f202be78460d679cc56461f
     restart: unless-stopped
@@ -41,6 +69,8 @@ services:
       ODOO_MASTER_PASSWORD: ${ODOO_MASTER_PASSWORD}
       ODOO_ADMIN_LOGIN: ${ODOO_ADMIN_LOGIN}
       ODOO_ADMIN_PASSWORD: ${ODOO_ADMIN_PASSWORD}
+      ODOO_SMTP_HOST: mailpit
+      ODOO_SMTP_PORT: "1025"
     command: ["/usr/local/bin/pent-odoo-runtime", "bootstrap"]
     networks:
       - private
@@ -89,12 +119,18 @@ services:
 
   django:
     build:
-      context: ../../apps/django
+      context: ../..
+      dockerfile: apps/django/Dockerfile
     restart: unless-stopped
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_TRUSTED_PROXY_ADDRESSES: ${DJANGO_TRUSTED_PROXY_ADDRESSES:-127.0.0.1,::1}
+      DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-true}
+      DJANGO_SESSION_AGE_SECONDS: ${DJANGO_SESSION_AGE_SECONDS:-28800}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       ODOO_URL: http://odoo:8069
       ODOO_DB_NAME: ${ODOO_DB_NAME}
     networks:
@@ -103,6 +139,8 @@ services:
       - "${DJANGO_BIND_ADDRESS:-127.0.0.1}:${DJANGO_PORT:-18007}:8000"
     depends_on:
       odoo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     logging: *default-logging
     security_opt:
@@ -118,12 +156,9 @@ services:
       retries: 12
 
 networks:
-  private:
-    name: pent_private
-    internal: true
+  private: {}
 
 volumes:
   odoo_data:
-    name: pent_odoo_data
   odoo_postgres_data:
-    name: pent_odoo_postgres_data
+  redis_data:

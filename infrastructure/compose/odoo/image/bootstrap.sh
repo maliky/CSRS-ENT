@@ -43,6 +43,18 @@ if [[ $module_table != t ]]; then
     --init=csrs_reporting \
     --without-demo=true \
     --stop-after-init
+else
+  echo "Updating the CSRS reporting module."
+  odoo server \
+    --config="$ODOO_CONFIG" \
+    --database="$DATABASE_NAME" \
+    --db_host="$DATABASE_HOST" \
+    --db_port="$DATABASE_PORT" \
+    --db_user="$DATABASE_USER" \
+    --db_password="$DATABASE_PASSWORD" \
+    --update=csrs_reporting \
+    --without-demo=true \
+    --stop-after-init
 fi
 
 export ODOO_ADMIN_LOGIN="$ADMIN_LOGIN"
@@ -63,11 +75,12 @@ if module.state != "installed":
     raise RuntimeError("The csrs_reporting module is not installed.")
 
 admin = env.ref("base.user_admin")
-admin.write({
-    "login": os.environ["ODOO_ADMIN_LOGIN"],
-    "email": os.environ["ODOO_ADMIN_LOGIN"],
-    "password": os.environ["ODOO_ADMIN_PASSWORD"],
-})
+if not admin.csrs_source_id:
+    admin.write({
+        "login": os.environ["ODOO_ADMIN_LOGIN"],
+        "email": os.environ["ODOO_ADMIN_LOGIN"],
+        "password": os.environ["ODOO_ADMIN_PASSWORD"],
+    })
 env.cr.commit()
 PYTHON
 

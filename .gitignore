@@ -24,6 +24,10 @@ htmlcov/
 
 # Django runtime and generated assets
 staticfiles/
+apps/django/gateway/static/react/
+frontend/node_modules/
+frontend/.vite/
+*.tsbuildinfo
 media/
 *.sqlite3
 

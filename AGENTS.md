@@ -35,7 +35,7 @@ Ces directives s'appliquent à tout le dépôt PENT.
 
 ## Typage fort
 
-- Annoter les paramètres, retours et attributs du code Python nouveau ou modifié; TypeScript reste en mode strict pour le futur frontend React.
+- Annoter les paramètres, retours et attributs du code Python nouveau ou modifié; TypeScript reste en mode strict dans le frontend React.
 - Modéliser les structures connues avec `dataclass`, `TypedDict`, `Protocol`, `Literal` ou `Enum`; éviter les dictionnaires non structurés et les chaînes magiques.
 - Confiner `Any` et les données RPC non fiables à la frontière, puis les valider et les convertir immédiatement vers un type interne précis.
 - Ne pas ajouter de `cast` ou de `# type: ignore` pour masquer une erreur. Une exception imposée par Django ou Odoo doit être ciblée, commentée et couverte par un test.
@@ -65,13 +65,14 @@ Ces directives s'appliquent à tout le dépôt PENT.
 - Ne jamais lancer `docker compose down -v`, un prune large ou une suppression non ciblée.
 - Garder PostgreSQL privé. Les ports de développement et de préproduction sont liés à `127.0.0.1` par défaut.
 - Valider les fichiers Compose avant tout déploiement et préserver les volumes Odoo lors des reconstructions.
-- Ne jamais journaliser ni exporter les empreintes de mot de passe. La migration des comptes ne doit transporter un secret que si un mécanisme compatible a été explicitement conçu et validé.
+- Ne jamais afficher, journaliser ni committer les empreintes de mot de passe. Leur transport de migration reste limité à un fichier temporaire de mode `0600`, transmis par l'entrée standard puis supprimé après vérification; le mécanisme compatible doit être couvert par des tests.
 
 ## Vérification minimale
 
 - `PYENV_VERSION=csrs python apps/django/manage.py check`
 - `PYENV_VERSION=csrs pytest`
 - `PYENV_VERSION=csrs python -m ruff check apps/django`
+- `PYENV_VERSION=csrs mypy apps/django`
+- `npm run format:check --prefix frontend`, `npm test --prefix frontend` et `npm run build --prefix frontend`
 - `docker-compose --env-file .env.example -f infrastructure/compose/compose.yaml config --quiet` sur cet hôte; accepter l'équivalent `docker compose` lorsqu'un greffon Compose v2 est disponible.
-- Vérifier la syntaxe Python, XML et Bash du module et de l'image Odoo.
-- Ajouter le contrôle de types strict et les tests TypeScript/React à cette liste dès l'introduction de leurs configurations dans le dépôt.
+- Vérifier la syntaxe Python, XML et Bash du module et de l'image Odoo, puis exécuter les tests transactionnels Odoo dans l'image construite.
