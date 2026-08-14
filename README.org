@@ -17,7 +17,7 @@ L'interface est hybride, avec React comme surface principale et Django pour l'in
 - =infrastructure/compose/= : stack Django, Odoo, PostgreSQL, Redis et Mailpit.
 - =scripts/= : génération d'environnement, export en lecture seule, import Odoo et déploiement préprod.
 - =docs/architecture.md= : frontières et correspondance avec =csrs_report=.
-- =DEV.org= : décisions, plan de préproduction et questions ouvertes.
+- =DEV.org= : décisions, plan et état vérifié de la préproduction.
 
 ** Branches
 
@@ -56,3 +56,5 @@ Cet hôte utilise =docker-compose= 1.29.2; =docker compose= peut remplacer la co
 ** Préproduction
 
 =./scripts/deploy_preprod.sh /srv/apps/pent-preprod/config/.env= valide Compose, reconstruit les images, met à niveau le module Odoo sans supprimer les volumes, puis démarre les services. =ent.koba.sarl= expose uniquement Django par Nginx; Odoo, Mailpit et PostgreSQL ne sont pas publiés sur Internet.
+
+La préproduction de cet hôte est installée dans =/srv/apps/pent-preprod/app= depuis la branche =preprod= et répond sur =https://ent.koba.sarl/=. Le fichier d'environnement et les sauvegardes restent hors du checkout avec un mode d'accès restrictif.

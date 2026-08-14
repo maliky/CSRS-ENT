@@ -117,3 +117,13 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 - [x] résolution de la configuration compose avec l'environnement d'exemple par =docker-compose= 1.29.2.
 - [x] vérification de cohérence de la documentation et absence de commentaire agent non résolu.
 - [x] reprise active : 42 comptes, 43 services, 41 rattachements, 40 lignes hiérarchiques et 5 délégations; une réexécution complète ne produit aucune écriture.
+
+* état de la préproduction
+
+- [x] branches =dev= et =preprod= alignées sur le même commit validé; =master= reste inchangée avant recette.
+- [x] checkout d'exploitation =/srv/apps/pent-preprod/app= et configuration protégée hors git.
+- [x] sauvegarde pré-import conservée dans =/srv/apps/pent-preprod/backups/=.
+- [x] django public sur =https://ent.koba.sarl/= avec redirection http, certificat renouvelable et assets react servis.
+- [x] odoo et mailpit liés à =127.0.0.1=; postgresql et redis sans port hôte.
+- [x] les 42 empreintes django restent inchangées après redémarrage odoo et seront converties individuellement après une connexion réussie.
+- [ ] recette fonctionnelle par rôle et promotion du commit accepté vers =master=.
