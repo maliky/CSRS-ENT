@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: API PENT
+  title: API CSRS ENT
   version: 1.0.0
-  description: Façade HTTP typée vers les règles métier Odoo PENT.
+  description: Façade HTTP typée vers les règles métier Odoo CSRS ENT.
 paths:
   /api/v1/agenda/draft/:
     put:

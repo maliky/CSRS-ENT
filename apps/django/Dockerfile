@@ -19,4 +19,4 @@ COPY --from=frontend /build/apps/django/gateway/static/react ./gateway/static/re
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
-CMD ["gunicorn", "pent.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60"]
+CMD ["gunicorn", "csrs_ent.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60"]

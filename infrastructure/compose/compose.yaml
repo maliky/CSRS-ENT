@@ -55,7 +55,7 @@ services:
       retries: 10
 
   odoo-bootstrap:
-    image: ${ODOO_IMAGE:-pent-odoo:local}
+    image: ${ODOO_IMAGE:-csrs-ent-odoo:local}
     build:
       context: ../..
       dockerfile: infrastructure/compose/odoo/image/Dockerfile
@@ -71,7 +71,7 @@ services:
       ODOO_ADMIN_PASSWORD: ${ODOO_ADMIN_PASSWORD}
       ODOO_SMTP_HOST: mailpit
       ODOO_SMTP_PORT: "1025"
-    command: ["/usr/local/bin/pent-odoo-runtime", "bootstrap"]
+    command: ["/usr/local/bin/csrs-ent-odoo-runtime", "bootstrap"]
     networks:
       - private
     volumes:
@@ -84,14 +84,14 @@ services:
       - no-new-privileges:true
 
   odoo:
-    image: ${ODOO_IMAGE:-pent-odoo:local}
+    image: ${ODOO_IMAGE:-csrs-ent-odoo:local}
     build:
       context: ../..
       dockerfile: infrastructure/compose/odoo/image/Dockerfile
     restart: unless-stopped
     stop_grace_period: 90s
     environment: *odoo-environment
-    command: ["/usr/local/bin/pent-odoo-runtime", "server"]
+    command: ["/usr/local/bin/csrs-ent-odoo-runtime", "server"]
     networks:
       - private
     ports:

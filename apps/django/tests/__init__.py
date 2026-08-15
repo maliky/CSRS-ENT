@@ -1,1 +1,1 @@
-"""PENT Django tests."""
+"""CSRS ENT Django tests."""

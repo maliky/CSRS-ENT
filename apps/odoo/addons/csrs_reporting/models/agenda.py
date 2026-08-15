@@ -36,11 +36,11 @@ class HrLeave(models.Model):
             ("absence", "Absence"),
             ("mission", "Mission"),
         ],
-        string="Nature PENT",
+        string="Nature CSRS ENT",
         index=True,
         copy=False,
     )
-    csrs_note = fields.Text(string="Observation PENT", copy=False)
+    csrs_note = fields.Text(string="Observation CSRS ENT", copy=False)
     csrs_revision = fields.Integer(default=1, required=True, readonly=True, copy=False)
     csrs_cancelled_at = fields.Datetime(readonly=True, copy=False)
     csrs_cancellation_reason = fields.Text(readonly=True, copy=False)
@@ -88,7 +88,7 @@ class HrLeave(models.Model):
 
 class CsrsVisitorVisit(models.Model):
     _name = "csrs.visitor.visit"
-    _description = "Visite PENT"
+    _description = "Visite CSRS ENT"
     _order = "arrived_at desc, id desc"
 
     party_size = fields.Integer(required=True, default=1)
@@ -132,7 +132,7 @@ class CsrsVisitorVisit(models.Model):
 
 class CsrsAgendaDraft(models.Model):
     _name = "csrs.agenda.draft"
-    _description = "Brouillon d'agenda PENT"
+    _description = "Brouillon d'agenda CSRS ENT"
     _order = "period_start desc, period_end desc"
 
     period_start = fields.Date(required=True, index=True)
@@ -180,7 +180,7 @@ class CsrsAgendaDraft(models.Model):
 
 class CsrsAgendaVersion(models.Model):
     _name = "csrs.agenda.version"
-    _description = "Version figée d'agenda PENT"
+    _description = "Version figée d'agenda CSRS ENT"
     _order = "period_start desc, agenda_direction, version desc"
 
     draft_id = fields.Many2one(

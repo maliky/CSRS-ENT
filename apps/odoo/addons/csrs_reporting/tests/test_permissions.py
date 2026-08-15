@@ -59,6 +59,9 @@ class CsrsPermissionTests(TransactionCase):
             }
         )
 
+    def test_new_task_uses_the_csrs_ent_sequence_prefix(self):
+        self.assertTrue(self.task.csrs_code.startswith("CSRS-ENT-T-"))
+
     def test_secondary_manager_can_comment_but_cannot_edit_progress(self):
         task = self.task.with_user(self.secondary)
 

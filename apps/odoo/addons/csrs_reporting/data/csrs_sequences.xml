@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
   <record id="sequence_csrs_task" model="ir.sequence">
-    <field name="name">Tâches PENT</field>
+    <field name="name">Tâches CSRS ENT</field>
     <field name="code">csrs.task</field>
-    <field name="prefix">PENT-T-%(year)s-</field>
+    <field name="prefix">CSRS-ENT-T-%(year)s-</field>
     <field name="padding">5</field>
     <field name="company_id" eval="False"/>
   </record>
   <record id="sequence_csrs_proposal" model="ir.sequence">
-    <field name="name">Propositions PENT</field>
+    <field name="name">Propositions CSRS ENT</field>
     <field name="code">csrs.proposal</field>
-    <field name="prefix">PENT-P-%(year)s-</field>
+    <field name="prefix">CSRS-ENT-P-%(year)s-</field>
     <field name="padding">5</field>
     <field name="company_id" eval="False"/>
   </record>
