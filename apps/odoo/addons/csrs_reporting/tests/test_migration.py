@@ -1,5 +1,6 @@
 from passlib.hash import django_pbkdf2_sha256
 
+from odoo import fields
 from odoo.tests.common import TransactionCase, tagged
 from odoo.exceptions import ValidationError
 
@@ -56,6 +57,185 @@ class CsrsMigrationTests(TransactionCase):
             "role_grants": [],
         }
 
+    def payload_v3(self):
+        payload = self.payload()
+        payload.update(
+            {
+                "version": 3,
+                "strategic_plans": [
+                    {
+                        "source_id": 9_001_001,
+                        "name": "Plan stratégique de test",
+                        "start_date": "2026-01-01",
+                        "end_date": "2030-12-31",
+                        "active": True,
+                    }
+                ],
+                "action_plans": [
+                    {
+                        "source_id": 9_001_002,
+                        "strategic_plan_source_id": 9_001_001,
+                        "code": "AP-TEST",
+                        "name": "Plan d'action de test",
+                        "active": True,
+                    }
+                ],
+                "institutional_actions": [
+                    {
+                        "source_id": 9_001_003,
+                        "action_plan_source_id": 9_001_002,
+                        "code": "ACT-TEST",
+                        "name": "Action de test",
+                        "active": True,
+                    }
+                ],
+                "work_calendars": [
+                    {
+                        "source_id": 9_001_004,
+                        "name": "Calendrier test",
+                        "version": "2026",
+                        "is_default": False,
+                        "active": True,
+                    }
+                ],
+                "work_calendar_days": [
+                    {
+                        "source_id": 9_001_005,
+                        "calendar_source_id": 9_001_004,
+                        "day": "2026-08-15",
+                        "name": "Jour non travaillé",
+                        "is_working_day": False,
+                    }
+                ],
+                "tasks": [
+                    {
+                        "source_id": 9_001_006,
+                        "code": "TASK-TEST",
+                        "title": "Tâche migrée",
+                        "description": "Description source",
+                        "action_source_id": 9_001_003,
+                        "created_by_source_id": 9_000_101,
+                        "created_at": "2026-08-01 08:00:00",
+                        "updated_at": "2026-08-02 08:00:00",
+                    }
+                ],
+                "task_assignments": [
+                    {
+                        "source_id": 9_001_007,
+                        "task_source_id": 9_001_006,
+                        "employee_source_id": 9_000_101,
+                        "manager_source_id": 9_000_101,
+                        "organization_unit_source_id": 9_000_201,
+                        "calendar_source_id": 9_001_004,
+                        "start_date": "2026-08-01",
+                        "due_date": "2026-08-31",
+                        "estimated_work_days": "10.0",
+                        "status": "active",
+                        "closed_reason": "",
+                        "completed_at": None,
+                        "revision": 2,
+                    }
+                ],
+                "task_proposals": [
+                    {
+                        "source_id": 9_001_008,
+                        "employee_source_id": 9_000_101,
+                        "organization_unit_source_id": 9_000_201,
+                        "title": "Proposition migrée",
+                        "description": "Description proposition",
+                        "action_source_id": 9_001_003,
+                        "calendar_source_id": 9_001_004,
+                        "start_date": "2026-09-01",
+                        "due_date": "2026-09-30",
+                        "estimated_work_days": "5.0",
+                        "status": "submitted",
+                        "reviewed_by_source_id": None,
+                        "accepted_assignment_source_id": None,
+                        "decision_note": "",
+                        "decided_at": None,
+                        "revision": 1,
+                        "created_at": "2026-08-02 08:00:00",
+                    }
+                ],
+                "progress_entries": [
+                    {
+                        "source_id": 9_001_009,
+                        "assignment_source_id": 9_001_007,
+                        "entry_date": "2026-08-10",
+                        "percentage": 30,
+                        "note": "Avancement source",
+                        "blocked": False,
+                        "author_source_id": 9_000_101,
+                        "created_at": "2026-08-10 08:00:00",
+                        "updated_at": "2026-08-10 08:00:00",
+                    }
+                ],
+                "task_activities": [
+                    {
+                        "source_id": 9_001_010,
+                        "assignment_source_id": 9_001_007,
+                        "kind": "progress",
+                        "actor_source_id": 9_000_101,
+                        "occurred_at": "2026-08-10 08:00:00",
+                        "message": "Progression enregistrée",
+                        "percentage_before": 0,
+                        "percentage_after": 30,
+                        "progress_source_id": 9_001_009,
+                        "details": {},
+                        "supersedes_source_id": None,
+                    }
+                ],
+                "task_history": [
+                    {
+                        "history_id": 9_002_001,
+                        "record_id": 9_001_006,
+                        "history_date": "2026-08-01 08:00:00",
+                        "history_type": "+",
+                        "history_user_source_id": 9_000_101,
+                        "history_change_reason": "",
+                        "code": "TASK-TEST",
+                        "title": "Tâche migrée",
+                    }
+                ],
+                "assignment_history": [
+                    {
+                        "history_id": 9_002_002,
+                        "record_id": 9_001_007,
+                        "history_date": "2026-08-01 08:05:00",
+                        "history_type": "+",
+                        "history_user_source_id": 9_000_101,
+                        "history_change_reason": "",
+                    }
+                ],
+                "proposal_history": [
+                    {
+                        "history_id": 9_002_003,
+                        "record_id": 9_001_008,
+                        "history_date": "2026-08-02 08:00:00",
+                        "history_type": "+",
+                        "history_user_source_id": 9_000_101,
+                        "history_change_reason": "",
+                    }
+                ],
+                "progress_history": [
+                    {
+                        "history_id": 9_002_004,
+                        "record_id": 9_001_009,
+                        "history_date": "2026-08-10 08:00:00",
+                        "history_type": "+",
+                        "history_user_source_id": 9_000_101,
+                        "history_change_reason": "",
+                        "assignment_source_id": 9_001_007,
+                        "author_source_id": 9_000_101,
+                        "percentage": 30,
+                        "blocked": False,
+                        "note": "Avancement source",
+                    }
+                ],
+            }
+        )
+        return payload
+
     def test_dry_run_validates_without_creating_records(self):
         report = self.env["csrs.migration.importer"].import_payload(
             self.payload(), apply=False
@@ -100,6 +280,130 @@ class CsrsMigrationTests(TransactionCase):
         self.assertEqual(department.csrs_short_name, "Service test")
         self.assertEqual(department.csrs_kind, "unit")
         self.assertEqual(department.csrs_display_order, 7)
+
+    def test_version_three_work_history_is_imported_idempotently(self):
+        importer = self.env["csrs.migration.importer"]
+
+        first = importer.import_payload(self.payload_v3(), apply=True)
+        task = self.env["project.task"].search(
+            [("csrs_task_source_id", "=", 9_001_006)]
+        )
+        source_user = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        action = self.env["csrs.institutional.action"].search(
+            [("csrs_source_id", "=", 9_001_003)]
+        )
+        calendar = self.env["resource.calendar"].search(
+            [("csrs_source_id", "=", 9_001_004)]
+        )
+        self.assertEqual(
+            importer._changes(
+                task,
+                {
+                    "active": True,
+                    "name": "Tâche migrée",
+                    "description": "Description source",
+                    "csrs_source_id": 9_001_007,
+                    "csrs_task_source_id": 9_001_006,
+                    "csrs_code": "TASK-TEST",
+                    "csrs_managed": True,
+                    "csrs_manager_id": source_user.id,
+                    "user_ids": [(6, 0, source_user.ids)],
+                    "csrs_calendar_id": calendar.id,
+                    "csrs_start_date": fields.Date.to_date("2026-08-01"),
+                    "date_deadline": fields.Date.to_date("2026-08-31"),
+                    "csrs_estimated_work_days": 10.0,
+                    "csrs_status": "active",
+                    "csrs_close_reason": False,
+                    "csrs_completed_at": False,
+                    "csrs_revision": 2,
+                    "csrs_institutional_action_id": action.id,
+                },
+            ),
+            {},
+        )
+        second = importer.import_payload(self.payload_v3(), apply=True)
+
+        self.assertEqual(first["created"]["tasks"], 1)
+        self.assertEqual(second["unchanged"]["tasks"], 1)
+        self.assertEqual(task.csrs_progress_percent, 30)
+        self.assertEqual(len(task.csrs_progress_entry_ids), 1)
+        self.assertEqual(len(task.csrs_legacy_revision_ids), 3)
+        proposal = self.env["csrs.task.proposal"].search(
+            [("csrs_source_id", "=", 9_001_008)]
+        )
+        self.assertEqual(
+            self.env["csrs.legacy.task.revision"].search_count(
+                [("proposal_id", "=", proposal.id)]
+            ),
+            1,
+        )
+
+    def test_historical_work_accepts_a_deleted_organization_unit_reference(self):
+        payload = self.payload_v3()
+        payload["task_assignments"][0]["organization_unit_source_id"] = 9_999_991
+        payload["task_proposals"][0]["organization_unit_source_id"] = 9_999_992
+
+        report = self.env["csrs.migration.importer"].import_payload(
+            payload, apply=False
+        )
+
+        self.assertEqual(report["mode"], "dry-run")
+
+    def test_source_it_account_is_distinct_from_the_odoo_administrator(self):
+        payload = self.payload()
+        payload["users"][0]["is_it_admin"] = True
+
+        self.env["csrs.migration.importer"].import_payload(payload, apply=True)
+
+        imported = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        self.assertNotEqual(imported, self.env.ref("base.user_admin"))
+        self.assertTrue(imported.has_group("csrs_reporting.group_csrs_it"))
+
+    def test_reconcile_adopts_the_preserved_dev_alias(self):
+        demo_dev = self.env["res.users"].with_context(no_reset_password=True).create(
+            {
+                "name": "Dev local",
+                "login": "dev@demo.invalid",
+                "email": "dev@demo.invalid",
+                "csrs_alias": "dev",
+                "password": "LocalDevPassword123!",
+            }
+        )
+        employee = self.env["hr.employee"].create(
+            {"name": demo_dev.name, "user_id": demo_dev.id}
+        )
+        payload = self.payload()
+        payload["users"][0].update(
+            {
+                "email": "dev-real@example.invalid",
+                "alias": "dev",
+                "name": "Dev réel",
+            }
+        )
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [demo_dev.id]
+        )
+        [password_before] = self.env.cr.fetchone()
+
+        self.env["csrs.migration.importer"].import_payload(
+            payload, apply=True, reconcile=True
+        )
+
+        imported = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        self.assertEqual(imported, demo_dev)
+        self.assertEqual(employee.csrs_source_id, 9_000_101)
+        self.assertEqual(imported.login, "dev-real@example.invalid")
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [demo_dev.id]
+        )
+        [password_after] = self.env.cr.fetchone()
+        self.assertEqual(password_after, password_before)
 
     def test_reporting_lines_are_preserved_as_dated_records(self):
         payload = self.payload()

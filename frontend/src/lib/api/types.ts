@@ -100,8 +100,175 @@ export type Session = {
     delete_tasks: boolean;
     manage_users: boolean;
     manage_organization: boolean;
+    manage_research_projects: boolean;
+    manage_processes: boolean;
     password_change_required: boolean;
   };
+};
+
+export type ResearchProjectSummary = {
+  id: number;
+  reference: string;
+  name: string;
+  state: "proposal" | "active" | "rejected" | "closed";
+  state_label: string;
+  revision: number;
+  proposer: Person;
+  lead: Person | null;
+  date_start: string | null;
+  date_end: string | null;
+  capabilities: {
+    edit: boolean;
+    approve: boolean;
+    reject: boolean;
+    close: boolean;
+  };
+};
+
+export type ProjectSection = {
+  id: number;
+  code: string;
+  label: string;
+  state: string;
+  revision: number;
+  correction_reason: string;
+  capabilities: {
+    submit: boolean;
+    verify: boolean;
+    correct: boolean;
+    validate: boolean;
+    close: boolean;
+  };
+};
+
+export type ProjectItemValues = Record<
+  string,
+  string | number | boolean | number[] | null
+>;
+
+export type ResearchProjectDetail = ResearchProjectSummary & {
+  objectives: string;
+  institutional_commitments: string;
+  team: Person[];
+  donor: { id: number; name: string } | null;
+  partners: Array<{ id: number; name: string }>;
+  sections: ProjectSection[];
+  action_plan: Array<{
+    id: number;
+    name: string;
+    assignees: Person[];
+    start_date: string | null;
+    deadline: string | null;
+    estimated_work_days: number;
+    progress: number;
+    blocked: boolean;
+    status: string;
+    values: ProjectItemValues;
+  }>;
+  budget: Array<{
+    id: number;
+    code: string;
+    name: string;
+    planned_amount: number;
+    committed_amount: number;
+    actual_amount: number;
+    available_amount: number;
+    values: ProjectItemValues;
+  }>;
+  risks: Array<{
+    id: number;
+    title: string;
+    severity: number;
+    state: string;
+    values: ProjectItemValues;
+  }>;
+  results: Array<{
+    id: number;
+    name: string;
+    indicator: string;
+    target_value: string;
+    achieved_value: string;
+    values: ProjectItemValues;
+  }>;
+  deliverables: Array<{
+    id: number;
+    name: string;
+    deadline: string | null;
+    version: string;
+    at_risk: boolean;
+    values: ProjectItemValues;
+  }>;
+  compliance: Array<{
+    id: number;
+    kind: string;
+    description: string;
+    state: string;
+    due_date: string | null;
+    values: ProjectItemValues;
+  }>;
+  reports: Array<{
+    id: number;
+    title: string;
+    report_type: string;
+    state: string;
+    due_date: string;
+    values: ProjectItemValues;
+  }>;
+  closure: Array<{
+    id: number;
+    assessment: string;
+    values: ProjectItemValues;
+  }>;
+};
+
+export type ProcedureSummary = {
+  id: number;
+  reference: string;
+  process_type: string;
+  process_type_label: string;
+  state: string;
+  state_label: string;
+  revision: number;
+  subject: string;
+  description: string;
+  amount: number;
+  currency: string;
+  requester: Person;
+  origin_department: { id: number; name: string };
+  project: { id: number; reference: string; name: string } | null;
+  correction_reason: string;
+  available_actions: string[];
+};
+
+export type ProcedureDetail = ProcedureSummary & {
+  details: Record<string, unknown>;
+  events: Array<{
+    id: number;
+    action: string;
+    from_state: string;
+    to_state: string;
+    note: string;
+    actor: Person;
+    occurred_at: string;
+  }>;
+};
+
+export type ProcedureOptions = {
+  default_department_id: number | null;
+  process_types: Array<{ value: string; label: string }>;
+  departments: Array<{ id: number; name: string }>;
+  projects: Array<{
+    id: number;
+    reference: string;
+    name: string;
+    budget_lines: Array<{
+      id: number;
+      code: string;
+      name: string;
+      available_amount: number;
+    }>;
+  }>;
+  people: Array<Person & { employee_id: number; partner_id: number }>;
 };
 
 export type OrganizationUnitOption = {

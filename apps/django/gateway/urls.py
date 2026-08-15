@@ -99,6 +99,41 @@ urlpatterns = [
         api_views.AvailabilityCancelView.as_view(),
     ),
     path("api/v1/agenda/preview/", api_views.AgendaPreviewView.as_view()),
+    path(
+        "api/v1/research-projects/",
+        api_views.ResearchProjectListCreateView.as_view(),
+    ),
+    path(
+        "api/v1/research-projects/options/",
+        api_views.ResearchProjectOptionsView.as_view(),
+    ),
+    path(
+        "api/v1/research-projects/<int:pk>/",
+        api_views.ResearchProjectDetailView.as_view(),
+    ),
+    path(
+        "api/v1/research-projects/<int:pk>/transition/",
+        api_views.ResearchProjectTransitionView.as_view(),
+    ),
+    path(
+        "api/v1/research-projects/<int:pk>/sections/<int:section_pk>/transition/",
+        api_views.ResearchProjectSectionTransitionView.as_view(),
+    ),
+    path(
+        "api/v1/research-projects/<int:pk>/items/<str:resource>/",
+        api_views.ResearchProjectItemCreateView.as_view(),
+    ),
+    path(
+        "api/v1/research-projects/<int:pk>/items/<str:resource>/<int:item_pk>/",
+        api_views.ResearchProjectItemUpdateView.as_view(),
+    ),
+    path("api/v1/processes/options/", api_views.ProcessOptionsView.as_view()),
+    path("api/v1/processes/", api_views.ProcessListCreateView.as_view()),
+    path("api/v1/processes/<int:pk>/", api_views.ProcessDetailView.as_view()),
+    path(
+        "api/v1/processes/<int:pk>/transition/",
+        api_views.ProcessTransitionView.as_view(),
+    ),
     path("api/v1/agenda/draft/", api_views.AgendaDraftView.as_view()),
     path(
         "api/v1/agenda/versions/",

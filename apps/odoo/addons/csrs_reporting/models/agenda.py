@@ -244,9 +244,10 @@ class CsrsAgendaVersion(models.Model):
                 "generated_by_id": self.env.user.id,
             }
         )
-        pdf, _ = self.env["ir.actions.report"].sudo()._render_qweb_pdf(
+        pdf, output_format = self.env["ir.actions.report"].sudo()._render_qweb_pdf(
             "csrs_reporting.report_csrs_agenda", res_ids=version.ids
         )
+        del output_format
         attachment = self.env["ir.attachment"].sudo().create(
             {
                 "name": (

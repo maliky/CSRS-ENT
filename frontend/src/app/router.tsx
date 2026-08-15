@@ -15,6 +15,10 @@ import { TaskManagementPage } from "../features/tasks/TaskManagementPage";
 import { UserFormPage } from "../features/users/UserFormPage";
 import { UserManagementPage } from "../features/users/UserManagementPage";
 import { OrganizationPage } from "../features/organization/OrganizationPage";
+import { ResearchProjectsPage } from "../features/projects/ResearchProjectsPage";
+import { ResearchProjectDetailPage } from "../features/projects/ResearchProjectDetailPage";
+import { ProcessesPage } from "../features/processes/ProcessesPage";
+import { ProcessDetailPage } from "../features/processes/ProcessDetailPage";
 
 export function AppRouter() {
   return (
@@ -48,6 +52,13 @@ export function AppRouter() {
           <Route path="equipe/:employeeId" element={<EmployeePage />} />
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="absences" element={<AvailabilityPage />} />
+          <Route path="projets" element={<ResearchProjectsPage />} />
+          <Route
+            path="projets/:projectId"
+            element={<ResearchProjectDetailPage />}
+          />
+          <Route path="procedures" element={<ProcessesPage />} />
+          <Route path="procedures/:processId" element={<ProcessDetailPage />} />
           <Route
             path="administration/taches"
             element={<TaskManagementPage />}

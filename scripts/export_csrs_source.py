@@ -8,10 +8,24 @@ from django.utils import timezone
 from access.models import RoleGrant
 from accounts.models import User
 from work.models import (
+    ActionPlan,
+    HistoricalProgressEntry,
+    HistoricalTask,
+    HistoricalTaskAssignment,
+    HistoricalTaskProposal,
+    InstitutionalAction,
     OrganizationMembership,
     OrganizationUnit,
     OrganizationUnitLink,
+    ProgressEntry,
     ReportingLine,
+    StrategicPlan,
+    Task,
+    TaskActivity,
+    TaskAssignment,
+    TaskProposal,
+    WorkCalendar,
+    WorkCalendarDay,
 )
 
 
@@ -38,8 +52,27 @@ def iso_datetime(value):
     return value.strftime("%Y-%m-%d %H:%M:%S") if value else None
 
 
+def iso_date(value):
+    return value.isoformat() if value else None
+
+
+def decimal_string(value):
+    return str(value) if value is not None else None
+
+
+def history_common(row):
+    return {
+        "history_id": row.history_id,
+        "record_id": row.id,
+        "history_date": iso_datetime(row.history_date),
+        "history_type": row.history_type,
+        "history_user_source_id": row.history_user_id,
+        "history_change_reason": row.history_change_reason or "",
+    }
+
+
 payload = {
-    "version": 2,
+    "version": 3,
     "extracted_at": now.isoformat(),
     "users": [
         {
@@ -130,6 +163,206 @@ payload = {
         .filter(unit_id__in=active_unit_ids)
         .select_related("role")
         .order_by("id")
+    ],
+    "strategic_plans": [
+        {
+            "source_id": row.id,
+            "name": row.name,
+            "start_date": iso_date(row.start_date),
+            "end_date": iso_date(row.end_date),
+            "active": row.active,
+        }
+        for row in StrategicPlan.objects.order_by("id")
+    ],
+    "action_plans": [
+        {
+            "source_id": row.id,
+            "strategic_plan_source_id": row.strategic_plan_id,
+            "name": row.name,
+            "code": row.code,
+            "active": True,
+        }
+        for row in ActionPlan.objects.order_by("id")
+    ],
+    "institutional_actions": [
+        {
+            "source_id": row.id,
+            "action_plan_source_id": row.action_plan_id,
+            "name": row.name,
+            "code": row.code,
+            "active": row.active,
+        }
+        for row in InstitutionalAction.objects.order_by("id")
+    ],
+    "work_calendars": [
+        {
+            "source_id": row.id,
+            "name": row.name,
+            "version": row.version,
+            "is_default": row.is_default,
+            "active": row.active,
+        }
+        for row in WorkCalendar.objects.order_by("id")
+    ],
+    "work_calendar_days": [
+        {
+            "source_id": row.id,
+            "calendar_source_id": row.calendar_id,
+            "day": iso_date(row.day),
+            "name": row.name,
+            "is_working_day": row.is_working_day,
+        }
+        for row in WorkCalendarDay.objects.order_by("id")
+    ],
+    "tasks": [
+        {
+            "source_id": row.id,
+            "code": row.code,
+            "title": row.title,
+            "description": row.description,
+            "action_source_id": row.action_id,
+            "created_by_source_id": row.created_by_id,
+            "created_at": iso_datetime(row.created_at),
+            "updated_at": iso_datetime(row.updated_at),
+        }
+        for row in Task.objects.order_by("id")
+    ],
+    "task_assignments": [
+        {
+            "source_id": row.id,
+            "task_source_id": row.task_id,
+            "employee_source_id": row.employee_id,
+            "manager_source_id": row.manager_id,
+            "organization_unit_source_id": row.organization_unit_id,
+            "calendar_source_id": row.calendar_id,
+            "start_date": iso_date(row.start_date),
+            "due_date": iso_date(row.due_date),
+            "estimated_work_days": decimal_string(row.estimated_work_days),
+            "status": row.status,
+            "closed_reason": row.closed_reason,
+            "completed_at": iso_datetime(row.completed_at),
+            "revision": row.revision,
+        }
+        for row in TaskAssignment.objects.order_by("id")
+    ],
+    "task_proposals": [
+        {
+            "source_id": row.id,
+            "employee_source_id": row.employee_id,
+            "organization_unit_source_id": row.organization_unit_id,
+            "title": row.title,
+            "description": row.description,
+            "action_source_id": row.action_id,
+            "calendar_source_id": row.calendar_id,
+            "start_date": iso_date(row.start_date),
+            "due_date": iso_date(row.due_date),
+            "estimated_work_days": decimal_string(row.estimated_work_days),
+            "status": row.status,
+            "reviewed_by_source_id": row.reviewed_by_id,
+            "accepted_assignment_source_id": row.accepted_assignment_id,
+            "decision_note": row.decision_note,
+            "decided_at": iso_datetime(row.decided_at),
+            "revision": row.revision,
+            "created_at": iso_datetime(row.created_at),
+        }
+        for row in TaskProposal.objects.order_by("id")
+    ],
+    "progress_entries": [
+        {
+            "source_id": row.id,
+            "assignment_source_id": row.assignment_id,
+            "entry_date": iso_date(row.entry_date),
+            "percentage": row.percentage,
+            "note": row.note,
+            "blocked": row.blocked,
+            "author_source_id": row.author_id,
+            "created_at": iso_datetime(row.created_at),
+            "updated_at": iso_datetime(row.updated_at),
+        }
+        for row in ProgressEntry.objects.order_by("id")
+    ],
+    "task_activities": [
+        {
+            "source_id": row.id,
+            "assignment_source_id": row.assignment_id,
+            "kind": row.kind,
+            "actor_source_id": row.actor_id,
+            "occurred_at": iso_datetime(row.occurred_at),
+            "message": row.message,
+            "percentage_before": row.percentage_before,
+            "percentage_after": row.percentage_after,
+            "progress_source_id": row.progress_entry_id,
+            "details": row.details,
+            "supersedes_source_id": row.supersedes_id,
+        }
+        for row in TaskActivity.objects.order_by("id")
+    ],
+    "task_history": [
+        {
+            **history_common(row),
+            "code": row.code,
+            "title": row.title,
+            "description": row.description,
+            "action_source_id": row.action_id,
+            "created_by_source_id": row.created_by_id,
+            "created_at": iso_datetime(row.created_at),
+            "updated_at": iso_datetime(row.updated_at),
+        }
+        for row in HistoricalTask.objects.order_by("history_date", "history_id")
+    ],
+    "assignment_history": [
+        {
+            **history_common(row),
+            "task_source_id": row.task_id,
+            "employee_source_id": row.employee_id,
+            "manager_source_id": row.manager_id,
+            "organization_unit_source_id": row.organization_unit_id,
+            "calendar_source_id": row.calendar_id,
+            "start_date": iso_date(row.start_date),
+            "due_date": iso_date(row.due_date),
+            "estimated_work_days": decimal_string(row.estimated_work_days),
+            "status": row.status,
+            "closed_reason": row.closed_reason,
+            "completed_at": iso_datetime(row.completed_at),
+            "revision": row.revision,
+        }
+        for row in HistoricalTaskAssignment.objects.order_by("history_date", "history_id")
+    ],
+    "proposal_history": [
+        {
+            **history_common(row),
+            "employee_source_id": row.employee_id,
+            "organization_unit_source_id": row.organization_unit_id,
+            "title": row.title,
+            "description": row.description,
+            "action_source_id": row.action_id,
+            "calendar_source_id": row.calendar_id,
+            "start_date": iso_date(row.start_date),
+            "due_date": iso_date(row.due_date),
+            "estimated_work_days": decimal_string(row.estimated_work_days),
+            "status": row.status,
+            "reviewed_by_source_id": row.reviewed_by_id,
+            "accepted_assignment_source_id": row.accepted_assignment_id,
+            "decision_note": row.decision_note,
+            "decided_at": iso_datetime(row.decided_at),
+            "revision": row.revision,
+            "created_at": iso_datetime(row.created_at),
+        }
+        for row in HistoricalTaskProposal.objects.order_by("history_date", "history_id")
+    ],
+    "progress_history": [
+        {
+            **history_common(row),
+            "assignment_source_id": row.assignment_id,
+            "entry_date": iso_date(row.entry_date),
+            "percentage": row.percentage,
+            "note": row.note,
+            "blocked": row.blocked,
+            "author_source_id": row.author_id,
+            "created_at": iso_datetime(row.created_at),
+            "updated_at": iso_datetime(row.updated_at),
+        }
+        for row in HistoricalProgressEntry.objects.order_by("history_date", "history_id")
     ],
 }
 
