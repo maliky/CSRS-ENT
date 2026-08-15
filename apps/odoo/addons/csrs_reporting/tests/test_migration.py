@@ -8,15 +8,19 @@ from odoo.exceptions import ValidationError
 class CsrsMigrationTests(TransactionCase):
     def payload(self):
         return {
-            "version": 1,
+            "version": 2,
             "users": [
                 {
                     "source_id": 9_000_101,
                     "email": "csrs-ent-migration-test@example.invalid",
                     "alias": "csrs-ent-migration-test",
                     "name": "Compte Migration",
+                    "first_name": "Compte",
+                    "last_name": "Migration",
                     "phone": "",
                     "job_title": "Profil source",
+                    "agenda_direction": "programs",
+                    "include_in_direction_agendas": True,
                     "active": True,
                     "is_it_admin": False,
                     "is_dg": False,
@@ -30,6 +34,9 @@ class CsrsMigrationTests(TransactionCase):
                     "source_id": 9_000_201,
                     "code": "CSRSENTTEST",
                     "name": "Service test CSRS ENT",
+                    "short_name": "Service test",
+                    "kind": "unit",
+                    "display_order": 7,
                     "active": True,
                 }
             ],
@@ -77,6 +84,70 @@ class CsrsMigrationTests(TransactionCase):
             ),
             1,
         )
+        user = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        employee = self.env["hr.employee"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        department = self.env["hr.department"].search(
+            [("csrs_source_id", "=", 9_000_201)]
+        )
+        self.assertEqual(user.csrs_first_name, "Compte")
+        self.assertEqual(user.csrs_last_name, "Migration")
+        self.assertEqual(employee.csrs_agenda_direction, "programs")
+        self.assertTrue(employee.csrs_include_in_agenda)
+        self.assertEqual(department.csrs_short_name, "Service test")
+        self.assertEqual(department.csrs_kind, "unit")
+        self.assertEqual(department.csrs_display_order, 7)
+
+    def test_reporting_lines_are_preserved_as_dated_records(self):
+        payload = self.payload()
+        manager = dict(payload["users"][0])
+        manager.update(
+            {
+                "source_id": 9_000_102,
+                "email": "csrs-ent-manager@example.invalid",
+                "alias": "csrs-ent-manager",
+                "name": "Responsable Migration",
+                "first_name": "Responsable",
+                "last_name": "Migration",
+            }
+        )
+        payload["users"].append(manager)
+        payload["reporting_lines"] = [
+            {
+                "source_id": 9_000_401,
+                "employee_source_id": 9_000_101,
+                "supervisor_source_id": 9_000_102,
+                "department_source_id": 9_000_201,
+                "start_date": "2026-01-01",
+                "end_date": None,
+                "is_primary": True,
+            }
+        ]
+
+        importer = self.env["csrs.migration.importer"]
+        importer.import_payload(payload, apply=True)
+        importer.import_payload(payload, apply=True)
+
+        line = self.env["csrs.reporting.line"].search(
+            [("csrs_source_id", "=", 9_000_401)]
+        )
+        self.assertEqual(len(line), 1)
+        self.assertTrue(line.is_primary)
+        self.assertFalse(line.end_date)
+        employee = self.env["hr.employee"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        self.assertEqual(employee.parent_id.user_id, line.supervisor_id)
+
+    def test_version_one_payload_is_rejected_to_avoid_silent_data_loss(self):
+        payload = self.payload()
+        payload["version"] = 1
+
+        with self.assertRaises(ValidationError):
+            self.env["csrs.migration.importer"].import_payload(payload, apply=False)
 
     def test_existing_employee_is_adopted_for_an_existing_user(self):
         payload = self.payload()
@@ -105,6 +176,9 @@ class CsrsMigrationTests(TransactionCase):
                 "source_id": 9_000_202,
                 "code": "CSRSENTTEST2",
                 "name": "Service 2",
+                "short_name": "Service 2",
+                "kind": "unit",
+                "display_order": 8,
                 "active": True,
             }
         )

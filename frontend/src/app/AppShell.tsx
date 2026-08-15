@@ -5,10 +5,13 @@ import {
   ListPlus,
   LogOut,
   Menu,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Users,
   UserRoundCheck,
+  UserRoundCog,
+  ListX,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -193,6 +196,36 @@ export function AppShell() {
             >
               <ListPlus size={iconSize} aria-hidden="true" />
               <span className={styles.navLabel}>Affecter</span>
+            </NavLink>
+          )}
+          {session.capabilities.delete_tasks && (
+            <NavLink
+              to="/administration/taches"
+              className={navClass}
+              title="Gestion des tâches"
+            >
+              <ListX size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Gérer les tâches</span>
+            </NavLink>
+          )}
+          {session.capabilities.manage_users && (
+            <NavLink
+              to="/administration/utilisateurs"
+              className={navClass}
+              title="Gestion des utilisateurs"
+            >
+              <UserRoundCog size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Utilisateurs</span>
+            </NavLink>
+          )}
+          {session.capabilities.manage_organization && (
+            <NavLink
+              to="/administration/organigramme"
+              className={navClass}
+              title="Organigramme"
+            >
+              <Network size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Organigramme</span>
             </NavLink>
           )}
         </nav>

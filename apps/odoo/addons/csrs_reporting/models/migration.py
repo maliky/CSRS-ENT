@@ -91,7 +91,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             user.write({"group_ids": [Command.link(group.id)]})
 
     def _validate_payload(self, payload):
-        if not isinstance(payload, dict) or payload.get("version") != 1:
+        if not isinstance(payload, dict) or payload.get("version") != 2:
             raise ValidationError(_("Version de fichier de migration invalide."))
         names = (
             "users",
@@ -136,9 +136,17 @@ class CsrsMigrationImporter(models.AbstractModel):
             self._required_string(row, "email")
             self._required_string(row, "name")
             self._required_string(row, "password_hash")
+            direction = row.get("agenda_direction") or ""
+            if direction not in ("", "programs", "administration"):
+                raise ValidationError(_("Direction d'agenda invalide."))
         for row in snapshot["departments"]:
             self._required_string(row, "code")
             self._required_string(row, "name")
+            self._required_string(row, "short_name")
+            self._required_string(row, "kind")
+            display_order = row.get("display_order")
+            if not isinstance(display_order, int) or isinstance(display_order, bool):
+                raise ValidationError(_("Ordre d'affichage de service invalide."))
         self._validate_department_graph(snapshot["department_links"], department_ids)
         for row in snapshot["memberships"]:
             self._reference(row, "user_source_id", user_ids)
@@ -150,6 +158,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             if employee_id == supervisor_id:
                 raise ValidationError(_("Une ligne hiérarchique est réflexive."))
             self._reference(row, "department_source_id", department_ids)
+            self._required_string(row, "start_date")
         for row in snapshot["role_grants"]:
             self._reference(row, "user_source_id", user_ids)
             self._reference(row, "department_source_id", department_ids)
@@ -237,6 +246,9 @@ class CsrsMigrationImporter(models.AbstractModel):
                 "active": bool(row.get("active", True)),
                 "csrs_source_id": source_id,
                 "csrs_code": row["code"].strip().upper(),
+                "csrs_short_name": row["short_name"].strip(),
+                "csrs_kind": row["kind"].strip(),
+                "csrs_display_order": row["display_order"],
             }
             if department:
                 self._write_or_report(
@@ -300,6 +312,8 @@ class CsrsMigrationImporter(models.AbstractModel):
                 "active": bool(row.get("active", True)),
                 "csrs_source_id": source_id,
                 "csrs_alias": (row.get("alias") or "").strip() or False,
+                "csrs_first_name": (row.get("first_name") or "").strip() or False,
+                "csrs_last_name": (row.get("last_name") or "").strip() or False,
             }
             if user:
                 if user.csrs_source_id and user.csrs_source_id != source_id:
@@ -331,6 +345,10 @@ class CsrsMigrationImporter(models.AbstractModel):
                 "work_phone": (row.get("phone") or "").strip() or False,
                 "active": bool(row.get("active", True)),
                 "csrs_source_id": source_id,
+                "csrs_agenda_direction": row.get("agenda_direction") or False,
+                "csrs_include_in_agenda": bool(
+                    row.get("include_in_direction_agendas", True)
+                ),
             }
             if not employee or not employee.csrs_source_id:
                 employee_values["job_title"] = (
@@ -404,6 +422,9 @@ class CsrsMigrationImporter(models.AbstractModel):
                 )
 
     def _apply_reporting_lines(self, rows, users, employees, report):
+        ReportingLine = self.env["csrs.reporting.line"].sudo().with_context(
+            active_test=False
+        )
         primary_group = self.env.ref("csrs_reporting.group_csrs_primary_manager")
         secondary_group = self.env.ref("csrs_reporting.group_csrs_secondary_manager")
         secondaries = defaultdict(list)
@@ -411,6 +432,29 @@ class CsrsMigrationImporter(models.AbstractModel):
             employee = employees[row["employee_source_id"]]
             supervisor_employee = employees[row["supervisor_source_id"]]
             supervisor_user = users[row["supervisor_source_id"]]
+            source_id = row["source_id"]
+            line = ReportingLine.search(
+                [("csrs_source_id", "=", source_id)], limit=1
+            )
+            values = {
+                "csrs_source_id": source_id,
+                "employee_id": users[row["employee_source_id"]].id,
+                "supervisor_id": supervisor_user.id,
+                "department_id": self.env["hr.department"].search(
+                    [("csrs_source_id", "=", row["department_source_id"])], limit=1
+                ).id,
+                "start_date": fields.Date.to_date(row["start_date"]),
+                "end_date": fields.Date.to_date(row["end_date"])
+                if row.get("end_date")
+                else False,
+                "is_primary": bool(row.get("is_primary")),
+                "active": not bool(row.get("end_date")),
+            }
+            if line:
+                self._write_or_report(line, values, report, "reporting_lines")
+            else:
+                ReportingLine.create(values)
+                report["created"]["reporting_lines"] += 1
             if row.get("is_primary"):
                 if employee.parent_id != supervisor_employee:
                     employee.parent_id = supervisor_employee

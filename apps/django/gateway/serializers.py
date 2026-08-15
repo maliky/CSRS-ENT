@@ -56,6 +56,184 @@ class TransitionSerializer(serializers.Serializer[dict[str, object]]):
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class TaskManagementQuerySerializer(serializers.Serializer[dict[str, object]]):
+    q = serializers.CharField(required=False, allow_blank=True, default="")
+    status = serializers.ChoiceField(
+        choices=("planned", "active", "awaiting_validation", "completed", "closed_early"),
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    employee_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    page = serializers.IntegerField(min_value=1, required=False, default=1)
+    page_size = serializers.IntegerField(
+        min_value=1, max_value=100, required=False, default=50
+    )
+
+
+class TaskSelectionSerializer(serializers.Serializer[dict[str, object]]):
+    id = serializers.IntegerField(min_value=1)
+    revision = serializers.IntegerField(min_value=1)
+
+
+class TaskBulkDeleteSerializer(serializers.Serializer[dict[str, object]]):
+    assignments = TaskSelectionSerializer(many=True, allow_empty=False)
+    reason = serializers.CharField(min_length=3, max_length=500, trim_whitespace=True)
+    confirmation = serializers.ChoiceField(choices=("SUPPRIMER",))
+
+    def validate_assignments(
+        self, value: list[dict[str, object]]
+    ) -> list[dict[str, object]]:
+        ids = [item["id"] for item in value]
+        if len(ids) > 100:
+            raise serializers.ValidationError("La sélection est limitée à 100 tâches.")
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("Une tâche ne peut apparaître qu'une fois.")
+        return value
+
+
+class UserManagementQuerySerializer(serializers.Serializer[dict[str, object]]):
+    q = serializers.CharField(required=False, allow_blank=True, default="")
+    state = serializers.ChoiceField(
+        choices=("active", "inactive"), required=False, allow_blank=True, default=""
+    )
+    unit_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    page = serializers.IntegerField(min_value=1, required=False, default=1)
+    page_size = serializers.IntegerField(
+        min_value=1, max_value=100, required=False, default=50
+    )
+
+
+class UserWriteSerializer(serializers.Serializer[dict[str, object]]):
+    email = serializers.EmailField(max_length=254)
+    login_alias = serializers.RegexField(
+        r"^[a-z][a-z0-9_-]*$",
+        max_length=32,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    position = serializers.CharField(max_length=160, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
+    agenda_direction = serializers.ChoiceField(
+        choices=("", "programs", "administration"),
+        required=False,
+        allow_blank=True,
+    )
+    include_in_direction_agendas = serializers.BooleanField(required=False, default=True)
+    unit_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, default=list
+    )
+    primary_unit_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, default=None
+    )
+    primary_supervisor_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, default=None
+    )
+    organization_effective_date = serializers.DateField()
+    state_token = serializers.CharField(required=False, allow_blank=False)
+
+    def validate_unit_ids(self, value: list[int]) -> list[int]:
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("Une unité ne peut apparaître qu'une fois.")
+        return value
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        unit_ids = set(cast(list[int], attrs.get("unit_ids", [])))
+        primary = attrs.get("primary_unit_id")
+        if primary is not None and primary not in unit_ids:
+            raise serializers.ValidationError(
+                {"primary_unit_id": "L'unité principale doit être sélectionnée."}
+            )
+        if attrs.get("primary_supervisor_id") is not None and primary is None:
+            raise serializers.ValidationError(
+                {"primary_supervisor_id": "Choisissez d'abord une unité principale."}
+            )
+        return attrs
+
+
+class UserUpdateSerializer(UserWriteSerializer):
+    state_token = serializers.CharField(allow_blank=False)
+
+
+class StateTokenSerializer(serializers.Serializer[dict[str, object]]):
+    state_token = serializers.CharField(allow_blank=False)
+
+
+class UserSelectionSerializer(serializers.Serializer[dict[str, object]]):
+    id = serializers.IntegerField(min_value=1)
+    state_token = serializers.CharField(allow_blank=False)
+
+
+class UserBulkActionSerializer(serializers.Serializer[dict[str, object]]):
+    action = serializers.ChoiceField(choices=("deactivate", "delete"))
+    users = UserSelectionSerializer(many=True, allow_empty=False)
+    reason = serializers.CharField(
+        min_length=3,
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    confirmation = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_users(
+        self, value: list[dict[str, object]]
+    ) -> list[dict[str, object]]:
+        ids = [item["id"] for item in value]
+        if len(ids) > 100:
+            raise serializers.ValidationError("La sélection est limitée à 100 comptes.")
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("Un compte ne peut apparaître qu'une fois.")
+        return value
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        if attrs["action"] == "delete":
+            if len(str(attrs.get("reason") or "").strip()) < 3:
+                raise serializers.ValidationError(
+                    {"reason": "Le motif de suppression est obligatoire."}
+                )
+            if attrs.get("confirmation") != "SUPPRIMER":
+                raise serializers.ValidationError(
+                    {"confirmation": "Saisissez exactement SUPPRIMER."}
+                )
+        return attrs
+
+
+class OrganizationUnitSerializer(serializers.Serializer[dict[str, object]]):
+    code = serializers.RegexField(r"^[A-Za-z0-9_-]{1,32}$", max_length=32)
+    short_name = serializers.CharField(max_length=80)
+    long_name = serializers.CharField(max_length=180)
+    kind = serializers.CharField(max_length=32, required=False, default="unit")
+    display_order = serializers.IntegerField(min_value=0, required=False, default=0)
+    parent_id = serializers.IntegerField(min_value=1, allow_null=True, required=False)
+    active = serializers.BooleanField(required=False, default=True)
+    state_token = serializers.CharField(required=False, allow_blank=False)
+    reason = serializers.CharField(
+        min_length=3, max_length=500, required=False, allow_blank=True, default=""
+    )
+
+
+class OrganizationUnitUpdateSerializer(OrganizationUnitSerializer):
+    state_token = serializers.CharField(allow_blank=False)
+
+
+class RoleGrantSerializer(serializers.Serializer[dict[str, object]]):
+    user_id = serializers.IntegerField(min_value=1)
+    department_id = serializers.IntegerField(min_value=1)
+    role_code = serializers.CharField(max_length=64)
+    scope = serializers.ChoiceField(choices=("unit", "tree"))
+    valid_from = serializers.DateTimeField()
+    valid_until = serializers.DateTimeField(required=False, allow_null=True)
+    reason = serializers.CharField(min_length=3, max_length=500)
+
+
+class RevokeGrantSerializer(serializers.Serializer[dict[str, object]]):
+    reason = serializers.CharField(min_length=3, max_length=500)
+
+
 class ProposalCreateSerializer(ScheduleSerializer):
     title = serializers.CharField(max_length=180)
     description = serializers.CharField()

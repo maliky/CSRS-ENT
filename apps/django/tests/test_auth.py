@@ -9,7 +9,10 @@ class AuthenticationCoreTests(SimpleTestCase):
         cache.clear()
 
     def test_login_normalization_is_deterministic(self) -> None:
-        self.assertEqual(normalize_login(" Agent@ENT.Koba.Sarl "), "agent@ent.koba.sarl")
+        self.assertEqual(
+            normalize_login(" Agent@Preprod.ENT.Koba.Sarl "),
+            "agent@preprod.ent.koba.sarl",
+        )
 
     def test_rate_keys_do_not_reveal_personal_values(self) -> None:
         key = rate_key("login", "person@example.org")

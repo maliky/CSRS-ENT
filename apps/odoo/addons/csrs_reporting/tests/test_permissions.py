@@ -15,6 +15,7 @@ class CsrsPermissionTests(TransactionCase):
         primary_group = cls.env.ref("csrs_reporting.group_csrs_primary_manager")
         secondary_group = cls.env.ref("csrs_reporting.group_csrs_secondary_manager")
         secretariat_group = cls.env.ref("csrs_reporting.group_csrs_secretariat")
+        it_group = cls.env.ref("csrs_reporting.group_csrs_it")
 
         def user(login, group):
             return cls.env["res.users"].with_context(no_reset_password=True).create(
@@ -35,6 +36,7 @@ class CsrsPermissionTests(TransactionCase):
         cls.agent = user("agent", agent_group)
         cls.outsider = user("outsider", agent_group)
         cls.secretariat = user("secretariat", secretariat_group)
+        cls.it = user("it", it_group)
         cls.manager_employee = cls.env["hr.employee"].create(
             {"name": "manager", "user_id": cls.manager.id}
         )
@@ -88,6 +90,232 @@ class CsrsPermissionTests(TransactionCase):
 
         self.assertTrue(session["capabilities"]["view_team"])
         self.assertFalse(session["capabilities"]["manage_users"])
+
+    def test_it_session_exposes_task_user_and_organization_management(self):
+        session = self.env["csrs.api"].with_user(self.it).api_session()
+
+        self.assertTrue(session["capabilities"]["delete_tasks"])
+        self.assertTrue(session["capabilities"]["manage_users"])
+        self.assertTrue(session["capabilities"]["manage_organization"])
+
+    def test_it_bulk_delete_is_revision_checked_and_audited(self):
+        task_id = self.task.id
+
+        with self.assertRaises(UserError):
+            self.env["csrs.api"].with_user(self.manager).api_task_bulk_delete(
+                [{"id": task_id, "revision": 1}], "Nettoyage de test"
+            )
+        with self.assertRaises(UserError):
+            self.env["csrs.api"].with_user(self.it).api_task_bulk_delete(
+                [{"id": task_id, "revision": 99}], "Nettoyage de test"
+            )
+        self.assertTrue(self.task.exists())
+
+        result = self.env["csrs.api"].with_user(self.it).api_task_bulk_delete(
+            [{"id": task_id, "revision": 1}], "Nettoyage de test"
+        )
+
+        self.assertFalse(self.task.exists())
+        audit = self.env["csrs.audit.event"].sudo().browse(result["audit_id"])
+        self.assertEqual(audit.event_type, "task_bulk_delete")
+        self.assertEqual(audit.actor_id, self.it)
+        self.assertEqual(audit.snapshot[0]["id"], task_id)
+
+    def test_it_task_management_filters_without_bypassing_the_facade(self):
+        page = self.env["csrs.api"].with_user(self.it).api_task_management(
+            query="Rapport", status="planned", page=1, page_size=20
+        )
+
+        self.assertEqual(page["total"], 1)
+        self.assertEqual(page["items"][0]["id"], self.task.id)
+        with self.assertRaises(UserError):
+            self.env["csrs.api"].with_user(self.manager).api_task_management()
+
+    def test_it_unit_editor_rejects_a_cycle_and_preserves_revision(self):
+        parent = self.env["hr.department"].create(
+            {"name": "Parent", "csrs_code": "PARENT"}
+        )
+        child = self.env["hr.department"].create(
+            {"name": "Enfant", "csrs_code": "CHILD", "parent_id": parent.id}
+        )
+        token = self.env["csrs.api"].with_user(self.it)._department_state_token(parent)
+
+        with self.assertRaises(ValidationError):
+            self.env["csrs.api"].with_user(self.it).api_organization_unit_update(
+                parent.id,
+                {
+                    "code": "PARENT",
+                    "short_name": "Parent",
+                    "long_name": "Parent",
+                    "kind": "unit",
+                    "display_order": 0,
+                    "parent_id": child.id,
+                    "active": True,
+                    "state_token": token,
+                },
+            )
+        self.assertFalse(parent.parent_id)
+
+    def test_reporting_lines_are_limited_to_the_people_concerned(self):
+        department = self.env["hr.department"].create(
+            {"name": "Gouvernance", "csrs_code": "GOUV"}
+        )
+        own_line = self.env["csrs.reporting.line"].sudo().create(
+            {
+                "employee_id": self.agent.id,
+                "supervisor_id": self.manager.id,
+                "department_id": department.id,
+                "start_date": "2026-08-15",
+                "is_primary": True,
+            }
+        )
+        unrelated_line = self.env["csrs.reporting.line"].sudo().create(
+            {
+                "employee_id": self.outsider.id,
+                "supervisor_id": self.secondary.id,
+                "department_id": department.id,
+                "start_date": "2026-08-15",
+                "is_primary": True,
+            }
+        )
+
+        self.assertEqual(
+            self.env["csrs.reporting.line"]
+            .with_user(self.agent)
+            .search([("id", "in", (own_line.id, unrelated_line.id))]),
+            own_line,
+        )
+        self.assertEqual(
+            self.env["csrs.reporting.line"]
+            .with_user(self.manager)
+            .search([("id", "in", (own_line.id, unrelated_line.id))]),
+            own_line,
+        )
+        self.assertEqual(
+            self.env["csrs.reporting.line"]
+            .with_user(self.it)
+            .search_count([("id", "in", (own_line.id, unrelated_line.id))]),
+            2,
+        )
+
+    def test_it_creates_a_user_in_the_odoo_organization(self):
+        department = self.env["hr.department"].create(
+            {
+                "name": "Recherche",
+                "csrs_code": "RECH",
+                "csrs_short_name": "Recherche",
+                "csrs_kind": "direction",
+            }
+        )
+        self.manager_employee.department_id = department
+        payload = {
+            "email": "new-agent@example.invalid",
+            "login_alias": "new-agent",
+            "first_name": "Nouvel",
+            "last_name": "Agent",
+            "position": "Analyste",
+            "phone": "",
+            "agenda_direction": "programs",
+            "include_in_direction_agendas": True,
+            "unit_ids": [department.id],
+            "primary_unit_id": department.id,
+            "primary_supervisor_id": self.manager.id,
+            "organization_effective_date": "2026-08-15",
+        }
+
+        result = self.env["csrs.api"].with_user(self.it).api_user_create(payload)
+
+        user = self.env["res.users"].sudo().browse(result["id"])
+        employee = self.env["hr.employee"].sudo().search(
+            [("user_id", "=", user.id)]
+        )
+        self.assertEqual(employee.parent_id, self.manager_employee)
+        self.assertEqual(employee.csrs_agenda_direction, "programs")
+        self.assertEqual(
+            self.env["csrs.organization.membership"].sudo().search_count(
+                [
+                    ("user_id", "=", user.id),
+                    ("department_id", "=", department.id),
+                    ("is_primary", "=", True),
+                    ("end_date", "=", False),
+                ]
+            ),
+            1,
+        )
+        self.assertEqual(
+            self.env["csrs.reporting.line"].sudo().search_count(
+                [
+                    ("employee_id", "=", user.id),
+                    ("supervisor_id", "=", self.manager.id),
+                    ("end_date", "=", False),
+                ]
+            ),
+            1,
+        )
+
+    def test_manager_change_transfers_active_tasks_and_keeps_history(self):
+        department = self.env["hr.department"].create(
+            {"name": "Administration", "csrs_code": "ADM"}
+        )
+        self.manager_employee.department_id = department
+        self.agent_employee.department_id = department
+        replacement_employee = self.env["hr.employee"].create(
+            {
+                "name": "secondary",
+                "user_id": self.secondary.id,
+                "department_id": department.id,
+            }
+        )
+        self.env["csrs.organization.membership"].sudo().create(
+            {
+                "user_id": self.agent.id,
+                "department_id": department.id,
+                "start_date": "2026-01-01",
+                "is_primary": True,
+            }
+        )
+        self.env["csrs.reporting.line"].sudo().create(
+            {
+                "employee_id": self.agent.id,
+                "supervisor_id": self.manager.id,
+                "department_id": department.id,
+                "start_date": "2026-01-01",
+                "is_primary": True,
+            }
+        )
+        token = self.env["csrs.api"].with_user(self.it)._user_state_token(self.agent)
+        payload = {
+            "email": self.agent.email,
+            "login_alias": self.agent.csrs_alias,
+            "first_name": "Agent",
+            "last_name": "Test",
+            "position": "Agent",
+            "phone": "",
+            "agenda_direction": "administration",
+            "include_in_direction_agendas": True,
+            "unit_ids": [department.id],
+            "primary_unit_id": department.id,
+            "primary_supervisor_id": self.secondary.id,
+            "organization_effective_date": "2026-08-15",
+            "state_token": token,
+        }
+
+        self.env["csrs.api"].with_user(self.it).api_user_update(
+            self.agent.id, payload
+        )
+
+        self.assertEqual(self.agent_employee.parent_id, replacement_employee)
+        self.assertEqual(self.task.csrs_manager_id, self.secondary)
+        self.assertEqual(self.task.csrs_revision, 2)
+        closed = self.env["csrs.reporting.line"].sudo().with_context(
+            active_test=False
+        ).search(
+            [
+                ("employee_id", "=", self.agent.id),
+                ("supervisor_id", "=", self.manager.id),
+            ]
+        )
+        self.assertEqual(closed.end_date.isoformat(), "2026-08-15")
 
     def test_public_facade_uses_model_level_rpc_contract(self):
         facade = self.env["csrs.api"].with_user(self.manager)

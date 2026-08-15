@@ -22,6 +22,8 @@ class ResUsers(models.Model):
     csrs_alias = fields.Char(
         string="Identifiant court CSRS", index=True, copy=False
     )
+    csrs_first_name = fields.Char(string="Prénom CSRS", copy=False)
+    csrs_last_name = fields.Char(string="Nom CSRS", copy=False)
     csrs_password_change_required = fields.Boolean(
         string="Changement de mot de passe requis", default=False, copy=False
     )

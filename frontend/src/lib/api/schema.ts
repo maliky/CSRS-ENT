@@ -164,6 +164,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/organization/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["organization_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organization/grants/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["organization_grants_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organization/grants/{id}/revoke/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["organization_grants_revoke_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organization/units/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["organization_units_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organization/units/{id}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    patch: operations["organization_units_partial_update"];
+    trace?: never;
+  };
   "/api/v1/planning/options/": {
     parameters: {
       query?: never;
@@ -285,6 +370,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/task-management/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["task_management_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/tasks/": {
     parameters: {
       query?: never;
@@ -371,6 +473,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/tasks/bulk-delete/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["tasks_bulk_delete_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/team/": {
     parameters: {
       query?: never;
@@ -397,6 +516,127 @@ export interface paths {
     };
     /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
     get: operations["team_employee"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["user_list"];
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["users_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["user_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    patch: operations["users_partial_update"];
+    trace?: never;
+  };
+  "/api/v1/users/{id}/deactivate/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["users_deactivate_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/reactivate/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["users_reactivate_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/temporary-password/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["users_temporary_password_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/bulk-action/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["users_bulk_action_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/options/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["users_options_retrieve"];
     put?: never;
     post?: never;
     delete?: never;
@@ -445,6 +685,12 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /**
+     * @description * `deactivate` - deactivate
+     *     * `delete` - delete
+     * @enum {string}
+     */
+    ActionEnum: "deactivate" | "delete";
+    /**
      * @description * `programs` - programs
      *     * `administration` - administration
      * @enum {string}
@@ -477,10 +723,17 @@ export interface components {
       note: string;
       revision?: number;
     };
+    /** @enum {unknown} */
+    BlankEnum: "";
     Cancel: {
       revision: number;
       reason: string;
     };
+    /**
+     * @description * `SUPPRIMER` - SUPPRIMER
+     * @enum {string}
+     */
+    ConfirmationEnum: "SUPPRIMER";
     /**
      * @description * `accept` - accept
      *     * `reject` - reject
@@ -498,6 +751,20 @@ export interface components {
       revision: number;
       message: string;
     };
+    OrganizationUnit: {
+      code: string;
+      short_name: string;
+      long_name: string;
+      /** @default unit */
+      kind: string;
+      /** @default 0 */
+      display_order: number;
+      parent_id?: number | null;
+      /** @default true */
+      active: boolean;
+      state_token?: string;
+      reason?: string;
+    };
     Password: {
       current_password: string;
       new_password: string;
@@ -513,6 +780,20 @@ export interface components {
       /** @default  */
       note: string;
       revision?: number;
+    };
+    PatchedOrganizationUnitUpdate: {
+      code?: string;
+      short_name?: string;
+      long_name?: string;
+      /** @default unit */
+      kind: string;
+      /** @default 0 */
+      display_order: number;
+      parent_id?: number | null;
+      /** @default true */
+      active: boolean;
+      state_token?: string;
+      reason?: string;
     };
     PatchedProposalUpdate: {
       /** Format: date */
@@ -538,6 +819,26 @@ export interface components {
       title?: string;
       description?: string;
       action_id?: number | null;
+    };
+    PatchedUserUpdate: {
+      /** Format: email */
+      email?: string;
+      login_alias?: string | null;
+      first_name?: string;
+      last_name?: string;
+      position?: string;
+      phone?: string;
+      agenda_direction?:
+        | components["schemas"]["AgendaDirectionEnum"]
+        | components["schemas"]["BlankEnum"];
+      /** @default true */
+      include_in_direction_agendas: boolean;
+      unit_ids?: number[];
+      primary_unit_id?: number | null;
+      primary_supervisor_id?: number | null;
+      /** Format: date */
+      organization_effective_date?: string;
+      state_token?: string;
     };
     PlanningPreview: {
       calendar_id: number;
@@ -580,12 +881,40 @@ export interface components {
     Revision: {
       revision: number;
     };
+    RevokeGrant: {
+      reason: string;
+    };
+    RoleGrant: {
+      user_id: number;
+      department_id: number;
+      role_code: string;
+      scope: components["schemas"]["ScopeEnum"];
+      /** Format: date-time */
+      valid_from: string;
+      /** Format: date-time */
+      valid_until?: string | null;
+      reason: string;
+    };
+    /**
+     * @description * `unit` - unit
+     *     * `tree` - tree
+     * @enum {string}
+     */
+    ScopeEnum: "unit" | "tree";
     /**
      * @description * `workload` - workload
      *     * `due` - due
      * @enum {string}
      */
     SourceEnum: "workload" | "due";
+    StateToken: {
+      state_token: string;
+    };
+    TaskBulkDelete: {
+      assignments: components["schemas"]["TaskSelection"][];
+      reason: string;
+      confirmation: components["schemas"]["ConfirmationEnum"];
+    };
     TaskCreate: {
       /** Format: date */
       start_date: string;
@@ -598,6 +927,10 @@ export interface components {
       employee_id: number;
       action_id?: number | null;
       calendar_id: number;
+    };
+    TaskSelection: {
+      id: number;
+      revision: number;
     };
     Transition: {
       revision: number;
@@ -612,6 +945,37 @@ export interface components {
      * @enum {string}
      */
     TransitionEnum: "validate" | "reject" | "close_early";
+    UserBulkAction: {
+      action: components["schemas"]["ActionEnum"];
+      users: components["schemas"]["UserSelection"][];
+      reason?: string;
+      /** @default  */
+      confirmation: string;
+    };
+    UserSelection: {
+      id: number;
+      state_token: string;
+    };
+    UserWrite: {
+      /** Format: email */
+      email: string;
+      login_alias?: string | null;
+      first_name?: string;
+      last_name?: string;
+      position?: string;
+      phone?: string;
+      agenda_direction?:
+        | components["schemas"]["AgendaDirectionEnum"]
+        | components["schemas"]["BlankEnum"];
+      /** @default true */
+      include_in_direction_agendas: boolean;
+      unit_ids?: number[];
+      primary_unit_id?: number | null;
+      primary_supervisor_id?: number | null;
+      /** Format: date */
+      organization_effective_date: string;
+      state_token?: string;
+    };
     Visit: {
       party_size: number;
       visitor_names?: string[];
@@ -1001,6 +1365,139 @@ export interface operations {
       };
     };
   };
+  organization_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  organization_grants_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RoleGrant"];
+        "application/x-www-form-urlencoded": components["schemas"]["RoleGrant"];
+        "multipart/form-data": components["schemas"]["RoleGrant"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  organization_grants_revoke_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RevokeGrant"];
+        "application/x-www-form-urlencoded": components["schemas"]["RevokeGrant"];
+        "multipart/form-data": components["schemas"]["RevokeGrant"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  organization_units_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OrganizationUnit"];
+        "application/x-www-form-urlencoded": components["schemas"]["OrganizationUnit"];
+        "multipart/form-data": components["schemas"]["OrganizationUnit"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  organization_units_partial_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedOrganizationUnitUpdate"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedOrganizationUnitUpdate"];
+        "multipart/form-data": components["schemas"]["PatchedOrganizationUnitUpdate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
   planning_options_retrieve: {
     parameters: {
       query?: never;
@@ -1231,6 +1728,27 @@ export interface operations {
       };
     };
   };
+  task_management_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
   tasks_create: {
     parameters: {
       query?: never;
@@ -1397,6 +1915,33 @@ export interface operations {
       };
     };
   };
+  tasks_bulk_delete_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TaskBulkDelete"];
+        "application/x-www-form-urlencoded": components["schemas"]["TaskBulkDelete"];
+        "multipart/form-data": components["schemas"]["TaskBulkDelete"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
   team_overview: {
     parameters: {
       query?: never;
@@ -1425,6 +1970,241 @@ export interface operations {
       path: {
         id: number;
       };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  user_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserWrite"];
+        "application/x-www-form-urlencoded": components["schemas"]["UserWrite"];
+        "multipart/form-data": components["schemas"]["UserWrite"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  user_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_partial_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedUserUpdate"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedUserUpdate"];
+        "multipart/form-data": components["schemas"]["PatchedUserUpdate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_deactivate_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StateToken"];
+        "application/x-www-form-urlencoded": components["schemas"]["StateToken"];
+        "multipart/form-data": components["schemas"]["StateToken"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_reactivate_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StateToken"];
+        "application/x-www-form-urlencoded": components["schemas"]["StateToken"];
+        "multipart/form-data": components["schemas"]["StateToken"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_temporary_password_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StateToken"];
+        "application/x-www-form-urlencoded": components["schemas"]["StateToken"];
+        "multipart/form-data": components["schemas"]["StateToken"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_bulk_action_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserBulkAction"];
+        "application/x-www-form-urlencoded": components["schemas"]["UserBulkAction"];
+        "multipart/form-data": components["schemas"]["UserBulkAction"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_options_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
       cookie?: never;
     };
     requestBody?: never;

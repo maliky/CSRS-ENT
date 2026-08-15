@@ -363,6 +363,135 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ""
+  /api/v1/organization/:
+    get:
+      operationId: organization_retrieve
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - organization
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/organization/grants/:
+    post:
+      operationId: organization_grants_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleGrant"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/RoleGrant"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RoleGrant"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/organization/grants/{id}/revoke/:
+    post:
+      operationId: organization_grants_revoke_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeGrant"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/RevokeGrant"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RevokeGrant"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/organization/units/:
+    post:
+      operationId: organization_units_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizationUnit"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/OrganizationUnit"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/OrganizationUnit"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/organization/units/{id}/:
+    patch:
+      operationId: organization_units_partial_update
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedOrganizationUnitUpdate"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/PatchedOrganizationUnitUpdate"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PatchedOrganizationUnitUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
   /api/v1/planning/options/:
     get:
       operationId: planning_options_retrieve
@@ -577,6 +706,20 @@ paths:
       responses:
         "204":
           description: No response body
+  /api/v1/task-management/:
+    get:
+      operationId: task_management_retrieve
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - task-management
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
   /api/v1/tasks/:
     post:
       operationId: tasks_create
@@ -749,6 +892,32 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ""
+  /api/v1/tasks/bulk-delete/:
+    post:
+      operationId: tasks_bulk_delete_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBulkDelete"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TaskBulkDelete"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/TaskBulkDelete"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
   /api/v1/team/:
     get:
       operationId: team_overview
@@ -775,6 +944,231 @@ paths:
           required: true
       tags:
         - team
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/:
+    get:
+      operationId: user_list
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - users
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+    post:
+      operationId: users_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserWrite"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UserWrite"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UserWrite"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/{id}/:
+    get:
+      operationId: user_retrieve
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - users
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+    patch:
+      operationId: users_partial_update
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedUserUpdate"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/PatchedUserUpdate"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PatchedUserUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/{id}/deactivate/:
+    post:
+      operationId: users_deactivate_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/{id}/reactivate/:
+    post:
+      operationId: users_reactivate_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/{id}/temporary-password/:
+    post:
+      operationId: users_temporary_password_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/StateToken"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/bulk-action/:
+    post:
+      operationId: users_bulk_action_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserBulkAction"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UserBulkAction"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/UserBulkAction"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/users/options/:
+    get:
+      operationId: users_options_retrieve
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - users
       responses:
         "200":
           content:
@@ -856,6 +1250,14 @@ paths:
           description: ""
 components:
   schemas:
+    ActionEnum:
+      enum:
+        - deactivate
+        - delete
+      type: string
+      description: |-
+        * `deactivate` - deactivate
+        * `delete` - delete
     AgendaDirectionEnum:
       enum:
         - programs
@@ -923,6 +1325,9 @@ components:
         - end_date
         - kind
         - start_date
+    BlankEnum:
+      enum:
+        - ""
     Cancel:
       type: object
       properties:
@@ -936,6 +1341,11 @@ components:
       required:
         - reason
         - revision
+    ConfirmationEnum:
+      enum:
+        - SUPPRIMER
+      type: string
+      description: "* `SUPPRIMER` - SUPPRIMER"
     DecisionEnum:
       enum:
         - accept
@@ -965,6 +1375,48 @@ components:
       required:
         - message
         - revision
+    OrganizationUnit:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]{1,32}$
+        short_name:
+          type: string
+          maxLength: 80
+        long_name:
+          type: string
+          maxLength: 180
+        kind:
+          type: string
+          default: unit
+          maxLength: 32
+        display_order:
+          type: integer
+          minimum: 0
+          default: 0
+        parent_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        state_token:
+          type: string
+        reason:
+          oneOf:
+            - type: string
+              default: ""
+              maxLength: 500
+              minLength: 3
+            - type: string
+              maxLength: 0
+      required:
+        - code
+        - long_name
+        - short_name
     Password:
       type: object
       properties:
@@ -1003,6 +1455,44 @@ components:
         revision:
           type: integer
           minimum: 1
+    PatchedOrganizationUnitUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 32
+          pattern: ^[A-Za-z0-9_-]{1,32}$
+        short_name:
+          type: string
+          maxLength: 80
+        long_name:
+          type: string
+          maxLength: 180
+        kind:
+          type: string
+          default: unit
+          maxLength: 32
+        display_order:
+          type: integer
+          minimum: 0
+          default: 0
+        parent_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        state_token:
+          type: string
+        reason:
+          oneOf:
+            - type: string
+              default: ""
+              maxLength: 500
+              minLength: 3
+            - type: string
+              maxLength: 0
     PatchedProposalUpdate:
       type: object
       properties:
@@ -1056,6 +1546,58 @@ components:
           type: integer
           minimum: 1
           nullable: true
+    PatchedUserUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        login_alias:
+          nullable: true
+          oneOf:
+            - type: string
+              maxLength: 32
+              pattern: ^[a-z][a-z0-9_-]*$
+            - type: string
+              maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        position:
+          type: string
+          maxLength: 160
+        phone:
+          type: string
+          maxLength: 32
+        agenda_direction:
+          oneOf:
+            - $ref: "#/components/schemas/AgendaDirectionEnum"
+            - $ref: "#/components/schemas/BlankEnum"
+        include_in_direction_agendas:
+          type: boolean
+          default: true
+        unit_ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        primary_unit_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        primary_supervisor_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        organization_effective_date:
+          type: string
+          format: date
+        state_token:
+          type: string
     PlanningPreview:
       type: object
       properties:
@@ -1154,6 +1696,55 @@ components:
           minimum: 1
       required:
         - revision
+    RevokeGrant:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+      required:
+        - reason
+    RoleGrant:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          minimum: 1
+        department_id:
+          type: integer
+          minimum: 1
+        role_code:
+          type: string
+          maxLength: 64
+        scope:
+          $ref: "#/components/schemas/ScopeEnum"
+        valid_from:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+          nullable: true
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+      required:
+        - department_id
+        - reason
+        - role_code
+        - scope
+        - user_id
+        - valid_from
+    ScopeEnum:
+      enum:
+        - unit
+        - tree
+      type: string
+      description: |-
+        * `unit` - unit
+        * `tree` - tree
     SourceEnum:
       enum:
         - workload
@@ -1162,6 +1753,30 @@ components:
       description: |-
         * `workload` - workload
         * `due` - due
+    StateToken:
+      type: object
+      properties:
+        state_token:
+          type: string
+      required:
+        - state_token
+    TaskBulkDelete:
+      type: object
+      properties:
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskSelection"
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+        confirmation:
+          $ref: "#/components/schemas/ConfirmationEnum"
+      required:
+        - assignments
+        - confirmation
+        - reason
     TaskCreate:
       type: object
       properties:
@@ -1198,6 +1813,18 @@ components:
         - estimated_work_days
         - start_date
         - title
+    TaskSelection:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        revision:
+          type: integer
+          minimum: 1
+      required:
+        - id
+        - revision
     Transition:
       type: object
       properties:
@@ -1222,6 +1849,95 @@ components:
         * `validate` - validate
         * `reject` - reject
         * `close_early` - close_early
+    UserBulkAction:
+      type: object
+      properties:
+        action:
+          $ref: "#/components/schemas/ActionEnum"
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSelection"
+        reason:
+          oneOf:
+            - type: string
+              default: ""
+              maxLength: 500
+              minLength: 3
+            - type: string
+              maxLength: 0
+        confirmation:
+          type: string
+          default: ""
+      required:
+        - action
+        - users
+    UserSelection:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        state_token:
+          type: string
+      required:
+        - id
+        - state_token
+    UserWrite:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        login_alias:
+          nullable: true
+          oneOf:
+            - type: string
+              maxLength: 32
+              pattern: ^[a-z][a-z0-9_-]*$
+            - type: string
+              maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        position:
+          type: string
+          maxLength: 160
+        phone:
+          type: string
+          maxLength: 32
+        agenda_direction:
+          oneOf:
+            - $ref: "#/components/schemas/AgendaDirectionEnum"
+            - $ref: "#/components/schemas/BlankEnum"
+        include_in_direction_agendas:
+          type: boolean
+          default: true
+        unit_ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        primary_unit_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        primary_supervisor_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        organization_effective_date:
+          type: string
+          format: date
+        state_token:
+          type: string
+      required:
+        - email
+        - organization_effective_date
     Visit:
       type: object
       properties:
