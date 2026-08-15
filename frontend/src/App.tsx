@@ -127,7 +127,7 @@ export function App() {
       <main className={styles.loginPage}>
         <Card className={styles.loginCard}>
           <div className={styles.brandMark} aria-hidden="true">
-            PE
+            CS
           </div>
           <p className="eyebrow">Plateforme numérique de travail</p>
           <h1>Connexion à CSRS ENT</h1>
