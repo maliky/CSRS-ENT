@@ -2,12 +2,14 @@
 
 ## Une seule source métier
 
-Le navigateur appelle Django, Django traduit le cas d'usage, puis Odoo applique l'accès et persiste l'opération. Django ne possède ni copie locale ni table miroir des objets Odoo.
+Le navigateur appelle l'interface React servie par Django. Django valide le contrat HTTP, traduit le cas d'usage, puis Odoo applique l'accès et persiste l'opération. Django ne possède ni copie locale ni table miroir des objets Odoo.
 
 ```text
 navigateur
-  -> Django PENT (vues, JSON, CSRF, présentation)
-  -> gateway/odoo.py
+  -> React PENT sous /app/
+  -> API Django (session, JSON, CSRF)
+  -> gateway/odoo.py (client RPC unique)
+  -> csrs.api (façade de cas d'usage Odoo)
   -> Odoo (règles, ACL, modèles CSRS)
   -> PostgreSQL Odoo
 ```
@@ -27,10 +29,13 @@ La reprise en lecture seule de `csrs_report` crée les comptes, employés, servi
 | Compte utilisateur | `res.users` et `res.partner` | Réutiliser le standard |
 | Unité et agent | `hr.department`, `hr.employee` et `csrs.organization.membership` | État actif repris; historique différé |
 | Plan et action | `project.project` et métadonnées CSRS | À préciser avant portage |
-| Tâche | `project.task` étendu | Première tranche créée |
+| Tâche | `project.task` étendu | Cycle de vie, révision et validation PENT |
+| Proposition de tâche | `csrs.task.proposal` | Acceptation atomique vers `project.task` |
 | Affectation et ligne hiérarchique | responsable principal standard et responsables secondaires CSRS | Autorisations appliquées dans Odoo |
 | Progression | `csrs.progress.entry` | Append-only dans Odoo |
-| Agenda, visite, absence | modules HR/Calendar et extensions CSRS | À rapprocher avant création |
+| Congé, absence et mission | `hr.leave` étendu | Alimente les agendas selon la période |
+| Visite | `csrs.visitor.visit` | Arrivée et départ auditables |
+| Agenda | `csrs.agenda.draft` et `csrs.agenda.version` | Brouillon courant, PDF et versions immuables |
 | Processus et ordre de mission | activités/projets ou module CSRS | À rapprocher avant création |
 
 ## Interdits structurels

@@ -4,9 +4,9 @@ PENT est le socle Python de l'ENT du CSRS. Il associe une interface Django/React
 
 ** État actuel
 
-Le bootstrap de préproduction est fonctionnel : authentification Odoo relayée par Django, sessions techniques Redis, organigramme et autorisations dans Odoo, progression auditée des tâches, interface Django/React et stack Compose privée. Les comptes et l'état actif de l'organigramme ont une reprise explicite, validée et idempotente depuis l'ancienne application CSRS.
+La préproduction fournit une interface React unique sous =/app/= pour les tâches, propositions, équipes, absences, missions, visites et agendas de direction. Django porte les sessions, les contrats HTTP et la passerelle RPC centralisée; Odoo applique les autorisations et conserve seul les objets métier, leur historique et les PDF d'agenda versionnés.
 
-L'interface est hybride, avec React comme surface principale et Django pour l'intégration, les sessions, les réponses serveur utiles et les surfaces qui ne justifient pas encore un portage React.
+Les comptes et l'organigramme actifs ont été repris de façon explicite, validée et idempotente depuis l'ancienne application CSRS. Les anciennes tâches, propositions, progressions et agendas restent consultables dans =csrs_report= comme historique et ne sont pas copiés dans PENT.
 
 ** Structure
 
@@ -16,6 +16,7 @@ L'interface est hybride, avec React comme surface principale et Django pour l'in
 - =frontend/= : application React en TypeScript strict.
 - =infrastructure/compose/= : stack Django, Odoo, PostgreSQL, Redis et Mailpit.
 - =scripts/= : génération d'environnement, export en lecture seule, import Odoo et déploiement préprod.
+- =docs/MANUAL.org= : guide utilisateur du premier lot PENT.
 - =docs/architecture.md= : frontières et correspondance avec =csrs_report=.
 - =DEV.org= : décisions, plan et état vérifié de la préproduction.
 
@@ -34,7 +35,7 @@ Les promotions suivent =dev= vers =preprod= puis =master= sans réimplémenter l
 docker-compose --env-file .env -f infrastructure/compose/compose.yaml up --build
 #+end_src
 
-Django répond sur =http://127.0.0.1:18007/=, Odoo sur =http://127.0.0.1:18069/= et la boîte de capture Mailpit sur =http://127.0.0.1:18025/=. Les trois ports restent liés à l'interface locale. Les routes =/healthz/= et =/readyz/= distinguent la santé de Django de la disponibilité d'Odoo.
+Django répond sur =http://127.0.0.1:18007/app/=, Odoo sur =http://127.0.0.1:18069/= et la boîte de capture Mailpit sur =http://127.0.0.1:18025/=. Les trois ports restent liés à l'interface locale. Les routes =/healthz/= et =/readyz/= distinguent la santé de Django de la disponibilité d'Odoo.
 
 La première initialisation installe le module =csrs_reporting= et prépare l'administrateur Odoo. =./scripts/import_csrs_odoo.sh dry-run FICHIER_JSON .env= valide une reprise sans écriture; le mode =apply= l'exécute de façon réentrante. Les évolutions fonctionnelles continuent dans Odoo; Django ne devient pas une seconde base métier.
 

@@ -1,0 +1,40 @@
+#+title: PENT - Guide utilisateur
+#+startup: overview
+
+* Connexion
+
+Ouvrir =https://ent.koba.sarl/app/=. Saisir l'adresse email ou l'identifiant court habituel et le même mot de passe que celui repris depuis l'ancienne application. =/= et =/connexion/= redirigent vers cette page unique.
+
+Si PENT demande un changement de mot de passe, choisir un nouveau mot de passe depuis l'écran affiché avant d'utiliser les autres fonctions.
+
+* Tâches
+
+Le tableau de bord présente les tâches de la semaine ou du mois, leur charge, leur progression et leur échéance. Ouvrir une carte pour consulter le graphique, la description et les observations.
+
+Un responsable principal peut créer et modifier une tâche pour un agent de son périmètre. L'agent enregistre sa progression avec une observation; chaque saisie est conservée dans l'historique. Une progression à 100 % place la tâche en attente de validation. Le responsable principal peut alors la valider, la remettre en correction ou la clôturer avant achèvement avec un motif. Un responsable secondaire consulte et commente sans valider ni fermer.
+
+En cas de modification concurrente, PENT refuse l'écriture devenue ancienne et demande de recharger la tâche. Cette protection évite d'écraser une modification plus récente.
+
+* Propositions de tâches
+
+Chaque agent peut proposer une tâche en indiquant le titre, les dates, la charge et la description. Le responsable consulte la proposition et peut la valider, la rejeter avec un motif ou demander une correction. Une proposition corrigée est renvoyée au responsable. La validation crée une tâche Odoo en une seule opération et conserve le lien avec la proposition d'origine.
+
+* Équipe
+
+La rubrique =Équipe= présente les agents visibles selon l'organigramme et les délégations Odoo. Elle permet de consulter leurs tâches et leur charge. Les droits affichés dans PENT sont toujours contrôlés de nouveau dans Odoo lors de chaque opération.
+
+* Absences, missions et visites
+
+Les personnes autorisées déclarent les congés, absences et missions depuis =Absences et missions=. Ces périodes alimentent automatiquement l'aperçu d'agenda.
+
+Le secrétariat enregistre l'arrivée d'un visiteur, le nombre de personnes et, si disponible, leurs noms. Le départ est ensuite marqué depuis la liste des visites en cours.
+
+* Agendas de direction
+
+La rubrique =Agendas= affiche l'aperçu hebdomadaire de la Direction des programmes ou de la Direction administrative. Le secrétariat complète le brouillon, contrôle les avertissements et génère le PDF.
+
+Chaque génération crée une version immuable avec son PDF archivé. Une nouvelle correction produit une nouvelle version sans remplacer les documents précédents. Les versions restent accessibles depuis =Agendas archivés=.
+
+* Déconnexion et assistance
+
+Utiliser =Se déconnecter= dans le menu. En cas d'erreur d'autorisation, faire vérifier le rôle, la ligne hiérarchique ou la délégation dans Odoo; un bouton masqué dans l'interface ne constitue jamais à lui seul une autorisation.

@@ -1,9 +1,30 @@
 #+title: PENT - Plan de développement
 #+startup: overview
 * <2026-08-15 Sat 08:20> Montee en puissance
+fix the duplicate button at ent.koba.sarl. make the login screen similare to preprod.report.ent.koba.sarl
+
 Je souhaite implementer avec odoo et django plusieures procedure metier.
-La pemiere c'est celle des taches.  Le but est de reproduire le workflow que nous avons dans csrs_report mais en s appuyant sur odoo.  quand je dit reproduire c est du point de vue de l utilisateur final.  Given the dev csrs_report/MANUAL.org  attached, he must feel that it is similare to use pent that to use csrs_report for task and agenda, same interface, similare buttons, graphics... in the back what he does not see is that it is not django 's table but django makes call to odoo table.
+La pemiere c'est celle des taches.  Le but est de reproduire le workflow que nous avons dans csrs_report mais en s appuyant sur odoo.  quand je dit reproduire c est du point de vue de l utilisateur final.  Given the dev ~/csrs_report/docs/MANUAL.org  , he must feel that it is similare to use pent that to use csrs_report for task and agenda, same interface, similare buttons, graphics... in the back what he does not see is that it is not django 's table but django makes call to odoo table.
 Then we will implement the other procedure detailed in logigrams.org
+
+** Décisions de réalisation confirmées
+
+- Django reste la façade publique, porte les sessions techniques et appelle Odoo par la passerelle centrale; Odoo reste l'unique source de vérité métier.
+- Le premier lot fonctionnel couvre ensemble les tâches, les propositions, la supervision d'équipe, les absences et missions, ainsi que les agendas de direction et leurs PDF archivés.
+- =/app/= devient l'unique interface publique; =/= et =/connexion/= y redirigent. La connexion et les parcours React reprennent l'expérience de =csrs_report= sous la marque PENT.
+- Les tâches, propositions, progressions et agendas existants ne sont pas migrés. Les comptes et l'organigramme déjà repris dans Odoo sont réutilisés; =csrs_report= reste consultable comme historique.
+- L'administration des comptes et de l'organigramme reste dans Odoo. Les autres procédures de =docs/logigrams.org= seront traitées après ce lot.
+- Les PDF d'agenda conservent les sections, regroupements, versions, avertissements et la présentation du document de référence.
+
+** Réalisation du premier lot
+
+- [x] interface React unique, connexion PENT et redirection de =/= et =/connexion/= vers =/app/=.
+- [x] tâches, propositions, progression append-only, validation, remise en correction et clôture anticipée dans Odoo.
+- [x] supervision d'équipe, absences et missions, visites, brouillons d'agenda et PDF versionnés dans Odoo.
+- [x] API Django typée, protégée par CSRF et limitée à la façade =csrs.api= du module Odoo.
+- [x] contrats OpenAPI et TypeScript strict, tests comportementaux Django, Odoo et React.
+- [ ] recette fonctionnelle en préproduction par les rôles concernés.
+- [ ] autres procédures décrites dans =docs/logigrams.org=.
 
 * <2026-08-15 Sat 08:20>
 ** État initial
@@ -27,7 +48,7 @@ le portage n'est pas une réplication automatique des tables de =csrs_report=. c
 
 *** interface
 
-l'interface combine django et react avec un accent sur react, dans la continuité de l'application actuelle. react porte progressivement les parcours principaux; django conserve la passerelle, les sessions, les réponses serveur utiles et les écrans non encore migrés. le routage précis sera fixé avant le premier lot frontend.
+react porte l'unique surface utilisateur publique sous =/app/=. django conserve la passerelle, les sessions techniques et les contrats http, sans écran métier parallèle.
 
 *** authentification et comptes
 
@@ -90,7 +111,8 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 - [x] authentification utilisateur django/odoo, csrf, limitation des tentatives, révocation et session redis de huit heures glissantes.
 - [x] commande de reprise des comptes avec simulation, import réentrant et rapport agrégé sans donnée personnelle.
 - [x] état actif de l'organigramme, délégations et responsables primaire/secondaire dans odoo.
-- [ ] portage des propositions, agendas, processus, documents et notifications.
+- [x] portage des propositions, absences, visites, agendas et PDF versionnés.
+- [ ] portage des processus, documents métier et notifications.
 - [x] interface django/react responsive et TypeScript strict.
 - [ ] stratégie de reprise des autres données existantes.
 
@@ -115,8 +137,8 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 ** validation du bootstrap
 
 - [x] contrôle django.
-- [x] 19 tests Django de passerelle, session, CSRF, limitation et pages.
-- [x] 11 scénarios Odoo transactionnels et 4 tests React.
+- [x] 24 tests Django de passerelle, session, CSRF, erreurs et contrats HTTP.
+- [x] suite Odoo transactionnelle des ACL, tâches, propositions, conflits et PDF; 31 tests React.
 - [x] Ruff, mypy strict, TypeScript strict et compilation Python.
 - [x] analyse xml et syntaxe bash.
 - [x] résolution de la configuration compose avec l'environnement d'exemple par =docker-compose= 1.29.2.
