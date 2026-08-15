@@ -130,7 +130,7 @@ export function App() {
             PE
           </div>
           <p className="eyebrow">Plateforme numérique de travail</p>
-          <h1>Connexion à PENT</h1>
+          <h1>Connexion à CSRS ENT</h1>
           <p className="muted">
             Utilisez votre adresse email ou votre identifiant court habituel.
           </p>

@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 export const DJANGO_PROXY_PATHS = ["/api", "/static"] as const;
 
 export function djangoProxyRoutes(
-  target = process.env.PENT_DJANGO_URL ?? "http://127.0.0.1:8000",
+  target = process.env.CSRS_ENT_DJANGO_URL ?? "http://127.0.0.1:8000",
 ) {
   return Object.fromEntries(
     DJANGO_PROXY_PATHS.map((path) => [path, { target, changeOrigin: true }]),

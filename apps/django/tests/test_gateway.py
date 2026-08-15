@@ -184,7 +184,7 @@ class OdooClientTests(SimpleTestCase):
     @patch("gateway.odoo.urlopen")
     def test_version_uses_the_supported_web_endpoint(self, urlopen: MagicMock) -> None:
         urlopen.return_value = self._response({"version": "19.0"})
-        client = OdooClient("http://odoo:8069", "pent_odoo")
+        client = OdooClient("http://odoo:8069", "csrs_ent")
 
         version = client.version()
 
@@ -203,7 +203,7 @@ class OdooClientTests(SimpleTestCase):
             },
             "session_id=opaque; HttpOnly; Path=/",
         )
-        client = OdooClient("http://odoo:8069", "pent_odoo")
+        client = OdooClient("http://odoo:8069", "csrs_ent")
 
         session = client.authenticate("agent", "secret")
 
@@ -217,7 +217,7 @@ class OdooClientTests(SimpleTestCase):
         urlopen.return_value = self._response(
             {"jsonrpc": "2.0", "error": {"message": "Access denied"}}
         )
-        client = OdooClient("http://odoo:8069", "pent_odoo")
+        client = OdooClient("http://odoo:8069", "csrs_ent")
 
         with self.assertRaises(OdooAuthenticationError):
             client.authenticate("agent", "secret")
@@ -227,7 +227,7 @@ class OdooClientTests(SimpleTestCase):
         urlopen.return_value = self._response(
             {"jsonrpc": "2.0", "result": {"period": {"kind": "week"}}}
         )
-        client = OdooClient("http://odoo:8069", "pent_odoo")
+        client = OdooClient("http://odoo:8069", "csrs_ent")
 
         result = client.call("opaque", "api_dashboard", [None, None])
 

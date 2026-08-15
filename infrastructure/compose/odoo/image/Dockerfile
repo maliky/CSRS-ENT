@@ -4,15 +4,15 @@ USER root
 
 COPY --chown=odoo:odoo infrastructure/compose/odoo/image/odoo.conf /etc/odoo/odoo.conf
 COPY --chown=odoo:odoo apps/odoo/addons /mnt/extra-addons
-COPY infrastructure/compose/odoo/image/bootstrap.sh /usr/local/bin/pent-odoo-bootstrap
-COPY infrastructure/compose/odoo/image/runtime.sh /usr/local/bin/pent-odoo-runtime
-COPY infrastructure/compose/odoo/image/import.sh /usr/local/bin/pent-odoo-import
+COPY infrastructure/compose/odoo/image/bootstrap.sh /usr/local/bin/csrs-ent-odoo-bootstrap
+COPY infrastructure/compose/odoo/image/runtime.sh /usr/local/bin/csrs-ent-odoo-runtime
+COPY infrastructure/compose/odoo/image/import.sh /usr/local/bin/csrs-ent-odoo-import
 RUN chmod 0755 \
-    /usr/local/bin/pent-odoo-bootstrap \
-    /usr/local/bin/pent-odoo-runtime \
-    /usr/local/bin/pent-odoo-import
+    /usr/local/bin/csrs-ent-odoo-bootstrap \
+    /usr/local/bin/csrs-ent-odoo-runtime \
+    /usr/local/bin/csrs-ent-odoo-import
 
 USER odoo
 
 EXPOSE 8069 8072
-CMD ["/usr/local/bin/pent-odoo-runtime", "server"]
+CMD ["/usr/local/bin/csrs-ent-odoo-runtime", "server"]

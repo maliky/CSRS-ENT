@@ -1,4 +1,4 @@
-"""PENT URL configuration."""
+"""CSRS ENT URL configuration."""
 
 from django.urls import include, path
 

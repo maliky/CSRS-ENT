@@ -12,8 +12,8 @@ class CsrsMigrationTests(TransactionCase):
             "users": [
                 {
                     "source_id": 9_000_101,
-                    "email": "pent-migration-test@example.invalid",
-                    "alias": "pent-migration-test",
+                    "email": "csrs-ent-migration-test@example.invalid",
+                    "alias": "csrs-ent-migration-test",
                     "name": "Compte Migration",
                     "phone": "",
                     "job_title": "Profil source",
@@ -28,8 +28,8 @@ class CsrsMigrationTests(TransactionCase):
             "departments": [
                 {
                     "source_id": 9_000_201,
-                    "code": "PENTTEST",
-                    "name": "Service test PENT",
+                    "code": "CSRSENTTEST",
+                    "name": "Service test CSRS ENT",
                     "active": True,
                 }
             ],
@@ -83,8 +83,8 @@ class CsrsMigrationTests(TransactionCase):
         user = self.env["res.users"].with_context(no_reset_password=True).create(
             {
                 "name": "Compte Migration",
-                "login": "pent-migration-test@example.invalid",
-                "email": "pent-migration-test@example.invalid",
+                "login": "csrs-ent-migration-test@example.invalid",
+                "email": "csrs-ent-migration-test@example.invalid",
             }
         )
         employee = self.env["hr.employee"].create(
@@ -103,7 +103,7 @@ class CsrsMigrationTests(TransactionCase):
         payload["departments"].append(
             {
                 "source_id": 9_000_202,
-                "code": "PENTTEST2",
+                "code": "CSRSENTTEST2",
                 "name": "Service 2",
                 "active": True,
             }
@@ -130,7 +130,7 @@ class CsrsMigrationTests(TransactionCase):
         second.update(
             {
                 "source_id": 9_000_102,
-                "email": "second-pent-test@example.invalid",
+                "email": "second-csrs-ent-test@example.invalid",
                 "alias": payload["users"][0]["email"],
             }
         )

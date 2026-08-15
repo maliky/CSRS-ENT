@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
   <record id="report_csrs_agenda" model="ir.actions.report">
-    <field name="name">Agenda hebdomadaire PENT</field>
+    <field name="name">Agenda hebdomadaire CSRS ENT</field>
     <field name="model">csrs.agenda.version</field>
     <field name="report_type">qweb-pdf</field>
     <field name="report_name">csrs_reporting.report_csrs_agenda_document</field>
     <field name="report_file">csrs_reporting.report_csrs_agenda_document</field>
-    <field name="print_report_name">'Agenda PENT %s - %s v%s' % (object.period_start, object.period_end, object.version)</field>
+    <field name="print_report_name">'Agenda CSRS ENT %s - %s v%s' % (object.period_start, object.period_end, object.version)</field>
   </record>
 
   <template id="report_csrs_agenda_document">
@@ -15,7 +15,7 @@
         <t t-set="snapshot" t-value="agenda.snapshot"/>
         <t t-call="web.external_layout">
           <div class="page">
-            <h1>Agenda hebdomadaire PENT</h1>
+            <h1>Agenda hebdomadaire CSRS ENT</h1>
             <p>
               <strong t-out="snapshot.get('agenda_direction_label')"/>
               <span> — du </span><span t-out="snapshot.get('period_start')"/>
@@ -64,7 +64,7 @@
                 </table>
               </t>
             </t>
-            <p t-if="not snapshot.get('units')">Aucune tâche PENT sur cette période.</p>
+            <p t-if="not snapshot.get('units')">Aucune tâche CSRS ENT sur cette période.</p>
           </div>
         </t>
       </t>

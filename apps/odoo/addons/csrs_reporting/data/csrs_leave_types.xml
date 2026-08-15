@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
   <record id="leave_type_csrs_leave" model="hr.leave.type">
-    <field name="name">Congé PENT</field>
+    <field name="name">Congé CSRS ENT</field>
     <field name="requires_allocation" eval="False"/>
     <field name="leave_validation_type">no_validation</field>
   </record>
   <record id="leave_type_csrs_absence" model="hr.leave.type">
-    <field name="name">Absence PENT</field>
+    <field name="name">Absence CSRS ENT</field>
     <field name="requires_allocation" eval="False"/>
     <field name="leave_validation_type">no_validation</field>
   </record>
   <record id="leave_type_csrs_mission" model="hr.leave.type">
-    <field name="name">Mission PENT</field>
+    <field name="name">Mission CSRS ENT</field>
     <field name="requires_allocation" eval="False"/>
     <field name="leave_validation_type">no_validation</field>
   </record>

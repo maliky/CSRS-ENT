@@ -1,11 +1,11 @@
-#+title: PENT - Guide utilisateur
+#+title: CSRS ENT - Guide utilisateur
 #+startup: overview
 
 * Connexion
 
 Ouvrir =https://ent.koba.sarl/app/=. Saisir l'adresse email ou l'identifiant court habituel et le même mot de passe que celui repris depuis l'ancienne application. =/= et =/connexion/= redirigent vers cette page unique.
 
-Si PENT demande un changement de mot de passe, choisir un nouveau mot de passe depuis l'écran affiché avant d'utiliser les autres fonctions.
+Si CSRS ENT demande un changement de mot de passe, choisir un nouveau mot de passe depuis l'écran affiché avant d'utiliser les autres fonctions.
 
 * Tâches
 
@@ -13,7 +13,7 @@ Le tableau de bord présente les tâches de la semaine ou du mois, leur charge, 
 
 Un responsable principal peut créer et modifier une tâche pour un agent de son périmètre. L'agent enregistre sa progression avec une observation; chaque saisie est conservée dans l'historique. Une progression à 100 % place la tâche en attente de validation. Le responsable principal peut alors la valider, la remettre en correction ou la clôturer avant achèvement avec un motif. Un responsable secondaire consulte et commente sans valider ni fermer.
 
-En cas de modification concurrente, PENT refuse l'écriture devenue ancienne et demande de recharger la tâche. Cette protection évite d'écraser une modification plus récente.
+En cas de modification concurrente, CSRS ENT refuse l'écriture devenue ancienne et demande de recharger la tâche. Cette protection évite d'écraser une modification plus récente.
 
 * Propositions de tâches
 
@@ -21,7 +21,7 @@ Chaque agent peut proposer une tâche en indiquant le titre, les dates, la charg
 
 * Équipe
 
-La rubrique =Équipe= présente les agents visibles selon l'organigramme et les délégations Odoo. Elle permet de consulter leurs tâches et leur charge. Les droits affichés dans PENT sont toujours contrôlés de nouveau dans Odoo lors de chaque opération.
+La rubrique =Équipe= présente les agents visibles selon l'organigramme et les délégations Odoo. Elle permet de consulter leurs tâches et leur charge. Les droits affichés dans CSRS ENT sont toujours contrôlés de nouveau dans Odoo lors de chaque opération.
 
 * Absences, missions et visites
 

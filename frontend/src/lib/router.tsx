@@ -139,7 +139,7 @@ export function MemoryRouter({
 function useRouter(): RouterState {
   const value = useContext(RouterContext);
   if (!value)
-    throw new Error("Ce composant doit être rendu dans un routeur PENT.");
+    throw new Error("Ce composant doit être rendu dans un routeur CSRS ENT.");
   return value;
 }
 

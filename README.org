@@ -1,22 +1,22 @@
-* PENT
+* CSRS ENT
 
-PENT est le socle Python de l'ENT du CSRS. Il associe une interface Django/React à Odoo 19 Community sans dupliquer les modèles métier : Odoo conserve les comptes, l'organigramme, les tâches et leur historique; Django expose les pages, les API et la passerelle adaptées aux usages CSRS.
+CSRS ENT est le socle Python de l'ENT du CSRS. Il associe une interface Django/React à Odoo 19 Community sans dupliquer les modèles métier : Odoo conserve les comptes, l'organigramme, les tâches et leur historique; Django expose les pages, les API et la passerelle adaptées aux usages CSRS.
 
 ** État actuel
 
 La préproduction fournit une interface React unique sous =/app/= pour les tâches, propositions, équipes, absences, missions, visites et agendas de direction. Django porte les sessions, les contrats HTTP et la passerelle RPC centralisée; Odoo applique les autorisations et conserve seul les objets métier, leur historique et les PDF d'agenda versionnés.
 
-Les comptes et l'organigramme actifs ont été repris de façon explicite, validée et idempotente depuis l'ancienne application CSRS. Les anciennes tâches, propositions, progressions et agendas restent consultables dans =csrs_report= comme historique et ne sont pas copiés dans PENT.
+Les comptes et l'organigramme actifs ont été repris de façon explicite, validée et idempotente depuis l'ancienne application CSRS. Les anciennes tâches, propositions, progressions et agendas restent consultables dans =csrs_report= comme historique et ne sont pas copiés dans CSRS ENT.
 
 ** Structure
 
-- =apps/django/= : projet Django =pent=, sans ORM métier.
+- =apps/django/= : projet Django =csrs_ent=, sans ORM métier.
 - =apps/django/gateway/= : frontière unique des appels Odoo.
 - =apps/odoo/addons/csrs_reporting/= : extensions métier CSRS dans Odoo.
 - =frontend/= : application React en TypeScript strict.
 - =infrastructure/compose/= : stack Django, Odoo, PostgreSQL, Redis et Mailpit.
 - =scripts/= : génération d'environnement, export en lecture seule, import Odoo et déploiement préprod.
-- =docs/MANUAL.org= : guide utilisateur du premier lot PENT.
+- =docs/MANUAL.org= : guide utilisateur du premier lot CSRS ENT.
 - =docs/architecture.md= : frontières et correspondance avec =csrs_report=.
 - =DEV.org= : décisions, plan et état vérifié de la préproduction.
 
@@ -56,6 +56,6 @@ Cet hôte utilise =docker-compose= 1.29.2; =docker compose= peut remplacer la co
 
 ** Préproduction
 
-=./scripts/deploy_preprod.sh /srv/apps/pent-preprod/config/.env= valide Compose, reconstruit les images, met à niveau le module Odoo sans supprimer les volumes, puis démarre les services. =ent.koba.sarl= expose uniquement Django par Nginx; Odoo, Mailpit et PostgreSQL ne sont pas publiés sur Internet.
+=./scripts/deploy_preprod.sh /srv/apps/csrs-ent-preprod/config/.env= valide Compose, reconstruit les images, met à niveau le module Odoo sans supprimer les volumes, puis démarre les services. =ent.koba.sarl= expose uniquement Django par Nginx; Odoo, Mailpit et PostgreSQL ne sont pas publiés sur Internet.
 
-La préproduction de cet hôte est installée dans =/srv/apps/pent-preprod/app= depuis la branche =preprod= et répond sur =https://ent.koba.sarl/=. Le fichier d'environnement et les sauvegardes restent hors du checkout avec un mode d'accès restrictif.
+La préproduction de cet hôte utilise des versions immuables sous =/srv/apps/csrs-ent-preprod/releases/= et le lien =current= depuis la branche =preprod=. Elle répond sur =https://ent.koba.sarl/=. Le fichier d'environnement reste hors des versions avec un mode d'accès restrictif.

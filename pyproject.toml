@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "pent.settings"
+DJANGO_SETTINGS_MODULE = "csrs_ent.settings"
 pythonpath = ["apps/django"]
 testpaths = ["apps/django/tests"]
 python_files = ["test_*.py", "*_tests.py"]
@@ -24,4 +24,4 @@ mypy_path = ["apps/django"]
 exclude = ["apps/odoo/"]
 
 [tool.django-stubs]
-django_settings_module = "pent.settings"
+django_settings_module = "csrs_ent.settings"

@@ -18,7 +18,7 @@ test("affiche l’unique écran de connexion pour une session anonyme", async ()
   render(<App />);
 
   expect(
-    await screen.findByRole("heading", { name: "Connexion à PENT" }),
+    await screen.findByRole("heading", { name: "Connexion à CSRS ENT" }),
   ).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Se connecter" }),
@@ -33,7 +33,7 @@ test("affiche un refus explicite sans conserver le mot de passe", async () => {
   vi.stubGlobal("fetch", fetchMock);
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole("heading", { name: "Connexion à PENT" });
+  await screen.findByRole("heading", { name: "Connexion à CSRS ENT" });
 
   await user.type(screen.getByLabelText("Email ou identifiant court"), "agent");
   await user.type(screen.getByLabelText("Mot de passe"), "incorrect");
@@ -50,7 +50,7 @@ test("affiche un refus explicite sans conserver le mot de passe", async () => {
   );
 });
 
-test("ouvre l’espace PENT après validation de la session", async () => {
+test("ouvre l’espace CSRS ENT après validation de la session", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
@@ -63,5 +63,5 @@ test("ouvre l’espace PENT après validation de la session", async () => {
 
   render(<App />);
 
-  expect((await screen.findAllByText("PENT")).length).toBeGreaterThan(0);
+  expect((await screen.findAllByText("CSRS ENT")).length).toBeGreaterThan(0);
 });
