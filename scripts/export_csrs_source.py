@@ -39,7 +39,7 @@ def iso_datetime(value):
 
 
 payload = {
-    "version": 1,
+    "version": 2,
     "extracted_at": now.isoformat(),
     "users": [
         {
@@ -47,8 +47,12 @@ payload = {
             "email": user.email,
             "alias": user.login_alias,
             "name": user.get_full_name() or str(user),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
             "phone": user.phone,
             "job_title": user.position,
+            "agenda_direction": user.agenda_direction,
+            "include_in_direction_agendas": user.include_in_direction_agendas,
             "active": user.is_active,
             "is_it_admin": user.is_it_admin or user.is_superuser,
             "is_dg": (
@@ -65,6 +69,8 @@ payload = {
             "code": unit.code,
             "name": unit.long_name,
             "short_name": unit.short_name,
+            "kind": unit.kind,
+            "display_order": unit.display_order,
             "active": unit.active,
         }
         for unit in active_units.order_by("id")

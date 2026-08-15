@@ -11,6 +11,10 @@ import { TeamPage } from "../features/team/TeamPage";
 import { AppShell } from "./AppShell";
 import { AgendaPage } from "../features/agenda/AgendaPage";
 import { AvailabilityPage } from "../features/agenda/AvailabilityPage";
+import { TaskManagementPage } from "../features/tasks/TaskManagementPage";
+import { UserFormPage } from "../features/users/UserFormPage";
+import { UserManagementPage } from "../features/users/UserManagementPage";
+import { OrganizationPage } from "../features/organization/OrganizationPage";
 
 export function AppRouter() {
   return (
@@ -44,6 +48,26 @@ export function AppRouter() {
           <Route path="equipe/:employeeId" element={<EmployeePage />} />
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="absences" element={<AvailabilityPage />} />
+          <Route
+            path="administration/taches"
+            element={<TaskManagementPage />}
+          />
+          <Route
+            path="administration/utilisateurs"
+            element={<UserManagementPage />}
+          />
+          <Route
+            path="administration/utilisateurs/nouveau"
+            element={<UserFormPage mode="create" />}
+          />
+          <Route
+            path="administration/utilisateurs/:userId"
+            element={<UserFormPage mode="edit" />}
+          />
+          <Route
+            path="administration/organigramme"
+            element={<OrganizationPage />}
+          />
         </Route>
         <Route
           path="*"

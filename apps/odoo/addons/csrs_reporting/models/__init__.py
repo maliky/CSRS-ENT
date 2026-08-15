@@ -1,5 +1,6 @@
 from . import agenda
 from . import api
+from . import audit
 from . import migration
 from . import organization
 from . import project_task

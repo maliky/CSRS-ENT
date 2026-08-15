@@ -87,7 +87,7 @@ jobs:
     concurrency: csrs-ent-preprod
     environment:
       name: preprod
-      url: https://ent.koba.sarl/
+      url: https://preprod.ent.koba.sarl/
     steps:
       - name: Configure restricted SSH access
         env:

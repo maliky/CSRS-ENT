@@ -99,6 +99,7 @@ export type Session = {
     view_weekly_agenda: boolean;
     delete_tasks: boolean;
     manage_users: boolean;
+    manage_organization: boolean;
     password_change_required: boolean;
   };
 };
@@ -164,6 +165,36 @@ export type UserBulkActionResult = {
   affected: number;
 };
 
+export type TaskManagementItem = {
+  id: number;
+  revision: number;
+  task_id: number;
+  code: string;
+  title: string;
+  status: string;
+  status_label: string;
+  percentage: number;
+  start_date: string;
+  due_date: string;
+  employee: Person;
+  manager: Person;
+};
+
+export type TaskManagementPage = {
+  items: TaskManagementItem[];
+  total: number;
+  page: number;
+  pages: number;
+  page_size: number;
+  employees: Person[];
+};
+
+export type TaskBulkDeleteResult = {
+  audit_id: number;
+  deleted_assignments: number;
+  deleted_tasks: number;
+};
+
 export type CollaboratorManagement = {
   supervisor: Person;
   state_token: string;
@@ -175,6 +206,34 @@ export type CollaboratorManagement = {
 export type TemporaryPasswordResult = {
   temporary_password: string;
   state_token: string;
+};
+
+export type OrganizationUnitDetail = OrganizationUnitOption & {
+  kind: string;
+  display_order: number;
+  active: boolean;
+  parent_id: number | null;
+  state_token: string;
+};
+
+export type OrganizationGrant = {
+  id: number;
+  user: Person;
+  department: OrganizationUnitOption;
+  role_code: string;
+  scope: "unit" | "tree";
+  valid_from: string;
+  valid_until: string | null;
+  active: boolean;
+  grant_reason: string;
+  revoke_reason: string;
+};
+
+export type OrganizationAdministration = {
+  units: OrganizationUnitDetail[];
+  grants: OrganizationGrant[];
+  role_codes: Array<{ value: string; label: string }>;
+  users: Person[];
 };
 
 export type AgendaPerson = Pick<Person, "id" | "name" | "position">;

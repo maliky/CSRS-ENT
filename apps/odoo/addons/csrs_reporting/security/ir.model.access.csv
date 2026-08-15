@@ -2,6 +2,8 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_csrs_progress_entry_agent,csrs.progress.entry agent,model_csrs_progress_entry,csrs_reporting.group_csrs_agent,1,0,0,0
 access_csrs_membership_agent,csrs.organization.membership agent,model_csrs_organization_membership,csrs_reporting.group_csrs_agent,1,0,0,0
 access_csrs_membership_it,csrs.organization.membership it,model_csrs_organization_membership,csrs_reporting.group_csrs_it,1,1,1,0
+access_csrs_reporting_line_agent,csrs.reporting.line agent,model_csrs_reporting_line,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_reporting_line_it,csrs.reporting.line it,model_csrs_reporting_line,csrs_reporting.group_csrs_it,1,1,1,0
 access_csrs_role_grant_agent,csrs.role.grant agent,model_csrs_role_grant,csrs_reporting.group_csrs_agent,1,0,0,0
 access_csrs_role_grant_it,csrs.role.grant it,model_csrs_role_grant,csrs_reporting.group_csrs_it,1,1,1,0
 access_csrs_task_proposal_agent,csrs.task.proposal agent,model_csrs_task_proposal,csrs_reporting.group_csrs_agent,1,1,1,0
@@ -15,3 +17,4 @@ access_csrs_agenda_draft_it,csrs.agenda.draft it,model_csrs_agenda_draft,csrs_re
 access_csrs_agenda_version_secretariat,csrs.agenda.version secretariat,model_csrs_agenda_version,csrs_reporting.group_csrs_secretariat,1,0,1,0
 access_csrs_agenda_version_dg,csrs.agenda.version dg,model_csrs_agenda_version,csrs_reporting.group_csrs_dg,1,0,0,0
 access_csrs_agenda_version_it,csrs.agenda.version it,model_csrs_agenda_version,csrs_reporting.group_csrs_it,1,0,1,0
+access_csrs_audit_event_it,csrs.audit.event it,model_csrs_audit_event,csrs_reporting.group_csrs_it,1,0,0,0

@@ -37,7 +37,6 @@ fi
 "${RELEASE_DIR}/scripts/deploy_preprod.sh" "$ENV_FILE"
 curl --fail --silent --show-error http://127.0.0.1:18007/healthz/ >/dev/null
 curl --fail --silent --show-error http://127.0.0.1:18007/readyz/ >/dev/null
-curl --fail --silent --show-error https://ent.koba.sarl/healthz/ >/dev/null
 
 ln -sfn "$RELEASE_DIR" "${DEPLOY_ROOT}/current"
 

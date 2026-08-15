@@ -8,6 +8,8 @@
 *.p12
 *.pfx
 *.crt
+.*ignore*
+.secret*
 secrets/
 
 # Python

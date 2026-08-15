@@ -61,6 +61,18 @@
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
     <field name="domain_force">[(1, '=', 1)]</field>
   </record>
+  <record id="rule_csrs_reporting_line_participant" model="ir.rule">
+    <field name="name">Lignes hiérarchiques CSRS personnelles</field>
+    <field name="model_id" ref="model_csrs_reporting_line"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    <field name="domain_force">['|', ('employee_id', '=', user.id), ('supervisor_id', '=', user.id)]</field>
+  </record>
+  <record id="rule_csrs_reporting_line_governance" model="ir.rule">
+    <field name="name">Lignes hiérarchiques CSRS de gouvernance</field>
+    <field name="model_id" ref="model_csrs_reporting_line"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+  </record>
   <record id="rule_csrs_role_grant_own" model="ir.rule">
     <field name="name">Délégations CSRS personnelles</field>
     <field name="model_id" ref="model_csrs_role_grant"/>

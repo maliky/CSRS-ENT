@@ -53,8 +53,10 @@ class HrLeave(models.Model):
 
     def action_csrs_cancel(self, reason, expected_revision=None):
         self.ensure_one()
-        if not self.env.user.has_group("csrs_reporting.group_csrs_hr") and not self.env.user.has_group(
-            "csrs_reporting.group_csrs_it"
+        if (
+            not self.env.user.has_group("csrs_reporting.group_csrs_hr")
+            and not self.env.user.has_group("csrs_reporting.group_csrs_it")
+            and not self.env.user.csrs_has_global_role_grant("AGENDA_HR")
         ):
             raise UserError(_("Seules les RH peuvent annuler cette indisponibilité."))
         if expected_revision is not None and self.csrs_revision != expected_revision:
@@ -212,9 +214,11 @@ class CsrsAgendaVersion(models.Model):
     @api.model
     def create_from_snapshot(self, draft, direction, snapshot):
         """Create, render and freeze one direction-specific agenda version."""
-        if not self.env.user.has_group(
-            "csrs_reporting.group_csrs_secretariat"
-        ) and not self.env.user.has_group("csrs_reporting.group_csrs_it"):
+        if (
+            not self.env.user.has_group("csrs_reporting.group_csrs_secretariat")
+            and not self.env.user.has_group("csrs_reporting.group_csrs_it")
+            and not self.env.user.csrs_has_global_role_grant("AGENDA_SECRETARIAT")
+        ):
             raise UserError(_("Seul le secrétariat peut générer un agenda."))
         canonical = json.dumps(
             snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")

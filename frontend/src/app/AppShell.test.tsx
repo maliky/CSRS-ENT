@@ -99,3 +99,41 @@ test("bloque la navigation tant que le mot de passe temporaire subsiste", async 
     screen.queryByRole("link", { name: "Mon équipe" }),
   ).not.toBeInTheDocument();
 });
+
+test("affiche les outils d'administration uniquement avec les droits Odoo", async () => {
+  server.use(
+    http.get("/api/v1/session/", () =>
+      HttpResponse.json({
+        ...sessionFixture,
+        capabilities: {
+          ...sessionFixture.capabilities,
+          delete_tasks: true,
+          manage_users: true,
+          manage_organization: true,
+        },
+      }),
+    ),
+  );
+  render(
+    <MemoryRouter>
+      <Routes>
+        <Route path="/" element={<AppShell />}>
+          <Route index element={<h1>Administration</h1>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Administration")).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "Gérer les tâches" }),
+  ).toHaveAttribute("href", "/administration/taches");
+  expect(screen.getByRole("link", { name: "Utilisateurs" })).toHaveAttribute(
+    "href",
+    "/administration/utilisateurs",
+  );
+  expect(screen.getByRole("link", { name: "Organigramme" })).toHaveAttribute(
+    "href",
+    "/administration/organigramme",
+  );
+});
