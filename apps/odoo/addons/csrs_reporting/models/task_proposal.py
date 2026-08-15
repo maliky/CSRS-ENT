@@ -12,6 +12,7 @@ class CsrsTaskProposal(models.Model):
     _order = "create_date desc, id desc"
 
     code = fields.Char(readonly=True, copy=False, index=True)
+    csrs_source_id = fields.Integer(index=True, readonly=True, copy=False)
     title = fields.Char(string="Nom court", required=True, tracking=True)
     description = fields.Text(string="Résultat attendu", required=True, tracking=True)
     author_id = fields.Many2one(
@@ -19,7 +20,12 @@ class CsrsTaskProposal(models.Model):
     )
     manager_id = fields.Many2one("res.users", required=True, index=True)
     project_id = fields.Many2one(
-        "project.project", string="Action institutionnelle", ondelete="restrict"
+        "project.project", string="Projet de recherche", ondelete="restrict"
+    )
+    institutional_action_id = fields.Many2one(
+        "csrs.institutional.action",
+        string="Action institutionnelle",
+        ondelete="restrict",
     )
     calendar_id = fields.Many2one(
         "resource.calendar",
@@ -49,6 +55,9 @@ class CsrsTaskProposal(models.Model):
 
     _code_unique = models.Constraint(
         "UNIQUE (code)", "Ce code de proposition CSRS ENT est déjà utilisé."
+    )
+    _source_unique = models.Constraint(
+        "UNIQUE (csrs_source_id)", "Cette proposition source est déjà importée."
     )
 
     @api.constrains("start_date", "due_date", "estimated_work_days")
@@ -90,6 +99,7 @@ class CsrsTaskProposal(models.Model):
             "title",
             "description",
             "project_id",
+            "institutional_action_id",
             "calendar_id",
             "start_date",
             "due_date",
@@ -147,6 +157,7 @@ class CsrsTaskProposal(models.Model):
                 "name": self.title,
                 "description": self.description,
                 "project_id": self.project_id.id,
+                "csrs_institutional_action_id": self.institutional_action_id.id,
                 "user_ids": [Command.set(self.author_id.ids)],
                 "csrs_managed": True,
                 "csrs_manager_id": self.manager_id.id,
@@ -171,12 +182,15 @@ class CsrsTaskProposal(models.Model):
     def create(self, values_list):
         for values in values_list:
             author = self.env["res.users"].browse(values.get("author_id") or self.env.user.id)
-            if author != self.env.user and not self.env.user.has_group(
-                "csrs_reporting.group_csrs_it"
+            if (
+                not self.env.context.get("csrs_migration_import")
+                and author != self.env.user
+                and not self.env.user.has_group("csrs_reporting.group_csrs_it")
             ):
                 raise UserError(_("Vous ne pouvez proposer une tâche que pour vous-même."))
             values["author_id"] = author.id
-            values.setdefault("manager_id", self._manager_for_user(author).id)
+            if not values.get("manager_id"):
+                values["manager_id"] = self._manager_for_user(author).id
             values.setdefault("code", self.env["ir.sequence"].next_by_code("csrs.proposal"))
         return super().create(values_list)
 

@@ -1,10 +1,12 @@
 """Validated, idempotent import of the active CSRS identity snapshot."""
 
 from collections import defaultdict
+from datetime import datetime, time, timedelta
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.fields import Command
+from odoo.tools import html2plaintext
 
 
 class CsrsMigrationImporter(models.AbstractModel):
@@ -12,27 +14,30 @@ class CsrsMigrationImporter(models.AbstractModel):
     _description = "Import contrôlé de la source CSRS"
 
     @api.model
-    def import_payload(self, payload, apply=False):
+    def import_payload(self, payload, apply=False, reconcile=False):
         """Validate a versioned snapshot, then optionally upsert it atomically."""
         snapshot = self._validate_payload(payload)
         report = {
-            "mode": "apply" if apply else "dry-run",
-            "users": len(snapshot["users"]),
-            "departments": len(snapshot["departments"]),
-            "department_links": len(snapshot["department_links"]),
-            "memberships": len(snapshot["memberships"]),
-            "reporting_lines": len(snapshot["reporting_lines"]),
-            "role_grants": len(snapshot["role_grants"]),
+            "mode": "reconcile" if reconcile else ("apply" if apply else "dry-run"),
             "created": defaultdict(int),
             "updated": defaultdict(int),
             "unchanged": defaultdict(int),
         }
+        report.update(
+            {
+                name: len(rows)
+                for name, rows in snapshot.items()
+                if isinstance(rows, list)
+            }
+        )
         if not apply:
             report["created"] = {}
             report["updated"] = {}
             report["unchanged"] = {}
             return report
 
+        if reconcile:
+            self._remove_demo_identity_snapshot(report)
         departments = self._upsert_departments(snapshot["departments"], report)
         self._link_departments(snapshot["department_links"], departments)
         users, employees = self._upsert_users(snapshot["users"], report)
@@ -45,6 +50,23 @@ class CsrsMigrationImporter(models.AbstractModel):
         self._upsert_role_grants(
             snapshot["role_grants"], users, departments, report
         )
+        if snapshot["version"] == 3:
+            plans, action_plans, actions = self._upsert_planning(snapshot, report)
+            calendars = self._upsert_calendars(snapshot, report)
+            task_definitions, tasks = self._upsert_tasks(
+                snapshot, users, departments, actions, calendars, report
+            )
+            proposals = self._upsert_proposals(
+                snapshot, users, actions, calendars, tasks, report
+            )
+            self._upsert_progress_history(snapshot, users, tasks, report)
+            self._upsert_task_activities(snapshot, users, tasks, report)
+            self._upsert_legacy_revisions(
+                snapshot, users, task_definitions, tasks, proposals, report
+            )
+            del plans, action_plans
+        if reconcile:
+            self._archive_absent_source_records(snapshot, report)
         report["created"] = dict(report["created"])
         report["updated"] = dict(report["updated"])
         report["unchanged"] = dict(report["unchanged"])
@@ -55,8 +77,22 @@ class CsrsMigrationImporter(models.AbstractModel):
         changes = {}
         for key, value in values.items():
             current = record[key]
-            if record._fields[key].type == "many2one":
+            field_type = record._fields[key].type
+            if field_type == "many2one":
                 current = current.id or False
+            elif field_type == "datetime" and value:
+                value = fields.Datetime.to_datetime(value)
+            elif field_type == "many2many":
+                current = tuple(sorted(current.ids))
+                if (
+                    isinstance(value, (list, tuple))
+                    and len(value) == 1
+                    and value[0][0] == Command.SET
+                ):
+                    value = tuple(sorted(value[0][2]))
+            elif field_type == "html":
+                current = html2plaintext(current or "").strip()
+                value = html2plaintext(value or "").strip()
             if current in (None, "") and value in (None, "", False):
                 continue
             if current != value:
@@ -78,17 +114,38 @@ class CsrsMigrationImporter(models.AbstractModel):
             user.write({"group_ids": [Command.link(group.id)]})
 
     def _validate_payload(self, payload):
-        if not isinstance(payload, dict) or payload.get("version") != 2:
+        if not isinstance(payload, dict) or payload.get("version") not in {2, 3}:
             raise ValidationError(_("Version de fichier de migration invalide."))
-        names = (
+        names = [
             "users",
             "departments",
             "department_links",
             "memberships",
             "reporting_lines",
             "role_grants",
-        )
+        ]
+        extended_names = [
+            "strategic_plans",
+            "action_plans",
+            "institutional_actions",
+            "work_calendars",
+            "work_calendar_days",
+            "tasks",
+            "task_assignments",
+            "task_proposals",
+            "progress_entries",
+            "task_activities",
+            "task_history",
+            "assignment_history",
+            "proposal_history",
+            "progress_history",
+        ]
+        if payload["version"] == 3:
+            names.extend(extended_names)
         snapshot = {name: self._records(payload, name) for name in names}
+        snapshot["version"] = payload["version"]
+        for name in extended_names:
+            snapshot.setdefault(name, [])
         self._unique(snapshot["users"], "source_id", "utilisateur")
         self._unique(snapshot["users"], "email", "email", casefold=True)
         self._unique(
@@ -152,6 +209,8 @@ class CsrsMigrationImporter(models.AbstractModel):
             self._required_string(row, "role_code")
             if row.get("scope") not in ("unit", "tree"):
                 raise ValidationError(_("Portée de délégation invalide."))
+        if snapshot["version"] == 3:
+            self._validate_work_snapshot(snapshot, user_ids, department_ids)
         return snapshot
 
     @staticmethod
@@ -160,6 +219,131 @@ class CsrsMigrationImporter(models.AbstractModel):
         if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
             raise ValidationError(_("Collection de migration invalide : %s.", name))
         return rows
+
+    def _validate_work_snapshot(self, snapshot, user_ids, department_ids):
+        collections = (
+            "strategic_plans",
+            "action_plans",
+            "institutional_actions",
+            "work_calendars",
+            "work_calendar_days",
+            "tasks",
+            "task_assignments",
+            "task_proposals",
+            "progress_entries",
+            "task_activities",
+            "task_history",
+            "assignment_history",
+            "proposal_history",
+            "progress_history",
+        )
+        for name in collections:
+            key = "history_id" if name.endswith("_history") else "source_id"
+            self._unique(snapshot[name], key, name)
+        plan_ids = {
+            self._positive_int(row, "source_id") for row in snapshot["strategic_plans"]
+        }
+        action_plan_ids = {
+            self._positive_int(row, "source_id") for row in snapshot["action_plans"]
+        }
+        action_ids = {
+            self._positive_int(row, "source_id")
+            for row in snapshot["institutional_actions"]
+        }
+        calendar_ids = {
+            self._positive_int(row, "source_id") for row in snapshot["work_calendars"]
+        }
+        task_ids = {
+            self._positive_int(row, "source_id") for row in snapshot["tasks"]
+        }
+        assignment_ids = {
+            self._positive_int(row, "source_id")
+            for row in snapshot["task_assignments"]
+        }
+        proposal_ids = {
+            self._positive_int(row, "source_id")
+            for row in snapshot["task_proposals"]
+        }
+        progress_ids = {
+            self._positive_int(row, "source_id")
+            for row in snapshot["progress_entries"]
+        }
+        for row in snapshot["strategic_plans"]:
+            self._required_string(row, "name")
+            self._required_string(row, "start_date")
+            self._required_string(row, "end_date")
+        for row in snapshot["action_plans"]:
+            self._reference(row, "strategic_plan_source_id", plan_ids)
+            self._required_string(row, "code")
+            self._required_string(row, "name")
+        for row in snapshot["institutional_actions"]:
+            self._reference(row, "action_plan_source_id", action_plan_ids)
+            self._required_string(row, "code")
+            self._required_string(row, "name")
+        for row in snapshot["work_calendar_days"]:
+            self._reference(row, "calendar_source_id", calendar_ids)
+            self._required_string(row, "day")
+        for row in snapshot["tasks"]:
+            self._required_string(row, "code")
+            self._required_string(row, "title")
+            self._reference(row, "created_by_source_id", user_ids)
+            self._optional_reference(row, "action_source_id", action_ids)
+        seen_task_assignments = set()
+        for row in snapshot["task_assignments"]:
+            task_id = self._reference(row, "task_source_id", task_ids)
+            if task_id in seen_task_assignments:
+                raise ValidationError(_("Une tâche source possède plusieurs affectations."))
+            seen_task_assignments.add(task_id)
+            self._reference(row, "employee_source_id", user_ids)
+            self._reference(row, "manager_source_id", user_ids)
+            # Historical tasks can point to a deleted unit; the assignment is
+            # authoritative through its employee, manager and Odoo project.
+            if row.get("organization_unit_source_id"):
+                self._positive_int(row, "organization_unit_source_id")
+            self._reference(row, "calendar_source_id", calendar_ids)
+            self._required_string(row, "start_date")
+            self._required_string(row, "due_date")
+            if row.get("status") not in {
+                "planned",
+                "active",
+                "awaiting_validation",
+                "completed",
+                "closed_early",
+            }:
+                raise ValidationError(_("État d'affectation source invalide."))
+        for row in snapshot["task_proposals"]:
+            self._reference(row, "employee_source_id", user_ids)
+            if row.get("organization_unit_source_id"):
+                self._positive_int(row, "organization_unit_source_id")
+            self._optional_reference(row, "action_source_id", action_ids)
+            self._reference(row, "calendar_source_id", calendar_ids)
+            self._optional_reference(row, "reviewed_by_source_id", user_ids)
+            self._optional_reference(
+                row, "accepted_assignment_source_id", assignment_ids
+            )
+            if row.get("status") not in {"submitted", "accepted", "rejected"}:
+                raise ValidationError(_("État de proposition source invalide."))
+        for row in snapshot["progress_entries"]:
+            self._reference(row, "assignment_source_id", assignment_ids)
+            self._reference(row, "author_source_id", user_ids)
+        for row in snapshot["task_activities"]:
+            self._reference(row, "assignment_source_id", assignment_ids)
+            self._reference(row, "actor_source_id", user_ids)
+            self._optional_reference(row, "progress_source_id", progress_ids)
+        for name in (
+            "task_history",
+            "assignment_history",
+            "proposal_history",
+            "progress_history",
+        ):
+            for row in snapshot[name]:
+                self._positive_int(row, "history_id")
+                self._positive_int(row, "record_id")
+                self._required_string(row, "history_date")
+                self._optional_reference(
+                    row, "history_user_source_id", user_ids
+                )
+        del proposal_ids
 
     @staticmethod
     def _positive_int(row, key):
@@ -180,6 +364,12 @@ class CsrsMigrationImporter(models.AbstractModel):
         if value not in allowed:
             raise ValidationError(_("Référence source inconnue : %s.", key))
         return value
+
+    def _optional_reference(self, row, key, allowed):
+        value = row.get(key)
+        if value in (None, False, ""):
+            return None
+        return self._reference(row, key, allowed)
 
     def _unique(self, rows, key, label, casefold=False):
         seen = set()
@@ -285,12 +475,21 @@ class CsrsMigrationImporter(models.AbstractModel):
             source_id = row["source_id"]
             user = Users.search([("csrs_source_id", "=", source_id)], limit=1)
             by_login = Users.search([("login", "=ilike", row["email"])], limit=1)
-            if row.get("is_it_admin"):
-                by_login = user or by_login or self.env.ref("base.user_admin")
-            if user and by_login and user != by_login:
-                raise ValidationError(_("Collision entre identifiant source et email."))
-            user = user or by_login
-            first_source_import = not user or not user.csrs_source_id
+            alias = (row.get("alias") or "").strip()
+            by_alias = (
+                Users.search([("csrs_alias", "=ilike", alias)], limit=2)
+                if alias
+                else Users
+            )
+            candidates = user | by_login | by_alias
+            if len(candidates) > 1:
+                raise ValidationError(
+                    _("Collision entre identifiant source, email et alias.")
+                )
+            user = candidates
+            first_source_import = not user or (
+                not user.csrs_source_id and user.csrs_alias != "dev"
+            )
             values = {
                 "name": row["name"],
                 "login": row["email"].strip().lower(),
@@ -479,3 +678,448 @@ class CsrsMigrationImporter(models.AbstractModel):
             else:
                 Grant.create(values)
                 report["created"]["role_grants"] += 1
+
+    def _remove_demo_identity_snapshot(self, report):
+        """Delete only the known demo identities while preserving ``dev``."""
+        Users = self.env["res.users"].sudo().with_context(active_test=False)
+        administrator = self.env.ref("base.user_admin")
+        demos = Users.search(
+            [
+                "|",
+                ("login", "ilike", "@demo.invalid"),
+                ("email", "ilike", "@demo.invalid"),
+            ]
+        )
+        preserved = demos.filtered(
+            lambda user: user == administrator or user.csrs_alias == "dev"
+        )
+        if preserved:
+            preserved.write({"csrs_source_id": False})
+            self.env["hr.employee"].sudo().with_context(active_test=False).search(
+                [("user_id", "in", preserved.ids)]
+            ).write({"csrs_source_id": False})
+        removable = demos - preserved
+        if not removable:
+            report["unchanged"]["demo_users_removed"] += 1
+            return
+        ids = removable.ids
+        self.env.cr.execute(
+            "UPDATE csrs_audit_event SET actor_id=%s WHERE actor_id = ANY(%s)",
+            [administrator.id, ids],
+        )
+        self.env.cr.execute(
+            "DELETE FROM csrs_role_grant WHERE user_id = ANY(%s) OR granted_by_id = ANY(%s) OR revoked_by_id = ANY(%s)",
+            [ids, ids, ids],
+        )
+        self.env["csrs.reporting.line"].sudo().with_context(active_test=False).search(
+            ["|", ("employee_id", "in", ids), ("supervisor_id", "in", ids)]
+        ).unlink()
+        self.env["csrs.organization.membership"].sudo().with_context(
+            active_test=False
+        ).search([("user_id", "in", ids)]).unlink()
+        employees = self.env["hr.employee"].sudo().with_context(active_test=False).search(
+            [("user_id", "in", ids)]
+        )
+        employees.unlink()
+        removable.unlink()
+        report["updated"]["demo_users_removed"] += len(ids)
+
+    def _archive_absent_source_records(self, snapshot, report):
+        source_user_ids = {row["source_id"] for row in snapshot["users"]}
+        source_department_ids = {row["source_id"] for row in snapshot["departments"]}
+        stale_users = (
+            self.env["res.users"]
+            .sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("csrs_source_id", "!=", False),
+                    ("csrs_source_id", "not in", sorted(source_user_ids) or [0]),
+                ]
+            )
+        )
+        if stale_users:
+            stale_users.write({"active": False})
+            self.env["hr.employee"].sudo().with_context(active_test=False).search(
+                [("user_id", "in", stale_users.ids)]
+            ).write({"active": False})
+            report["updated"]["users_archived"] += len(stale_users)
+        stale_departments = (
+            self.env["hr.department"]
+            .sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("csrs_source_id", "!=", False),
+                    (
+                        "csrs_source_id",
+                        "not in",
+                        sorted(source_department_ids) or [0],
+                    ),
+                ]
+            )
+        )
+        if stale_departments:
+            stale_departments.write({"active": False})
+            report["updated"]["departments_archived"] += len(stale_departments)
+
+    def _upsert_planning(self, snapshot, report):
+        Strategic = self.env["csrs.strategic.plan"].sudo().with_context(
+            active_test=False
+        )
+        ActionPlan = self.env["csrs.action.plan"].sudo().with_context(active_test=False)
+        Action = self.env["csrs.institutional.action"].sudo().with_context(
+            active_test=False
+        )
+        strategic = {}
+        for row in snapshot["strategic_plans"]:
+            record = Strategic.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            values = {
+                "csrs_source_id": row["source_id"],
+                "name": row["name"],
+                "start_date": fields.Date.to_date(row["start_date"]),
+                "end_date": fields.Date.to_date(row["end_date"]),
+                "active": bool(row.get("active", True)),
+            }
+            if record:
+                self._write_or_report(record, values, report, "strategic_plans")
+            else:
+                record = Strategic.create(values)
+                report["created"]["strategic_plans"] += 1
+            strategic[row["source_id"]] = record
+        plans = {}
+        for row in snapshot["action_plans"]:
+            record = ActionPlan.search(
+                [("csrs_source_id", "=", row["source_id"])], limit=1
+            )
+            values = {
+                "csrs_source_id": row["source_id"],
+                "strategic_plan_id": strategic[row["strategic_plan_source_id"]].id,
+                "code": row["code"],
+                "name": row["name"],
+                "active": bool(row.get("active", True)),
+            }
+            if record:
+                self._write_or_report(record, values, report, "action_plans")
+            else:
+                record = ActionPlan.create(values)
+                report["created"]["action_plans"] += 1
+            plans[row["source_id"]] = record
+        actions = {}
+        for row in snapshot["institutional_actions"]:
+            record = Action.search(
+                [("csrs_source_id", "=", row["source_id"])], limit=1
+            )
+            values = {
+                "csrs_source_id": row["source_id"],
+                "action_plan_id": plans[row["action_plan_source_id"]].id,
+                "code": row["code"],
+                "name": row["name"],
+                "active": bool(row.get("active", True)),
+            }
+            if record:
+                self._write_or_report(record, values, report, "institutional_actions")
+            else:
+                record = Action.create(values)
+                report["created"]["institutional_actions"] += 1
+            actions[row["source_id"]] = record
+        return strategic, plans, actions
+
+    def _upsert_calendars(self, snapshot, report):
+        Calendar = self.env["resource.calendar"].sudo().with_context(active_test=False)
+        Leave = self.env["resource.calendar.leaves"].sudo()
+        calendars = {}
+        for row in snapshot["work_calendars"]:
+            record = Calendar.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            if not record and row.get("is_default"):
+                record = self.env.company.resource_calendar_id
+            values = {
+                "name": f"{row['name']} ({row['version']})",
+                "active": bool(row.get("active", True)),
+                "csrs_source_id": row["source_id"],
+                "csrs_source_version": row["version"],
+            }
+            if record:
+                self._write_or_report(record, values, report, "work_calendars")
+            else:
+                record = Calendar.create(values)
+                report["created"]["work_calendars"] += 1
+            calendars[row["source_id"]] = record
+        for row in snapshot["work_calendar_days"]:
+            record = Leave.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            day = fields.Date.to_date(row["day"])
+            values = {
+                "name": row["name"],
+                "calendar_id": calendars[row["calendar_source_id"]].id,
+                "date_from": datetime.combine(day, time.min),
+                "date_to": datetime.combine(day + timedelta(days=1), time.min),
+                "csrs_source_id": row["source_id"],
+                "csrs_is_working_day": bool(row.get("is_working_day")),
+            }
+            if record:
+                self._write_or_report(record, values, report, "work_calendar_days")
+            elif not row.get("is_working_day"):
+                Leave.create(values)
+                report["created"]["work_calendar_days"] += 1
+            else:
+                report["unchanged"]["working_day_overrides"] += 1
+        return calendars
+
+    def _upsert_tasks(
+        self, snapshot, users, departments, actions, calendars, report
+    ):
+        del departments
+        Task = self.env["project.task"].sudo().with_context(active_test=False)
+        definitions = {row["source_id"]: row for row in snapshot["tasks"]}
+        assignments = {
+            row["task_source_id"]: row for row in snapshot["task_assignments"]
+        }
+        tasks = {}
+        for source_id, definition in definitions.items():
+            assignment = assignments.get(source_id)
+            record = Task.search([("csrs_task_source_id", "=", source_id)], limit=1)
+            action = actions.get(definition.get("action_source_id"))
+            if assignment:
+                employee = users[assignment["employee_source_id"]]
+                manager = users[assignment["manager_source_id"]]
+                calendar = calendars[assignment["calendar_source_id"]]
+                values = {
+                    "active": True,
+                    "name": definition["title"],
+                    "description": definition["description"],
+                    "csrs_source_id": assignment["source_id"],
+                    "csrs_task_source_id": source_id,
+                    "csrs_code": definition["code"],
+                    "csrs_managed": True,
+                    "csrs_manager_id": manager.id,
+                    "user_ids": [(6, 0, employee.ids)],
+                    "csrs_calendar_id": calendar.id,
+                    "csrs_start_date": fields.Date.to_date(assignment["start_date"]),
+                    "date_deadline": fields.Date.to_date(assignment["due_date"]),
+                    "csrs_estimated_work_days": float(
+                        assignment["estimated_work_days"]
+                    ),
+                    "csrs_status": assignment["status"],
+                    "csrs_close_reason": assignment.get("closed_reason") or False,
+                    "csrs_completed_at": fields.Datetime.to_datetime(
+                        assignment["completed_at"]
+                    )
+                    if assignment.get("completed_at")
+                    else False,
+                    "csrs_revision": int(assignment.get("revision") or 1),
+                    "csrs_institutional_action_id": action.id if action else False,
+                }
+            else:
+                creator = users[definition["created_by_source_id"]]
+                values = {
+                    "active": False,
+                    "name": definition["title"],
+                    "description": definition["description"],
+                    "csrs_task_source_id": source_id,
+                    "csrs_code": definition["code"],
+                    "csrs_managed": True,
+                    "csrs_manager_id": creator.id,
+                    "user_ids": [(6, 0, [])],
+                    "csrs_status": "closed_early",
+                    "csrs_close_reason": "Définition historique sans affectation active",
+                    "csrs_institutional_action_id": action.id if action else False,
+                }
+            if record:
+                self._write_or_report(record, values, report, "tasks")
+            else:
+                record = Task.with_context(csrs_authorized_mutation=True).create(values)
+                report["created"]["tasks"] += 1
+            tasks[source_id] = record
+        assignment_tasks = {
+            row["source_id"]: tasks[row["task_source_id"]]
+            for row in snapshot["task_assignments"]
+        }
+        return tasks, assignment_tasks
+
+    def _upsert_proposals(
+        self, snapshot, users, actions, calendars, tasks, report
+    ):
+        Proposal = self.env["csrs.task.proposal"].sudo().with_context(
+            active_test=False,
+            csrs_migration_import=True,
+        )
+        employees = self.env["hr.employee"].sudo().with_context(active_test=False)
+        proposals = {}
+        for row in snapshot["task_proposals"]:
+            record = Proposal.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            author = users[row["employee_source_id"]]
+            reviewed = users.get(row.get("reviewed_by_source_id"))
+            employee = employees.search([("user_id", "=", author.id)], limit=1)
+            manager = reviewed or employee.parent_id.user_id or author
+            accepted = tasks.get(row.get("accepted_assignment_source_id"))
+            action = actions.get(row.get("action_source_id"))
+            values = {
+                "csrs_source_id": row["source_id"],
+                "code": f"LEGACY-P-{row['source_id']:06d}",
+                "title": row["title"],
+                "description": row["description"],
+                "author_id": author.id,
+                "manager_id": manager.id,
+                "institutional_action_id": action.id if action else False,
+                "calendar_id": calendars[row["calendar_source_id"]].id,
+                "start_date": fields.Date.to_date(row["start_date"]),
+                "due_date": fields.Date.to_date(row["due_date"]),
+                "estimated_work_days": float(row["estimated_work_days"]),
+                "state": row["status"],
+                "decision_note": row.get("decision_note") or False,
+                "accepted_task_id": accepted.id if accepted else False,
+                "revision": int(row.get("revision") or 1),
+            }
+            if record:
+                self._write_or_report(record, values, report, "task_proposals")
+            else:
+                record = Proposal.with_context(csrs_authorized_mutation=True).create(values)
+                report["created"]["task_proposals"] += 1
+            proposals[row["source_id"]] = record
+        return proposals
+
+    def _upsert_progress_history(self, snapshot, users, tasks, report):
+        Progress = self.env["csrs.progress.entry"].sudo()
+        history_by_assignment = defaultdict(list)
+        for row in snapshot["progress_history"]:
+            if row.get("history_type") != "-":
+                history_by_assignment[row["assignment_source_id"]].append(row)
+        current_by_assignment = defaultdict(list)
+        for row in snapshot["progress_entries"]:
+            current_by_assignment[row["assignment_source_id"]].append(row)
+        for assignment_id, task in tasks.items():
+            rows = history_by_assignment.get(assignment_id)
+            if not rows:
+                rows = [
+                    {
+                        **row,
+                        "history_id": None,
+                        "history_date": row.get("updated_at") or row.get("created_at"),
+                    }
+                    for row in current_by_assignment.get(assignment_id, [])
+                ]
+            previous = 0.0
+            last = None
+            revision = 0
+            for row in sorted(
+                rows,
+                key=lambda item: (
+                    item.get("history_date") or "",
+                    item.get("history_id") or 0,
+                ),
+            ):
+                revision += 1
+                history_id = row.get("history_id")
+                existing = (
+                    Progress.search([("csrs_history_id", "=", history_id)], limit=1)
+                    if history_id
+                    else Progress.search(
+                        [
+                            ("csrs_source_id", "=", row["source_id"]),
+                            ("task_id", "=", task.id),
+                        ],
+                        limit=1,
+                    )
+                )
+                author = users.get(row.get("author_source_id")) or task.csrs_manager_id
+                values = {
+                    "task_id": task.id,
+                    "csrs_source_id": row.get("source_id") or row.get("record_id"),
+                    "csrs_history_id": history_id or False,
+                    "author_id": author.id,
+                    "recorded_at": fields.Datetime.to_datetime(
+                        row.get("history_date") or row.get("updated_at")
+                    ),
+                    "previous_progress_percent": previous,
+                    "progress_percent": float(row["percentage"]),
+                    "blocked": bool(row.get("blocked")),
+                    "observation": row.get("note") or "",
+                    "revision": revision,
+                }
+                if existing:
+                    report["unchanged"]["progress_history"] += 1
+                else:
+                    Progress.create(values)
+                    report["created"]["progress_history"] += 1
+                previous = float(row["percentage"])
+                last = row
+            current = sorted(
+                current_by_assignment.get(assignment_id, []),
+                key=lambda item: (item["entry_date"], item["source_id"]),
+            )
+            if current:
+                last = current[-1]
+            if last:
+                next_revision = max(task.csrs_revision, revision)
+                task.with_context(csrs_authorized_mutation=True).write(
+                    {
+                        "csrs_progress_percent": float(last["percentage"]),
+                        "csrs_blocked": bool(last.get("blocked")),
+                        "csrs_revision": next_revision,
+                    }
+                )
+
+    def _upsert_task_activities(self, snapshot, users, tasks, report):
+        Messages = self.env["mail.message"].sudo()
+        for row in snapshot["task_activities"]:
+            message_id = f"<legacy-task-activity-{row['source_id']}@csrs-ent.invalid>"
+            if Messages.search([("message_id", "=", message_id)], limit=1):
+                report["unchanged"]["task_activities"] += 1
+                continue
+            task = tasks[row["assignment_source_id"]]
+            actor = users[row["actor_source_id"]]
+            Messages.create(
+                {
+                    "model": "project.task",
+                    "res_id": task.id,
+                    "message_type": "comment",
+                    "body": row["message"] or row["kind"],
+                    "author_id": actor.partner_id.id,
+                    "date": fields.Datetime.to_datetime(row["occurred_at"]),
+                    "message_id": message_id,
+                }
+            )
+            report["created"]["task_activities"] += 1
+
+    def _upsert_legacy_revisions(
+        self, snapshot, users, task_definitions, tasks, proposals, report
+    ):
+        Revision = self.env["csrs.legacy.task.revision"].sudo()
+        mappings = (
+            ("task_history", "task", task_definitions, "record_id"),
+            ("assignment_history", "assignment", tasks, "record_id"),
+            ("proposal_history", "proposal", proposals, "record_id"),
+            ("progress_history", "progress", tasks, "assignment_source_id"),
+        )
+        for collection, source_model, targets, target_key in mappings:
+            for row in snapshot[collection]:
+                target = targets.get(row.get(target_key))
+                if not target:
+                    report["unchanged"][f"{collection}_without_target"] += 1
+                    continue
+                existing = Revision.search(
+                    [
+                        ("source_model", "=", source_model),
+                        ("source_history_id", "=", row["history_id"]),
+                    ],
+                    limit=1,
+                )
+                if existing:
+                    report["unchanged"][collection] += 1
+                    continue
+                actor = users.get(row.get("history_user_source_id"))
+                values = {
+                    "source_model": source_model,
+                    "source_history_id": row["history_id"],
+                    "source_record_id": row["record_id"],
+                    "actor_id": actor.id if actor else False,
+                    "occurred_at": fields.Datetime.to_datetime(row["history_date"]),
+                    "change_kind": row.get("history_type") or "",
+                    "snapshot": row,
+                }
+                if source_model == "proposal":
+                    values["proposal_id"] = target.id
+                else:
+                    values["task_id"] = target.id
+                Revision.create(values)
+                report["created"][collection] += 1

@@ -18,3 +18,27 @@ access_csrs_agenda_version_secretariat,csrs.agenda.version secretariat,model_csr
 access_csrs_agenda_version_dg,csrs.agenda.version dg,model_csrs_agenda_version,csrs_reporting.group_csrs_dg,1,0,0,0
 access_csrs_agenda_version_it,csrs.agenda.version it,model_csrs_agenda_version,csrs_reporting.group_csrs_it,1,0,1,0
 access_csrs_audit_event_it,csrs.audit.event it,model_csrs_audit_event,csrs_reporting.group_csrs_it,1,0,0,0
+access_csrs_strategic_plan_agent,csrs.strategic.plan agent,model_csrs_strategic_plan,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_action_plan_agent,csrs.action.plan agent,model_csrs_action_plan,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_institutional_action_agent,csrs.institutional.action agent,model_csrs_institutional_action,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_legacy_task_revision_agent,csrs.legacy.task.revision agent,model_csrs_legacy_task_revision,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_research_project_agent,project.project recherche agent,project.model_project_project,csrs_reporting.group_csrs_agent,1,1,1,0
+access_csrs_project_section_agent,csrs.project.section agent,model_csrs_project_section,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_approval_agent,csrs.project.approval agent,model_csrs_project_approval,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_result_agent,csrs.project.result agent,model_csrs_project_result,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_budget_line_agent,csrs.project.budget.line agent,model_csrs_project_budget_line,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_compliance_agent,csrs.project.compliance agent,model_csrs_project_compliance,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_risk_agent,csrs.project.risk agent,model_csrs_project_risk,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_report_agent,csrs.project.report agent,model_csrs_project_report,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_closure_agent,csrs.project.closure agent,model_csrs_project_closure,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_process_case_agent,csrs.process.case agent,model_csrs_process_case,csrs_reporting.group_csrs_agent,1,0,1,0
+access_csrs_process_event_agent,csrs.process.event agent,model_csrs_process_event,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_fund_request_agent,csrs.fund.request agent,model_csrs_fund_request,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_purchase_request_agent,csrs.purchase.request agent,model_csrs_purchase_request,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_absence_request_agent,csrs.absence.request agent,model_csrs_absence_request,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_mission_order_agent,csrs.mission.order agent,model_csrs_mission_order,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_payment_notification_agent,csrs.payment.notification agent,model_csrs_payment_notification,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_visa_request_agent,csrs.visa.request agent,model_csrs_visa_request,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_data_management_case_agent,csrs.data.management.case agent,model_csrs_data_management_case,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_project_models_it,csrs project models it,model_csrs_project_section,csrs_reporting.group_csrs_it,1,1,1,0
+access_csrs_process_case_it,csrs.process.case it,model_csrs_process_case,csrs_reporting.group_csrs_it,1,1,1,0

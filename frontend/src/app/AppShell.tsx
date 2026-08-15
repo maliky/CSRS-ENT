@@ -1,6 +1,8 @@
 import {
   CalendarDays,
   ClipboardList,
+  FileCheck2,
+  FolderKanban,
   Lightbulb,
   ListPlus,
   LogOut,
@@ -188,6 +190,26 @@ export function AppShell() {
             <Lightbulb size={iconSize} aria-hidden="true" />
             <span className={styles.navLabel}>Propositions</span>
           </NavLink>
+          {session.capabilities.manage_research_projects && (
+            <NavLink
+              to="/projets"
+              className={navClass}
+              title="Projets de recherche"
+            >
+              <FolderKanban size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Projets</span>
+            </NavLink>
+          )}
+          {session.capabilities.manage_processes && (
+            <NavLink
+              to="/procedures"
+              className={navClass}
+              title="Procédures métier"
+            >
+              <FileCheck2 size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Procédures</span>
+            </NavLink>
+          )}
           {session.capabilities.create_task && (
             <NavLink
               to="/taches/nouvelle"

@@ -499,6 +499,11 @@ class CsrsPermissionTests(TransactionCase):
             "units": [],
         }
 
+        with self.assertRaises(UserError):
+            self.env["csrs.agenda.version"].with_user(
+                self.agent
+            ).create_from_snapshot(draft, "administration", snapshot)
+
         version = self.env["csrs.agenda.version"].with_user(
             self.secretariat
         ).create_from_snapshot(draft, "administration", snapshot)

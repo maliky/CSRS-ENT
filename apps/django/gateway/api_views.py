@@ -56,7 +56,14 @@ from .serializers import (
     OrganizationUnitSerializer,
     OrganizationUnitUpdateSerializer,
     RevokeGrantSerializer,
+    ResearchProjectCreateSerializer,
+    ResearchProjectItemSerializer,
+    ResearchProjectTransitionSerializer,
+    ResearchProjectUpdateSerializer,
     RoleGrantSerializer,
+    ProjectSectionTransitionSerializer,
+    ProcessCreateSerializer,
+    ProcessTransitionSerializer,
     VisitSerializer,
 )
 
@@ -360,9 +367,7 @@ class OrganizationUnitDetailView(OdooAPIView):
     )
     def patch(self, request: Request, pk: int) -> Response:
         payload = _payload(OrganizationUnitUpdateSerializer, request.data)
-        return Response(
-            self.rpc(request, "api_organization_unit_update", [pk, payload])
-        )
+        return Response(self.rpc(request, "api_organization_unit_update", [pk, payload]))
 
 
 class RoleGrantCreateView(OdooAPIView):
@@ -570,3 +575,118 @@ class AgendaVersionPdfView(OdooAPIView):
         )
         response["Cache-Control"] = "private, no-store"
         return response
+
+
+class ResearchProjectListCreateView(OdooAPIView):
+    @extend_schema(operation_id="research_projects_list", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        return Response(self.rpc(request, "api_research_projects"))
+
+    @extend_schema(request=ResearchProjectCreateSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(ResearchProjectCreateSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_research_project_create", [payload]), status=201
+        )
+
+
+class ResearchProjectOptionsView(OdooAPIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        return Response(self.rpc(request, "api_research_project_options"))
+
+
+class ResearchProjectDetailView(OdooAPIView):
+    @extend_schema(
+        operation_id="research_projects_retrieve", responses=OpenApiTypes.OBJECT
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        return Response(self.rpc(request, "api_research_project", [pk]))
+
+    @extend_schema(request=ResearchProjectUpdateSerializer, responses=OpenApiTypes.OBJECT)
+    def patch(self, request: Request, pk: int) -> Response:
+        payload = _payload(ResearchProjectUpdateSerializer, request.data)
+        return Response(self.rpc(request, "api_research_project_update", [pk, payload]))
+
+
+class ResearchProjectTransitionView(OdooAPIView):
+    @extend_schema(
+        request=ResearchProjectTransitionSerializer, responses=OpenApiTypes.OBJECT
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(ResearchProjectTransitionSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_research_project_transition", [pk, payload])
+        )
+
+
+class ResearchProjectSectionTransitionView(OdooAPIView):
+    @extend_schema(
+        request=ProjectSectionTransitionSerializer, responses=OpenApiTypes.OBJECT
+    )
+    def post(self, request: Request, pk: int, section_pk: int) -> Response:
+        payload = _payload(ProjectSectionTransitionSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_research_project_section_transition",
+                [pk, section_pk, payload],
+            )
+        )
+
+
+class ResearchProjectItemCreateView(OdooAPIView):
+    @extend_schema(request=ResearchProjectItemSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int, resource: str) -> Response:
+        payload = _payload(ResearchProjectItemSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_research_project_item_save",
+                [pk, resource, payload, None],
+            ),
+            status=201,
+        )
+
+
+class ResearchProjectItemUpdateView(OdooAPIView):
+    @extend_schema(request=ResearchProjectItemSerializer, responses=OpenApiTypes.OBJECT)
+    def patch(self, request: Request, pk: int, resource: str, item_pk: int) -> Response:
+        payload = _payload(ResearchProjectItemSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_research_project_item_save",
+                [pk, resource, payload, item_pk],
+            )
+        )
+
+
+class ProcessOptionsView(OdooAPIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        return Response(self.rpc(request, "api_process_options"))
+
+
+class ProcessListCreateView(OdooAPIView):
+    @extend_schema(operation_id="processes_list", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        return Response(self.rpc(request, "api_processes"))
+
+    @extend_schema(request=ProcessCreateSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(ProcessCreateSerializer, request.data)
+        return Response(self.rpc(request, "api_process_create", [payload]), status=201)
+
+
+class ProcessDetailView(OdooAPIView):
+    @extend_schema(operation_id="processes_retrieve", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request, pk: int) -> Response:
+        return Response(self.rpc(request, "api_process", [pk]))
+
+
+class ProcessTransitionView(OdooAPIView):
+    @extend_schema(request=ProcessTransitionSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(ProcessTransitionSerializer, request.data)
+        return Response(self.rpc(request, "api_process_transition", [pk, payload]))

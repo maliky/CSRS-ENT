@@ -6,8 +6,8 @@ readonly SOURCE_FILE="${2:-}"
 readonly ENV_FILE="${3:-.env}"
 readonly COMPOSE_FILE=infrastructure/compose/compose.yaml
 
-if [[ "$MODE" != dry-run && "$MODE" != apply ]]; then
-  echo "Usage: $0 dry-run|apply FICHIER_JSON [FICHIER_ENV]" >&2
+if [[ "$MODE" != dry-run && "$MODE" != apply && "$MODE" != reconcile ]]; then
+  echo "Usage: $0 dry-run|apply|reconcile FICHIER_JSON [FICHIER_ENV]" >&2
   exit 2
 fi
 if [[ ! -f "$SOURCE_FILE" ]]; then

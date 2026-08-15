@@ -318,9 +318,7 @@ class BusinessApiTests(SimpleTestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        call.assert_called_once_with(
-            "opaque-session", "api_user_create", [payload]
-        )
+        call.assert_called_once_with("opaque-session", "api_user_create", [payload])
 
     @patch("gateway.api_views.OdooClient.call")
     def test_temporary_password_response_is_never_cacheable(
@@ -420,3 +418,118 @@ class BusinessApiTests(SimpleTestCase):
         response = self.client.get("/api/v1/dashboard/")
 
         self.assertEqual(response.status_code, 401)
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_research_project_create_validates_then_delegates(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 71, "reference": "PRJ-00071"}
+        payload = {
+            "name": "Surveillance paludisme",
+            "objectives": "Mesurer l'incidence.",
+            "institutional_commitments": "Laboratoire et terrain",
+            "date_start": "2026-09-01",
+            "date_end": "2027-08-31",
+        }
+
+        response = self.client.post(
+            "/api/v1/research-projects/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        call.assert_called_once_with(
+            "opaque-session", "api_research_project_create", [payload]
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_project_section_transition_preserves_the_revision_contract(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 71, "revision": 4}
+
+        response = self.client.post(
+            "/api/v1/research-projects/71/sections/8/transition/",
+            data=json.dumps(
+                {
+                    "action": "correct",
+                    "revision": 3,
+                    "reason": "Ajouter la preuve terrain",
+                    "confirmation": "",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_research_project_section_transition",
+            [
+                71,
+                8,
+                {
+                    "action": "correct",
+                    "revision": 3,
+                    "reason": "Ajouter la preuve terrain",
+                    "confirmation": "",
+                },
+            ],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_project_item_create_preserves_values_and_revision(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 71, "revision": 5}
+        payload = {
+            "revision": 4,
+            "values": {
+                "name": "Résultat scientifique",
+                "indicator": "Publications",
+                "target_value": "3",
+            },
+        }
+
+        response = self.client.post(
+            "/api/v1/research-projects/71/items/results/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_research_project_item_save",
+            [71, "results", payload, None],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_process_create_delegates_a_typed_mission_form(self, call: MagicMock) -> None:
+        call.return_value = {"id": 19, "reference": "OM-00019"}
+        payload = {
+            "process_type": "mission",
+            "origin_department_id": 4,
+            "project_id": None,
+            "subject": "Mission Korhogo",
+            "description": "Supervision des sites",
+            "amount": "0.00",
+            "details": {
+                "destination": "Korhogo",
+                "purpose": "Supervision",
+                "departure_date": "2026-09-01",
+                "return_date": "2026-09-05",
+                "vehicle_required": True,
+            },
+            "documents": [],
+        }
+
+        response = self.client.post(
+            "/api/v1/processes/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        call.assert_called_once_with("opaque-session", "api_process_create", [payload])

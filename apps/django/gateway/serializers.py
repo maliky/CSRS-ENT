@@ -179,9 +179,7 @@ class UserBulkActionSerializer(serializers.Serializer[dict[str, object]]):
     )
     confirmation = serializers.CharField(required=False, allow_blank=True, default="")
 
-    def validate_users(
-        self, value: list[dict[str, object]]
-    ) -> list[dict[str, object]]:
+    def validate_users(self, value: list[dict[str, object]]) -> list[dict[str, object]]:
         ids = [item["id"] for item in value]
         if len(ids) > 100:
             raise serializers.ValidationError("La sélection est limitée à 100 comptes.")
@@ -338,3 +336,106 @@ class AgendaDraftSerializer(AgendaPeriodSerializer):
 
 class AgendaGenerateSerializer(AgendaPeriodSerializer):
     agenda_direction = serializers.ChoiceField(choices=("programs", "administration"))
+
+
+class ResearchProjectCreateSerializer(serializers.Serializer[dict[str, object]]):
+    name = serializers.CharField(max_length=200)
+    objectives = serializers.CharField()
+    institutional_commitments = serializers.CharField(
+        required=False, allow_blank=True, default=""
+    )
+    date_start = serializers.DateField(required=False, allow_null=True)
+    date_end = serializers.DateField(required=False, allow_null=True)
+    donor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    partner_names = serializers.ListField(
+        child=serializers.CharField(max_length=200), required=False
+    )
+    team_user_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False
+    )
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        start = attrs.get("date_start")
+        end = attrs.get("date_end")
+        if start and end and cast(date, end) < cast(date, start):
+            raise serializers.ValidationError(
+                {"date_end": "La fin doit suivre le début."}
+            )
+        return attrs
+
+
+class ResearchProjectUpdateSerializer(ResearchProjectCreateSerializer):
+    revision = serializers.IntegerField(min_value=1)
+
+
+class ResearchProjectTransitionSerializer(RevisionSerializer):
+    action = serializers.ChoiceField(choices=("approve", "reject", "close"))
+    lead_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        if attrs["action"] == "approve" and not attrs.get("lead_id"):
+            raise serializers.ValidationError(
+                {"lead_id": "Choisissez le chef de projet."}
+            )
+        if attrs["action"] == "reject" and not str(attrs.get("reason") or "").strip():
+            raise serializers.ValidationError(
+                {"reason": "Le motif de rejet est obligatoire."}
+            )
+        return attrs
+
+
+class ProjectSectionTransitionSerializer(RevisionSerializer):
+    action = serializers.ChoiceField(
+        choices=("submit", "verify", "correct", "validate", "close")
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+    confirmation = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ResearchProjectItemSerializer(serializers.Serializer[dict[str, object]]):
+    revision = serializers.IntegerField(min_value=1)
+    values = serializers.DictField()
+
+
+class ProcessDocumentSerializer(serializers.Serializer[dict[str, object]]):
+    name = serializers.CharField(max_length=255)
+    mimetype = serializers.ChoiceField(
+        choices=("application/pdf", "image/jpeg", "image/png")
+    )
+    content_base64 = serializers.RegexField(
+        r"^[A-Za-z0-9+/]*={0,2}$", max_length=14_000_000
+    )
+
+
+class ProcessCreateSerializer(serializers.Serializer[dict[str, object]]):
+    process_type = serializers.ChoiceField(
+        choices=(
+            "fund",
+            "purchase",
+            "absence",
+            "mission",
+            "payment_notice",
+            "visa",
+            "data",
+        )
+    )
+    origin_department_id = serializers.IntegerField(min_value=1)
+    project_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    subject = serializers.CharField(max_length=200)
+    description = serializers.CharField()
+    amount = serializers.DecimalField(
+        max_digits=16,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        default=Decimal("0"),
+    )
+    details = serializers.DictField()
+    documents = ProcessDocumentSerializer(many=True, required=False, default=list)
+
+
+class ProcessTransitionSerializer(RevisionSerializer):
+    action = serializers.CharField(max_length=32)
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+    confirmation = serializers.CharField(required=False, allow_blank=True, default="")
