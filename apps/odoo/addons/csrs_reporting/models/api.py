@@ -77,6 +77,13 @@ class CsrsApi(models.AbstractModel):
         if not any(self.env.user.has_group(xmlid) for xmlid in xmlids):
             raise AccessError(_("Cette opération n'est pas autorisée."))
 
+    def _require_group_or_global_role(self, xmlids, role_codes):
+        if any(self.env.user.has_group(xmlid) for xmlid in xmlids):
+            return
+        if self.env.user.csrs_has_global_role_grant(*role_codes):
+            return
+        raise AccessError(_("Cette opération n'est pas autorisée."))
+
     def _employee_for_user(self, user):
         """Resolve the private HR row only after the use case has scoped the user."""
         return self.env["hr.employee"].sudo().search(
@@ -272,16 +279,7 @@ class CsrsApi(models.AbstractModel):
                 [("parent_id", "=", employee.id), ("user_id", "!=", False)]
             )
         delegated = self.env["res.users"]
-        grants = self.env["csrs.role.grant"].search(
-            [
-                ("user_id", "=", user.id),
-                ("active", "=", True),
-                ("valid_from", "<=", fields.Datetime.now()),
-                "|",
-                ("valid_until", "=", False),
-                ("valid_until", ">", fields.Datetime.now()),
-            ]
-        )
+        grants = user.csrs_active_role_grants(("UNIT_MANAGER",))
         for grant in grants:
             operator = "child_of" if grant.scope == "tree" else "="
             delegated |= self.env["hr.employee"].sudo().search(
@@ -294,7 +292,13 @@ class CsrsApi(models.AbstractModel):
         user = self.env.user
         managed = self._managed_users()
         is_it = user.has_group("csrs_reporting.group_csrs_it")
-        is_secretariat = user.has_group("csrs_reporting.group_csrs_secretariat")
+        is_secretariat = user.has_group(
+            "csrs_reporting.group_csrs_secretariat"
+        ) or user.csrs_has_global_role_grant("AGENDA_SECRETARIAT")
+        is_hr = user.has_group(
+            "csrs_reporting.group_csrs_hr"
+        ) or user.csrs_has_global_role_grant("AGENDA_HR")
+        is_agenda_viewer = user.csrs_has_global_role_grant("AGENDA_VIEWER")
         is_dg = user.has_group("csrs_reporting.group_csrs_dg")
         return {
             "user": self._person(user),
@@ -305,12 +309,12 @@ class CsrsApi(models.AbstractModel):
                 "self_assign": is_dg or is_it,
                 "admin": is_it,
                 "manage_visits": is_secretariat or is_it,
-                "manage_availability": user.has_group(
-                    "csrs_reporting.group_csrs_hr"
-                )
-                or is_it,
+                "manage_availability": is_hr or is_it,
                 "prepare_weekly_agenda": is_secretariat or is_it,
-                "view_weekly_agenda": is_secretariat or is_dg or is_it,
+                "view_weekly_agenda": is_secretariat
+                or is_agenda_viewer
+                or is_dg
+                or is_it,
                 "delete_tasks": is_it,
                 "manage_users": is_it,
                 "manage_organization": is_it,
@@ -1068,7 +1072,12 @@ class CsrsApi(models.AbstractModel):
         user = self.env["res.users"].sudo().with_context(active_test=False).browse(
             int(user_id)
         ).exists()
-        if not user or not user.active or user == self.env.user:
+        if (
+            not user
+            or not user.active
+            or user == self.env.user
+            or user.id == self.env.ref("base.user_admin").id
+        ):
             raise UserError(_("Ce mot de passe ne peut pas être réinitialisé."))
         self._check_user_state(user, expected_token)
         alphabet = string.ascii_letters + string.digits + "!@#%+-_"
@@ -1304,9 +1313,6 @@ class CsrsApi(models.AbstractModel):
                 "grant_reason": reason,
             }
         )
-        group = self.env.ref(ROLE_GROUPS[role_code])
-        if group not in user.group_ids:
-            user.write({"group_ids": [Command.link(group.id)]})
         return self._grant_payload(grant)
 
     @api.model
@@ -1316,20 +1322,6 @@ class CsrsApi(models.AbstractModel):
         if not grant or not grant.active:
             raise UserError(_("Délégation active introuvable."))
         grant.with_user(self.env.user).action_revoke(reason)
-        group_xmlid = ROLE_GROUPS.get(grant.role_code)
-        if group_xmlid:
-            group = self.env.ref(group_xmlid)
-            remaining_codes = self.env["csrs.role.grant"].sudo().search(
-                [
-                    ("user_id", "=", grant.user_id.id),
-                    ("active", "=", True),
-                    ("id", "!=", grant.id),
-                ]
-            ).mapped("role_code")
-            if group in grant.user_id.group_ids and not any(
-                ROLE_GROUPS.get(code) == group_xmlid for code in remaining_codes
-            ):
-                grant.user_id.write({"group_ids": [Command.unlink(group.id)]})
         return self._grant_payload(grant)
 
     def _proposal_payload(self, proposal):
@@ -1492,12 +1484,15 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visits(self, period_start, period_end):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_dg",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_dg",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT",),
         )
-        visits = self.env["csrs.visitor.visit"].search(
+        visits = self.env["csrs.visitor.visit"].sudo().search(
             [
                 ("arrived_at", ">=", f"{period_start} 00:00:00"),
                 ("arrived_at", "<=", f"{period_end} 23:59:59"),
@@ -1511,12 +1506,15 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visit_create(self, payload):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT",),
         )
         names = [str(name).strip() for name in payload.get("visitor_names", []) if str(name).strip()]
-        visit = self.env["csrs.visitor.visit"].create(
+        visit = self.env["csrs.visitor.visit"].sudo().create(
             {
                 "party_size": int(payload["party_size"]),
                 "visitor_names": names,
@@ -1527,11 +1525,14 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visit_departure(self, visit_id, revision):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT",),
         )
-        visit = self.env["csrs.visitor.visit"].browse(int(visit_id)).exists()
+        visit = self.env["csrs.visitor.visit"].sudo().browse(int(visit_id)).exists()
         if not visit:
             raise UserError(_("Visite introuvable."))
         visit.action_departure(revision)
@@ -1552,8 +1553,12 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability(self, week):
-        self._require_group(
-            "csrs_reporting.group_csrs_hr", "csrs_reporting.group_csrs_it"
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_hr",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_HR",),
         )
         period = self._period(week=week)
         leaves = self.env["hr.leave"].sudo().search(
@@ -1592,8 +1597,12 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability_save(self, payload, leave_id=None):
-        self._require_group(
-            "csrs_reporting.group_csrs_hr", "csrs_reporting.group_csrs_it"
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_hr",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_HR",),
         )
         employee = self.env["hr.employee"].sudo().search(
             [("user_id", "=", int(payload["employee_id"]))], limit=1
@@ -1626,8 +1635,12 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability_cancel(self, leave_id, payload):
-        self._require_group(
-            "csrs_reporting.group_csrs_hr", "csrs_reporting.group_csrs_it"
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_hr",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_HR",),
         )
         leave = self.env["hr.leave"].sudo().browse(int(leave_id)).exists()
         if not leave:
@@ -1762,10 +1775,13 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_preview(self, period_start, period_end, direction):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_dg",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_dg",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT", "AGENDA_VIEWER"),
         )
         start = fields.Date.to_date(period_start)
         end = fields.Date.to_date(period_end)
@@ -1787,9 +1803,12 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_update_draft(self, payload):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT",),
         )
         start = fields.Date.to_date(payload["period_start"])
         end = fields.Date.to_date(payload["period_end"])
@@ -1832,10 +1851,13 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_versions(self, period_start=None, period_end=None):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_dg",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_dg",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT", "AGENDA_VIEWER"),
         )
         domain = []
         if period_start:
@@ -1847,9 +1869,12 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_generate(self, payload):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT",),
         )
         draft = self.env["csrs.agenda.draft"].sudo().search(
             [
@@ -1868,10 +1893,13 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_pdf(self, version_id):
-        self._require_group(
-            "csrs_reporting.group_csrs_secretariat",
-            "csrs_reporting.group_csrs_dg",
-            "csrs_reporting.group_csrs_it",
+        self._require_group_or_global_role(
+            (
+                "csrs_reporting.group_csrs_secretariat",
+                "csrs_reporting.group_csrs_dg",
+                "csrs_reporting.group_csrs_it",
+            ),
+            ("AGENDA_SECRETARIAT", "AGENDA_VIEWER"),
         )
         version = self.env["csrs.agenda.version"].sudo().browse(int(version_id)).exists()
         if not version or not version.pdf_attachment_id:

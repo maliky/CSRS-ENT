@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from passlib.hash import django_pbkdf2_sha256
 
+from odoo import fields
 from odoo.fields import Command
 from odoo.service.model import call_kw
 from odoo.tests.common import TransactionCase, tagged
@@ -97,6 +100,85 @@ class CsrsPermissionTests(TransactionCase):
         self.assertTrue(session["capabilities"]["delete_tasks"])
         self.assertTrue(session["capabilities"]["manage_users"])
         self.assertTrue(session["capabilities"]["manage_organization"])
+
+    def test_it_cannot_reset_the_protected_odoo_administrator(self):
+        administrator = self.env.ref("base.user_admin")
+        token = self.env["csrs.api"].with_user(self.it)._user_state_token(
+            administrator
+        )
+
+        with self.assertRaises(UserError):
+            self.env["csrs.api"].with_user(self.it).api_user_temporary_password(
+                administrator.id, token
+            )
+
+    def test_delegations_respect_role_dates_and_global_scope_without_groups(self):
+        root = self.env["hr.department"].create(
+            {"name": "CSRS", "csrs_code": "ROOT"}
+        )
+        child = self.env["hr.department"].create(
+            {"name": "Recherche", "csrs_code": "RECH", "parent_id": root.id}
+        )
+        self.agent_employee.department_id = child
+        now = fields.Datetime.now()
+        facade = self.env["csrs.api"].with_user(self.it)
+        common = {
+            "user_id": self.outsider.id,
+            "valid_from": fields.Datetime.to_string(now - timedelta(days=1)),
+            "valid_until": False,
+            "reason": "Délégation de test",
+        }
+
+        facade.api_role_grant_create(
+            {
+                **common,
+                "department_id": root.id,
+                "role_code": "MISSION_SIGNER",
+                "scope": "tree",
+            }
+        )
+        facade.api_role_grant_create(
+            {
+                **common,
+                "department_id": child.id,
+                "role_code": "AGENDA_SECRETARIAT",
+                "scope": "unit",
+            }
+        )
+        facade.api_role_grant_create(
+            {
+                **common,
+                "department_id": root.id,
+                "role_code": "UNIT_MANAGER",
+                "scope": "tree",
+                "valid_from": fields.Datetime.to_string(now + timedelta(days=1)),
+            }
+        )
+
+        delegated = self.env["csrs.api"].with_user(self.outsider)
+        session = delegated.api_session()
+        self.assertFalse(session["capabilities"]["prepare_weekly_agenda"])
+        self.assertNotIn(self.agent, delegated._managed_users())
+        self.assertNotIn(
+            self.env.ref("csrs_reporting.group_csrs_dg"), self.outsider.group_ids
+        )
+        self.assertNotIn(
+            self.env.ref("csrs_reporting.group_csrs_secretariat"),
+            self.outsider.group_ids,
+        )
+
+        facade.api_role_grant_create(
+            {
+                **common,
+                "department_id": root.id,
+                "role_code": "AGENDA_SECRETARIAT",
+                "scope": "tree",
+            }
+        )
+
+        self.assertTrue(
+            delegated.api_session()["capabilities"]["prepare_weekly_agenda"]
+        )
 
     def test_it_bulk_delete_is_revision_checked_and_audited(self):
         task_id = self.task.id

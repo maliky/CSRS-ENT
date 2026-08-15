@@ -7,19 +7,6 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Command
 
 
-GROUP_BY_ROLE = {
-    "AGENDA_HR": "csrs_reporting.group_csrs_hr",
-    "AGENDA_SECRETARIAT": "csrs_reporting.group_csrs_secretariat",
-    "AGENDA_VIEWER": "csrs_reporting.group_csrs_agent",
-    "MISSION_ASSISTANCE": "csrs_reporting.group_csrs_secretariat",
-    "MISSION_FLEET": "csrs_reporting.group_csrs_secretariat",
-    "MISSION_SECRETARIAT": "csrs_reporting.group_csrs_secretariat",
-    "MISSION_SIGNER": "csrs_reporting.group_csrs_dg",
-    "UNIT_MANAGER": "csrs_reporting.group_csrs_primary_manager",
-    "UNIT_VIEWER": "csrs_reporting.group_csrs_secondary_manager",
-}
-
-
 class CsrsMigrationImporter(models.AbstractModel):
     _name = "csrs.migration.importer"
     _description = "Import contrôlé de la source CSRS"
@@ -492,8 +479,3 @@ class CsrsMigrationImporter(models.AbstractModel):
             else:
                 Grant.create(values)
                 report["created"]["role_grants"] += 1
-            group_xmlid = GROUP_BY_ROLE.get(row["role_code"])
-            if group_xmlid:
-                self._link_group(
-                    users[row["user_source_id"]], self.env.ref(group_xmlid)
-                )
