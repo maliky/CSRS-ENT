@@ -77,10 +77,10 @@ class CsrsApi(models.AbstractModel):
         if not any(self.env.user.has_group(xmlid) for xmlid in xmlids):
             raise AccessError(_("Cette opération n'est pas autorisée."))
 
-    def _require_group_or_global_role(self, xmlids, role_codes):
+    def _require_group_or_feature_role(self, xmlids, role_codes):
         if any(self.env.user.has_group(xmlid) for xmlid in xmlids):
             return
-        if self.env.user.csrs_has_global_role_grant(*role_codes):
+        if self.env.user.csrs_has_active_role_grant(*role_codes):
             return
         raise AccessError(_("Cette opération n'est pas autorisée."))
 
@@ -294,11 +294,11 @@ class CsrsApi(models.AbstractModel):
         is_it = user.has_group("csrs_reporting.group_csrs_it")
         is_secretariat = user.has_group(
             "csrs_reporting.group_csrs_secretariat"
-        ) or user.csrs_has_global_role_grant("AGENDA_SECRETARIAT")
+        ) or user.csrs_has_active_role_grant("AGENDA_SECRETARIAT")
         is_hr = user.has_group(
             "csrs_reporting.group_csrs_hr"
-        ) or user.csrs_has_global_role_grant("AGENDA_HR")
-        is_agenda_viewer = user.csrs_has_global_role_grant("AGENDA_VIEWER")
+        ) or user.csrs_has_active_role_grant("AGENDA_HR")
+        is_agenda_viewer = user.csrs_has_active_role_grant("AGENDA_VIEWER")
         is_dg = user.has_group("csrs_reporting.group_csrs_dg")
         return {
             "user": self._person(user),
@@ -1484,7 +1484,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visits(self, period_start, period_end):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_dg",
@@ -1506,7 +1506,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visit_create(self, payload):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_it",
@@ -1525,7 +1525,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visit_departure(self, visit_id, revision):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_it",
@@ -1553,7 +1553,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability(self, week):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_hr",
                 "csrs_reporting.group_csrs_it",
@@ -1597,7 +1597,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability_save(self, payload, leave_id=None):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_hr",
                 "csrs_reporting.group_csrs_it",
@@ -1635,7 +1635,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability_cancel(self, leave_id, payload):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_hr",
                 "csrs_reporting.group_csrs_it",
@@ -1775,7 +1775,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_preview(self, period_start, period_end, direction):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_dg",
@@ -1803,7 +1803,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_update_draft(self, payload):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_it",
@@ -1851,7 +1851,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_versions(self, period_start=None, period_end=None):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_dg",
@@ -1869,7 +1869,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_generate(self, payload):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_it",
@@ -1893,7 +1893,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_pdf(self, version_id):
-        self._require_group_or_global_role(
+        self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
                 "csrs_reporting.group_csrs_dg",
