@@ -34,7 +34,7 @@ Then we will implement the other procedure detailed in logigrams.org
 - Projet Django : =csrs_ent=
 - Référence fonctionnelle consultée en lecture seule : =/home/jil/csrs_report=, déploiement de préproduction =preprod.report.ent.koba.sarl=.
 - Référence d'exploitation consultée en lecture seule : =/home/jil/git/ent.git=, branche =main=.
-- Phase : administration et reprise v2 validées dans le code; promotion, reprise active et bascule publique vers =preprod.ent.koba.sarl= encore à exécuter.
+- Phase : administration, reprise v2 et bascule publique déployées sur =preprod.ent.koba.sarl=; recette humaine par rôle et promotion vers =prod= encore à exécuter.
 - Outil Compose présent sur l'hôte : =docker-compose= 1.29.2; le greffon =docker compose= v2 n'est pas installé.
 
 ** Décisions confirmées
@@ -145,14 +145,15 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 - [x] résolution de la configuration compose avec l'environnement d'exemple par =docker-compose= 1.29.2.
 - [x] vérification de cohérence de la documentation et absence de commentaire agent non résolu.
 - [x] export v2 et simulation de reprise : 42 comptes, 43 services actifs, 41 rattachements principaux ouverts, 40 lignes hiérarchiques principales ouvertes et 3 délégations, sans affichage d'empreinte.
-- [ ] reprise appliquée et réexécution sans écriture dans la base Odoo de préproduction.
+- [x] reprise appliquée : 42 comptes, 43 services, 42 liens de services, 41 rattachements, 40 lignes hiérarchiques et 3 délégations; réexécution sans création ni mise à jour, y compris après conversion du mot de passe de =dev=.
 
 ** état de la préproduction
 
-- [x] branches =dev= et =preprod= alignées sur le même commit validé; =prod= reste inchangée avant recette.
-- [x] versions immuables dans =/srv/apps/csrs-ent-preprod/releases/=, lien =current= et configuration protégée hors git.
-- [x] préproduction réinitialisée sans reprise des données de l'ancien projet Compose.
-- [ ] DNS, Nginx et certificat validés pour =https://preprod.ent.koba.sarl/=, puis retrait immédiat de l'ancien nom =ent.koba.sarl=.
+- [x] changement validé sur =dev= puis intégré à =preprod= par promotion protégée; =prod= reste inchangée avant recette.
+- [x] versions immuables dans =/srv/apps/csrs-ent-preprod/releases/=, lien =current= sur la tête de =preprod= validée et configuration protégée hors git.
+- [x] préproduction initialisée sans données de l'ancien projet Compose, puis comptes et organigramme repris par la commande auditée.
+- [x] DNS, Nginx et certificat validés pour =https://preprod.ent.koba.sarl/=; DNS, vhost et certificat de l'ancien nom =ent.koba.sarl= retirés.
 - [x] odoo et mailpit liés à =127.0.0.1=; postgresql et redis sans port hôte.
-- [ ] les 42 empreintes Django sont importées par le canal temporaire protégé puis converties individuellement après une connexion réussie.
+- [x] les 42 empreintes Django sont importées par le canal temporaire protégé; celle de =dev= a été convertie après connexion puis préservée par une nouvelle reprise idempotente.
+- [x] =dev= accède aux API de gestion des tâches, utilisateurs et organigramme; la délégation secrétariat active prépare les aperçus programmes/recherche et administration.
 - [ ] recette fonctionnelle par rôle et promotion du commit accepté vers =prod=.
