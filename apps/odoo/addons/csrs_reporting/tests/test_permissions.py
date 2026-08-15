@@ -1,6 +1,7 @@
 from passlib.hash import django_pbkdf2_sha256
 
 from odoo.fields import Command
+from odoo.service.model import call_kw
 from odoo.tests.common import TransactionCase, tagged
 from odoo.exceptions import UserError, ValidationError
 
@@ -84,6 +85,24 @@ class CsrsPermissionTests(TransactionCase):
 
         self.assertTrue(session["capabilities"]["view_team"])
         self.assertFalse(session["capabilities"]["manage_users"])
+
+    def test_public_facade_uses_model_level_rpc_contract(self):
+        facade = self.env["csrs.api"].with_user(self.manager)
+        public_methods = [
+            name
+            for name in dir(type(facade))
+            if name.startswith("api_") and callable(getattr(type(facade), name, None))
+        ]
+
+        self.assertTrue(public_methods)
+        for method_name in public_methods:
+            self.assertTrue(
+                getattr(getattr(type(facade), method_name), "_api_model", False),
+                method_name,
+            )
+
+        session = call_kw(facade, "api_session", [], {})
+        self.assertEqual(session["user"]["id"], self.manager.id)
 
     def test_agent_reports_one_hundred_percent_without_validating(self):
         task = self.task.with_user(self.agent)

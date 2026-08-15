@@ -238,6 +238,11 @@ class OdooClientTests(SimpleTestCase):
             "http://odoo:8069/web/dataset/call_kw/csrs.api/api_dashboard",
         )
         self.assertEqual(request.headers["Cookie"], "session_id=opaque")
+        payload = json.loads(request.data)
+        self.assertEqual(payload["params"]["model"], "csrs.api")
+        self.assertEqual(payload["params"]["method"], "api_dashboard")
+        self.assertEqual(payload["params"]["args"], [None, None])
+        self.assertEqual(payload["params"]["kwargs"], {})
 
 
 class BusinessApiTests(SimpleTestCase):

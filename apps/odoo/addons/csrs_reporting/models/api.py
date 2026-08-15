@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from html import unescape
 import re
 
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command, Domain
 
@@ -154,6 +154,7 @@ class CsrsApi(models.AbstractModel):
             ).user_id
         return direct.user_id | delegated
 
+    @api.model
     def api_session(self):
         user = self.env.user
         managed = self._managed_users()
@@ -183,6 +184,7 @@ class CsrsApi(models.AbstractModel):
             },
         }
 
+    @api.model
     def api_change_password(self, current_password, new_password):
         self.env.user.action_csrs_change_own_password(current_password, new_password)
         return True
@@ -349,6 +351,7 @@ class CsrsApi(models.AbstractModel):
         )
         return summary
 
+    @api.model
     def api_dashboard(self, week=None, month=None):
         period = self._period(week, month)
         tasks = self.env["project.task"].search(
@@ -362,6 +365,7 @@ class CsrsApi(models.AbstractModel):
             "tasks": [self._task_summary(task, period) for task in tasks],
         }
 
+    @api.model
     def api_planning_options(self):
         managed = self._managed_users()
         if self.env.user.has_group("csrs_reporting.group_csrs_dg"):
@@ -390,6 +394,7 @@ class CsrsApi(models.AbstractModel):
             },
         }
 
+    @api.model
     def api_planning_preview(self, payload):
         calendar = self.env["resource.calendar"].browse(int(payload["calendar_id"])).exists()
         if not calendar:
@@ -425,6 +430,7 @@ class CsrsApi(models.AbstractModel):
             "estimated_work_days": _decimal(workload),
         }
 
+    @api.model
     def api_task(self, task_id):
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task or not task.csrs_managed:
@@ -432,6 +438,7 @@ class CsrsApi(models.AbstractModel):
         task.check_access("read")
         return self._task_detail(task)
 
+    @api.model
     def api_task_create(self, payload):
         employee = self.env["res.users"].browse(int(payload["employee_id"])).exists()
         if not employee or employee not in self._managed_users():
@@ -452,6 +459,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._task_detail(task)
 
+    @api.model
     def api_task_update(self, task_id, payload):
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
@@ -472,6 +480,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._task_detail(task)
 
+    @api.model
     def api_task_progress(self, task_id, payload):
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
@@ -484,6 +493,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._task_detail(task)
 
+    @api.model
     def api_task_comment(self, task_id, payload):
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
@@ -495,6 +505,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._task_detail(task)
 
+    @api.model
     def api_task_transition(self, task_id, payload):
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
@@ -549,6 +560,7 @@ class CsrsApi(models.AbstractModel):
             },
         }
 
+    @api.model
     def api_proposals(self):
         records = self.env["csrs.task.proposal"].search(
             Domain("author_id", "=", self.env.user.id)
@@ -566,6 +578,7 @@ class CsrsApi(models.AbstractModel):
             "read_only": [self._proposal_payload(item) for item in read_only],
         }
 
+    @api.model
     def api_proposal(self, proposal_id):
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
@@ -573,6 +586,7 @@ class CsrsApi(models.AbstractModel):
         proposal.check_access("read")
         return self._proposal_payload(proposal)
 
+    @api.model
     def api_proposal_create(self, payload):
         proposal = self.env["csrs.task.proposal"].create(
             {
@@ -587,6 +601,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._proposal_payload(proposal)
 
+    @api.model
     def api_proposal_update(self, proposal_id, payload):
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
@@ -594,6 +609,7 @@ class CsrsApi(models.AbstractModel):
         proposal.action_csrs_update(payload, payload.get("revision"))
         return self._proposal_payload(proposal)
 
+    @api.model
     def api_proposal_resubmit(self, proposal_id, revision):
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
@@ -601,6 +617,7 @@ class CsrsApi(models.AbstractModel):
         proposal.action_csrs_resubmit(revision)
         return self._proposal_payload(proposal)
 
+    @api.model
     def api_proposal_decide(self, proposal_id, payload):
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
@@ -626,6 +643,7 @@ class CsrsApi(models.AbstractModel):
             "children": [self._team_node(child, period) for child in children],
         }
 
+    @api.model
     def api_team(self, week=None, month=None):
         period = self._period(week, month)
         users = self._managed_users()
@@ -638,6 +656,7 @@ class CsrsApi(models.AbstractModel):
             "nodes": [self._team_node(employee, period) for employee in roots],
         }
 
+    @api.model
     def api_team_employee(self, user_id, week=None, month=None):
         user = self.env["res.users"].browse(int(user_id)).exists()
         if not user or user not in self._managed_users():
@@ -664,6 +683,7 @@ class CsrsApi(models.AbstractModel):
             "cancelled_at": _iso(visit.cancelled_at),
         }
 
+    @api.model
     def api_visits(self, period_start, period_end):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -682,6 +702,7 @@ class CsrsApi(models.AbstractModel):
             "visits": [self._visit_payload(visit) for visit in visits],
         }
 
+    @api.model
     def api_visit_create(self, payload):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -697,6 +718,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._visit_payload(visit)
 
+    @api.model
     def api_visit_departure(self, visit_id, revision):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -721,6 +743,7 @@ class CsrsApi(models.AbstractModel):
             "cancelled_at": _iso(leave.csrs_cancelled_at),
         }
 
+    @api.model
     def api_availability(self, week):
         self._require_group(
             "csrs_reporting.group_csrs_hr", "csrs_reporting.group_csrs_it"
@@ -760,6 +783,7 @@ class CsrsApi(models.AbstractModel):
             raise ValidationError(_("Nature d'indisponibilité invalide.")) from None
         return self.env.ref(xmlid)
 
+    @api.model
     def api_availability_save(self, payload, leave_id=None):
         self._require_group(
             "csrs_reporting.group_csrs_hr", "csrs_reporting.group_csrs_it"
@@ -793,6 +817,7 @@ class CsrsApi(models.AbstractModel):
             leave = self.env["hr.leave"].sudo().create(values)
         return self._availability_payload(leave)
 
+    @api.model
     def api_availability_cancel(self, leave_id, payload):
         self._require_group(
             "csrs_reporting.group_csrs_hr", "csrs_reporting.group_csrs_it"
@@ -928,6 +953,7 @@ class CsrsApi(models.AbstractModel):
             "revision": draft.revision if draft else 0,
         }
 
+    @api.model
     def api_agenda_preview(self, period_start, period_end, direction):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -952,6 +978,7 @@ class CsrsApi(models.AbstractModel):
             "snapshot": snapshot,
         }
 
+    @api.model
     def api_agenda_update_draft(self, payload):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -996,6 +1023,7 @@ class CsrsApi(models.AbstractModel):
             "pdf_url": f"/api/v1/agenda/versions/{version.id}/pdf/",
         }
 
+    @api.model
     def api_agenda_versions(self, period_start=None, period_end=None):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -1010,6 +1038,7 @@ class CsrsApi(models.AbstractModel):
         versions = self.env["csrs.agenda.version"].sudo().search(domain)
         return {"versions": [self._version_payload(version) for version in versions]}
 
+    @api.model
     def api_agenda_generate(self, payload):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
@@ -1030,6 +1059,7 @@ class CsrsApi(models.AbstractModel):
         )
         return self._version_payload(version)
 
+    @api.model
     def api_agenda_pdf(self, version_id):
         self._require_group(
             "csrs_reporting.group_csrs_secretariat",
