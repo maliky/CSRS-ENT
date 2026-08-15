@@ -54,8 +54,8 @@ Ces directives s'appliquent à tout le dépôt PENT.
 
 - `dev` est la branche d'intégration et la cible normale des changements terminés.
 - `preprod` reçoit uniquement une promotion validée de `dev` et correspond à l'environnement de préproduction de cet hôte.
-- `master` est la branche de production; ne pas maintenir simultanément une quatrième branche `main` sans décision explicite.
-- Ne pas développer directement sur `preprod` ou `master`, ne pas forcer leur publication et promouvoir le même commit testé entre les environnements.
+- `prod` est la branche de production; ne pas maintenir simultanément une quatrième branche `main` ou `master` sans décision explicite.
+- Ne pas développer directement sur `preprod` ou `prod`, ne pas forcer leur publication et promouvoir le même commit testé entre les environnements.
 
 ## Sécurité et exploitation
 

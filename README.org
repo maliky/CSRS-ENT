@@ -24,9 +24,9 @@ Les comptes et l'organigramme actifs ont été repris de façon explicite, valid
 
 - =dev= : intégration des changements.
 - =preprod= : commit validé et déployé en préproduction.
-- =master= : production.
+- =prod= : production.
 
-Les promotions suivent =dev= vers =preprod= puis =master= sans réimplémenter le changement entre les branches.
+Les promotions suivent =dev= vers =preprod= puis =prod= sans réimplémenter le changement entre les branches.
 
 ** Démarrage local
 

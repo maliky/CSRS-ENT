@@ -63,7 +63,7 @@ les alternatives non retenues pour le premier lot sont :
 
 *** branches
 
-le dépôt utilise exactement trois branches : =dev= pour l'intégration, =preprod= pour le commit déployé sur cet hôte et =master= pour la production. une promotion réutilise le même commit validé de =dev= vers =preprod= puis =master=. le nom =main= ne sera pas maintenu comme quatrième alias sans décision explicite.
+le dépôt utilise exactement trois branches : =dev= pour l'intégration, =preprod= pour le commit déployé sur cet hôte et =prod= pour la production. une promotion réutilise le même commit validé de =dev= vers =preprod= puis =prod=. les noms =main= et =master= ne seront pas maintenus comme alias sans décision explicite.
 
 ** source de migration vérifiée
 
@@ -118,13 +118,13 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 
 ** plan de préproduction sur cet hôte
 
-1. créer le dépôt nu =/home/jil/git/pent.git= et publier =dev=; créer localement =preprod= et =master= à partir du premier commit validé.
+1. créer le dépôt nu =/home/jil/git/pent.git= et publier =dev=; créer localement =preprod= et =prod= à partir du premier commit validé.
 2. réserver le projet compose =pent_preprod=, les volumes odoo et postgresql nommés, les ports locaux non publics et un fichier d'environnement réel hors git.
 3. ajouter les contrôles de types stricts python et typescript, puis faire passer les tests django, odoo, react, compose et les analyses statiques avant la première promotion.
 4. implémenter l'authentification odoo relayée et ses tests de session, csrf, expiration, révocation et refus d'autorisation.
 5. implémenter la migration idempotente des comptes et de l'organigramme depuis =csrs_report= avec =--dry-run=, rapport sans données sensibles, sauvegarde odoo et procédure de retour arrière.
 6. déployer le même commit sur =preprod=, vérifier django puis odoo sur leurs ports locaux, et seulement ensuite configurer nginx, dns et tls.
-7. effectuer une recette comportementale par rôle et promouvoir exactement le commit accepté vers =master=.
+7. effectuer une recette comportementale par rôle et promouvoir exactement le commit accepté vers =prod=.
 
 ** réponses de cadrage appliquées
 
@@ -147,10 +147,10 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 
 ** état de la préproduction
 
-- [x] branches =dev= et =preprod= alignées sur le même commit validé; =master= reste inchangée avant recette.
+- [x] branches =dev= et =preprod= alignées sur le même commit validé; =prod= reste inchangée avant recette.
 - [x] checkout d'exploitation =/srv/apps/pent-preprod/app= et configuration protégée hors git.
 - [x] sauvegarde pré-import conservée dans =/srv/apps/pent-preprod/backups/=.
 - [x] django public sur =https://ent.koba.sarl/= avec redirection http, certificat renouvelable et assets react servis.
 - [x] odoo et mailpit liés à =127.0.0.1=; postgresql et redis sans port hôte.
 - [x] les 42 empreintes django restent inchangées après redémarrage odoo et seront converties individuellement après une connexion réussie.
-- [ ] recette fonctionnelle par rôle et promotion du commit accepté vers =master=.
+- [ ] recette fonctionnelle par rôle et promotion du commit accepté vers =prod=.
