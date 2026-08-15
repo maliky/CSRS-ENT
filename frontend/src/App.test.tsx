@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { App, parseSession } from "./App";
-import { sessionFixture } from "./mocks/fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -51,17 +50,10 @@ test("affiche un refus explicite sans conserver le mot de passe", async () => {
 });
 
 test("ouvre l’espace CSRS ENT après validation de la session", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => sessionFixture,
-      text: async () => JSON.stringify(sessionFixture),
-    }),
-  );
-
   render(<App />);
 
   expect((await screen.findAllByText("CSRS ENT")).length).toBeGreaterThan(0);
+  expect(
+    await screen.findByText("Finaliser les priorités de la quinzaine"),
+  ).toBeInTheDocument();
 });

@@ -134,7 +134,7 @@ export function AppShell() {
       >
         <div className={styles.sidebarHeader}>
           <NavLink to="/" className={styles.brand} title="CSRS ENT">
-            <span className={styles.brandMark}>PE</span>
+            <span className={styles.brandMark}>CS</span>
             <span className={styles.brandLabel}>CSRS ENT</span>
           </NavLink>
           <button
