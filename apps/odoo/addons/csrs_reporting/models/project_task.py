@@ -1,4 +1,4 @@
-"""Authoritative PENT task lifecycle stored only in Odoo."""
+"""Authoritative CSRS ENT task lifecycle stored only in Odoo."""
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -11,10 +11,10 @@ class ProjectTask(models.Model):
     _inherit = "project.task"
 
     csrs_managed = fields.Boolean(
-        string="Tâche PENT", default=False, required=True, index=True, copy=False
+        string="Tâche CSRS ENT", default=False, required=True, index=True, copy=False
     )
     csrs_code = fields.Char(
-        string="Code PENT", index=True, readonly=True, copy=False
+        string="Code CSRS ENT", index=True, readonly=True, copy=False
     )
     csrs_manager_id = fields.Many2one(
         "res.users", string="Responsable principal CSRS", tracking=True, index=True
@@ -77,7 +77,7 @@ class ProjectTask(models.Model):
     )
 
     _csrs_code_unique = models.Constraint(
-        "UNIQUE (csrs_code)", "Ce code de tâche PENT est déjà utilisé."
+        "UNIQUE (csrs_code)", "Ce code de tâche CSRS ENT est déjà utilisé."
     )
 
     def init(self):
@@ -302,7 +302,7 @@ class ProjectTask(models.Model):
     def unlink(self):
         for task in self.filtered("csrs_managed"):
             if not task._csrs_is_admin():
-                raise UserError(_("Seul un administrateur IT peut supprimer une tâche PENT."))
+                raise UserError(_("Seul un administrateur IT peut supprimer une tâche CSRS ENT."))
         return super().unlink()
 
 

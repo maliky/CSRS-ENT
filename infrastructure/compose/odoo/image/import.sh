@@ -9,9 +9,9 @@ readonly DATABASE_PORT="${PORT:?PORT is required}"
 readonly DATABASE_USER="${USER:?USER is required}"
 readonly DATABASE_PASSWORD="${PASSWORD:?PASSWORD is required}"
 
-source_file="${CSRS_MIGRATION_FILE:-/run/pent-migration/csrs.json}"
+source_file="${CSRS_MIGRATION_FILE:-/run/csrs-ent-migration/csrs.json}"
 temporary_source=""
-success_file=$(mktemp /tmp/pent-csrs-import-success.XXXXXX)
+success_file=$(mktemp /tmp/csrs-ent-csrs-import-success.XXXXXX)
 
 cleanup() {
   if [[ -n "$temporary_source" ]]; then
@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 if [[ "${CSRS_MIGRATION_STDIN:-false}" == true ]]; then
   umask 077
-  source_file=$(mktemp /tmp/pent-csrs-migration.XXXXXX.json)
+  source_file=$(mktemp /tmp/csrs-ent-csrs-migration.XXXXXX.json)
   temporary_source="$source_file"
   dd of="$source_file" status=none
 fi

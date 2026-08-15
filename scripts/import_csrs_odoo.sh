@@ -22,4 +22,4 @@ fi
 docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm -T \
   -e CSRS_MIGRATION_MODE="$MODE" \
   -e CSRS_MIGRATION_STDIN=true \
-  odoo-bootstrap /usr/local/bin/pent-odoo-runtime import <"$SOURCE_FILE"
+  odoo-bootstrap /usr/local/bin/csrs-ent-odoo-runtime import <"$SOURCE_FILE"
