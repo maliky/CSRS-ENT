@@ -8,6 +8,7 @@ readonly ENV_FILE="${DEPLOY_ROOT}/config/.env"
 readonly RELEASES_DIR="${DEPLOY_ROOT}/releases"
 readonly RELEASE_DIR="${RELEASES_DIR}/${REVISION}"
 readonly LOCK_FILE=/run/lock/csrs-ent-preprod-deploy.lock
+readonly LOCAL_HEALTH_HOST=preprod.ent.koba.sarl
 
 if [[ ! $REVISION =~ ^[0-9a-f]{40}$ ]]; then
   echo "Révision Git invalide." >&2
@@ -35,8 +36,8 @@ if [[ ! -d $RELEASE_DIR ]]; then
 fi
 
 "${RELEASE_DIR}/scripts/deploy_preprod.sh" "$ENV_FILE"
-curl --fail --silent --show-error http://127.0.0.1:18007/healthz/ >/dev/null
-curl --fail --silent --show-error http://127.0.0.1:18007/readyz/ >/dev/null
+curl --fail --silent --show-error --header "Host: ${LOCAL_HEALTH_HOST}" http://127.0.0.1:18007/healthz/ >/dev/null
+curl --fail --silent --show-error --header "Host: ${LOCAL_HEALTH_HOST}" http://127.0.0.1:18007/readyz/ >/dev/null
 
 ln -sfn "$RELEASE_DIR" "${DEPLOY_ROOT}/current"
 
