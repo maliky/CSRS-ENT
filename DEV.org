@@ -138,8 +138,8 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 ** validation du bootstrap
 
 - [x] contrôle django.
-- [x] 29 tests Django de passerelle, session, CSRF, erreurs et contrats HTTP.
-- [x] 26 scénarios Odoo transactionnels des ACL, tâches, administration, reprise, conflits et PDF; 32 tests React.
+- [x] 30 tests Django de passerelle, session, CSRF, erreurs, déploiement et contrats HTTP.
+- [x] 28 scénarios Odoo transactionnels des ACL, tâches, administration, délégations, reprise, conflits et PDF; 32 tests React.
 - [x] Ruff, mypy strict, TypeScript strict et compilation Python.
 - [x] analyse xml et syntaxe bash.
 - [x] résolution de la configuration compose avec l'environnement d'exemple par =docker-compose= 1.29.2.

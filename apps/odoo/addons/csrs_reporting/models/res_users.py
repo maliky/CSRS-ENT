@@ -74,6 +74,31 @@ class ResUsers(models.Model):
     def _get_session_token_fields(self):
         return super()._get_session_token_fields() | {"csrs_alias"}
 
+    def csrs_active_role_grants(self, role_codes):
+        """Return only currently valid grants; groups never stand in for scope."""
+        self.ensure_one()
+        codes = [role_codes] if isinstance(role_codes, str) else list(role_codes)
+        now = fields.Datetime.now()
+        return self.env["csrs.role.grant"].sudo().search(
+            [
+                ("user_id", "=", self.id),
+                ("role_code", "in", codes),
+                ("active", "=", True),
+                ("valid_from", "<=", now),
+                "|",
+                ("valid_until", "=", False),
+                ("valid_until", ">", now),
+            ]
+        )
+
+    def csrs_has_global_role_grant(self, *role_codes):
+        """A global use case requires a valid tree grant rooted at the top level."""
+        self.ensure_one()
+        return any(
+            grant.scope == "tree" and not grant.department_id.parent_id
+            for grant in self.csrs_active_role_grants(role_codes)
+        )
+
     def csrs_import_legacy_password_hash(self, password_hash, replace_native=False):
         """Install one validated Django hash without ever logging its value."""
         self.ensure_one()
