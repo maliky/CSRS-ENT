@@ -1,0 +1,34 @@
+.loginPage,
+.statusPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+}
+
+.loginCard {
+  width: min(100%, 30rem);
+  padding: clamp(1.5rem, 5vw, 3rem);
+}
+
+.brandMark {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: var(--space-5);
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: white;
+  background: var(--color-primary);
+  font-weight: 850;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.statusPage > * {
+  width: min(100%, 38rem);
+}

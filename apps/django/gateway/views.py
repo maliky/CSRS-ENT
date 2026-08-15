@@ -8,12 +8,13 @@ from typing import TypedDict
 from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.middleware.csrf import get_token
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .auth import LoginRateLimiter, client_ip, normalize_login
-from .odoo import OdooAuthenticationError, OdooClient, OdooError, OdooIdentity
+from .odoo import OdooAuthenticationError, OdooClient, OdooError
 
 
 class LoginPayload(TypedDict):
@@ -48,22 +49,26 @@ def _login_payload(request: HttpRequest) -> LoginPayload | None:
     return {"login": normalized, "password": password}
 
 
-def _session_identity(request: HttpRequest) -> OdooIdentity | None:
+def _session_payload(request: HttpRequest) -> dict[str, object] | None:
     session_id = request.session.get("odoo_session_id")
     if not isinstance(session_id, str) or not session_id:
         return None
     try:
-        return _client().session_identity(session_id)
+        payload = _client().call(session_id, "api_session")
     except (OdooAuthenticationError, OdooError):
         request.session.flush()
         return None
+    if not isinstance(payload, dict):
+        request.session.flush()
+        return None
+    return dict(payload)
 
 
 @ensure_csrf_cookie
 @require_GET
 def index(request: HttpRequest) -> HttpResponse:
-    """Keep the classic Django entry point available during React adoption."""
-    return render(request, "gateway/index.html")
+    """Use React as the single public entry point."""
+    return redirect("/app/")
 
 
 @ensure_csrf_cookie
@@ -76,8 +81,8 @@ def react_app(request: HttpRequest) -> HttpResponse:
 @ensure_csrf_cookie
 @require_GET
 def login_page(request: HttpRequest) -> HttpResponse:
-    """Serve the server-rendered connection surface."""
-    return render(request, "gateway/login.html")
+    """Keep old bookmarks working without exposing a second login surface."""
+    return redirect("/app/")
 
 
 @require_GET
@@ -106,19 +111,20 @@ def readiness(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["GET"])
 def session_detail(request: HttpRequest) -> JsonResponse:
     """Return the current Odoo-backed identity without exposing its session id."""
-    identity = _session_identity(request)
-    if identity is None:
-        return JsonResponse({"authenticated": False})
-    return JsonResponse(
-        {
-            "authenticated": True,
-            "user": {
-                "id": identity.user_id,
-                "login": identity.login,
-                "name": identity.name,
+    payload = _session_payload(request)
+    if payload is None:
+        return JsonResponse(
+            {
+                "error": {
+                    "code": "authentication_required",
+                    "message": "Authentification requise.",
+                    "fields": {},
+                }
             },
-        }
-    )
+            status=401,
+        )
+    payload["csrf_token"] = get_token(request)
+    return JsonResponse(payload)
 
 
 @require_POST
@@ -142,16 +148,11 @@ def session_login(request: HttpRequest) -> JsonResponse:
     request.session.cycle_key()
     request.session["odoo_session_id"] = odoo_session.session_id
     request.session.set_expiry(settings.SESSION_COOKIE_AGE)
-    return JsonResponse(
-        {
-            "authenticated": True,
-            "user": {
-                "id": odoo_session.identity.user_id,
-                "login": odoo_session.identity.login,
-                "name": odoo_session.identity.name,
-            },
-        }
-    )
+    session_payload = _session_payload(request)
+    if session_payload is None:
+        return JsonResponse({"error": "odoo_unavailable"}, status=503)
+    session_payload["csrf_token"] = get_token(request)
+    return JsonResponse(session_payload)
 
 
 @require_POST

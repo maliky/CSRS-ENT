@@ -29,6 +29,8 @@ TRUSTED_PROXY_ADDRESSES = frozenset(
 INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "drf_spectacular",
     "gateway",
 ]
 
@@ -102,3 +104,16 @@ X_FRAME_OPTIONS = "DENY"
 ODOO_URL = os.getenv("ODOO_URL", "http://127.0.0.1:8069")
 ODOO_DATABASE = os.getenv("ODOO_DB_NAME", "pent_odoo")
 ODOO_TIMEOUT = float(os.getenv("ODOO_TIMEOUT", "5"))
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": [],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "UNAUTHENTICATED_USER": None,
+    "UNAUTHENTICATED_TOKEN": None,
+}
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API PENT",
+    "DESCRIPTION": "Façade HTTP typée vers les règles métier Odoo PENT.",
+    "VERSION": "1.0.0",
+}

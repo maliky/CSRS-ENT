@@ -1,9 +1,21 @@
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export const DJANGO_PROXY_PATHS = ["/api", "/static"] as const;
+
+export function djangoProxyRoutes(
+  target = process.env.PENT_DJANGO_URL ?? "http://127.0.0.1:8000",
+) {
+  return Object.fromEntries(
+    DJANGO_PROXY_PATHS.map((path) => [path, { target, changeOrigin: true }]),
+  );
+}
+
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: "/static/react/",
+  // Django serves production assets below /static; Vite development keeps
+  // root history fallback so React Router can exercise /app/* routes.
+  base: command === "build" ? "/static/react/" : "/",
   build: {
     outDir: "../apps/django/gateway/static/react",
     emptyOutDir: true,
@@ -18,6 +30,10 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    port: 5173,
+    proxy: djangoProxyRoutes(),
+  },
   test: {
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
@@ -25,4 +41,4 @@ export default defineConfig({
     globals: true,
     exclude: ["e2e/**", "manual-e2e/**", "node_modules/**"],
   },
-});
+}));

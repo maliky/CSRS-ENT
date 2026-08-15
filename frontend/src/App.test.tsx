@@ -1,40 +1,67 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
-import { App } from "./App";
+import { App, parseSession } from "./App";
+import { sessionFixture } from "./mocks/fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
 
-test("affiche la connexion lorsque la session est anonyme", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ authenticated: false }),
-    }),
-  );
-  render(<App />);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("heading", { name: "Connexion" }),
-    ).toBeInTheDocument(),
+test("refuse une session non typée", () => {
+  expect(() => parseSession({ user: { id: "7", name: "Agent" } })).toThrow(
+    "Réponse de session invalide",
   );
 });
 
-test("accueille l'identité validée par Odoo", async () => {
+test("affiche l’unique écran de connexion pour une session anonyme", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ status: 401, ok: false }));
+
+  render(<App />);
+
+  expect(
+    await screen.findByRole("heading", { name: "Connexion à PENT" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Se connecter" }),
+  ).toBeInTheDocument();
+});
+
+test("affiche un refus explicite sans conserver le mot de passe", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({ status: 401, ok: false })
+    .mockResolvedValueOnce({ status: 401, ok: false });
+  vi.stubGlobal("fetch", fetchMock);
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Connexion à PENT" });
+
+  await user.type(screen.getByLabelText("Email ou identifiant court"), "agent");
+  await user.type(screen.getByLabelText("Mot de passe"), "incorrect");
+  await user.click(screen.getByRole("button", { name: "Se connecter" }));
+
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Identifiant ou mot de passe incorrect",
+    ),
+  );
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    "/api/v1/session/login/",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+test("ouvre l’espace PENT après validation de la session", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
+      status: 200,
       ok: true,
-      json: async () => ({
-        authenticated: true,
-        user: { id: 7, login: "agent", name: "Agent Test" },
-      }),
+      json: async () => sessionFixture,
+      text: async () => JSON.stringify(sessionFixture),
     }),
   );
+
   render(<App />);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("heading", { name: "Bonjour, Agent Test" }),
-    ).toBeInTheDocument(),
-  );
+
+  expect((await screen.findAllByText("PENT")).length).toBeGreaterThan(0);
 });

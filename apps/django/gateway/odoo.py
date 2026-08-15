@@ -25,6 +25,22 @@ class OdooAuthenticationError(OdooError):
     """Raised when Odoo rejects user credentials or a technical session."""
 
 
+class OdooPermissionError(OdooError):
+    """Raised when the authenticated Odoo user lacks a required permission."""
+
+
+class OdooNotFoundError(OdooError):
+    """Raised when an authorized Odoo use case cannot find its target."""
+
+
+class OdooConflictError(OdooError):
+    """Raised when an optimistic revision is stale."""
+
+
+class OdooValidationError(OdooError):
+    """Raised when Odoo rejects business input."""
+
+
 @dataclass(frozen=True, slots=True)
 class OdooVersion:
     """Validated subset of Odoo's public version response."""
@@ -136,6 +152,32 @@ class OdooClient:
         payload, _ = self._jsonrpc("/web/session/destroy", {}, session_id=session_id)
         self._raise_rpc_error(payload, authentication=True)
 
+    def call(
+        self,
+        session_id: str,
+        method: str,
+        args: list[JsonValue] | None = None,
+        kwargs: JsonObject | None = None,
+    ) -> JsonValue:
+        """Call one allow-listed façade method on Odoo's ``csrs.api`` model."""
+        if not method.startswith("api_") or not method.replace("_", "").isalnum():
+            raise ValueError("Nom de méthode RPC invalide.")
+        payload, _ = self._jsonrpc(
+            "/web/dataset/call_kw/csrs.api/" + method,
+            {
+                "model": "csrs.api",
+                "method": method,
+                "args": args or [],
+                "kwargs": kwargs or {},
+            },
+            session_id=session_id,
+        )
+        self._raise_rpc_error(payload, authentication=False)
+        result = payload.get("result")
+        if not _is_json_value(result):
+            raise OdooError("Réponse RPC Odoo invalide.")
+        return result
+
     def _jsonrpc(
         self,
         route: str,
@@ -181,6 +223,34 @@ class OdooClient:
             return
         if authentication:
             raise OdooAuthenticationError("Session ou identifiants Odoo invalides.")
+        if not isinstance(error, dict):
+            raise OdooError("Odoo a rejeté la requête.")
+        data = error.get("data")
+        detail = data if isinstance(data, dict) else {}
+        exception_name = detail.get("name")
+        message = detail.get("message")
+        safe_message = (
+            message
+            if isinstance(message, str) and 0 < len(message) <= 600
+            else "Odoo a rejeté la requête."
+        )
+        if exception_name in {
+            "odoo.http.SessionExpiredException",
+            "odoo.exceptions.AccessDenied",
+        }:
+            raise OdooAuthenticationError("Session Odoo expirée.")
+        if exception_name == "odoo.exceptions.AccessError":
+            raise OdooPermissionError(safe_message)
+        lowered = safe_message.casefold()
+        if "introuvable" in lowered:
+            raise OdooNotFoundError(safe_message)
+        if "recharge" in lowered or "a changé" in lowered:
+            raise OdooConflictError(safe_message)
+        if exception_name in {
+            "odoo.exceptions.ValidationError",
+            "odoo.exceptions.UserError",
+        }:
+            raise OdooValidationError(safe_message)
         raise OdooError("Odoo a rejeté la requête.")
 
     def _result_object(self, payload: JsonObject, *, authentication: bool) -> JsonObject:
@@ -191,3 +261,15 @@ class OdooClient:
                 raise OdooAuthenticationError("Session ou identifiants Odoo invalides.")
             raise OdooError("Réponse RPC Odoo invalide.")
         return _json_object(result)
+
+
+def _is_json_value(value: Any) -> bool:
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return True
+    if isinstance(value, list):
+        return all(_is_json_value(item) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str) and _is_json_value(item) for key, item in value.items()
+        )
+    return False
