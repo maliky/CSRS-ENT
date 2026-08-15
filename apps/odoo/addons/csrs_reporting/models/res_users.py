@@ -22,6 +22,9 @@ class ResUsers(models.Model):
     csrs_alias = fields.Char(
         string="Identifiant court CSRS", index=True, copy=False
     )
+    csrs_password_change_required = fields.Boolean(
+        string="Changement de mot de passe requis", default=False, copy=False
+    )
 
     _csrs_source_id_unique = models.Constraint(
         "UNIQUE (csrs_source_id)",
@@ -92,4 +95,21 @@ class ResUsers(models.Model):
         if stored_scheme == "pbkdf2_sha512" and not replace_native:
             return False
         self._set_encrypted_password(self.id, password_hash)
+        return True
+
+    def action_csrs_change_own_password(self, current_password, new_password):
+        """Change the current user's password without exposing it to Django state."""
+        self.ensure_one()
+        if self != self.env.user:
+            raise AccessError(_("Vous ne pouvez modifier que votre mot de passe."))
+        self._check_credentials(
+            {"type": "password", "password": current_password},
+            {"interactive": True},
+        )
+        if not isinstance(new_password, str) or len(new_password) < 12:
+            raise ValidationError(
+                _("Le nouveau mot de passe doit contenir au moins 12 caractères.")
+            )
+        self.password = new_password
+        self.csrs_password_change_required = False
         return True

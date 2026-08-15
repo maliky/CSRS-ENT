@@ -3,7 +3,7 @@
   <record id="rule_csrs_task_boundary" model="ir.rule">
     <field name="name">Frontière globale des tâches CSRS</field>
     <field name="model_id" ref="project.model_project_task"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_hr') or user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('csrs_manager_id', '=', False), ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">['|', ('csrs_managed', '=', False), (1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_hr') or user.has_group('csrs_reporting.group_csrs_secretariat') or user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', ('csrs_managed', '=', False), '|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
@@ -13,7 +13,7 @@
     <field name="name">Tâches CSRS des participants</field>
     <field name="model_id" ref="project.model_project_task"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">['|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">['|', ('csrs_managed', '=', False), '|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
@@ -22,7 +22,7 @@
   <record id="rule_csrs_task_governance" model="ir.rule">
     <field name="name">Gouvernance CSRS toutes tâches</field>
     <field name="model_id" ref="project.model_project_task"/>
-    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_secretariat')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
     <field name="domain_force">[(1, '=', 1)]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
@@ -72,5 +72,25 @@
     <field name="model_id" ref="model_csrs_role_grant"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_hr')), (4, ref('csrs_reporting.group_csrs_dg')), (4, ref('csrs_reporting.group_csrs_it'))]"/>
     <field name="domain_force">[(1, '=', 1)]</field>
+  </record>
+  <record id="rule_csrs_proposal_participant" model="ir.rule">
+    <field name="name">Propositions PENT des participants</field>
+    <field name="model_id" ref="model_csrs_task_proposal"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    <field name="domain_force">['|', ('author_id', '=', user.id), ('manager_id', '=', user.id)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+  <record id="rule_csrs_proposal_it" model="ir.rule">
+    <field name="name">Propositions PENT administrées par IT</field>
+    <field name="model_id" ref="model_csrs_task_proposal"/>
+    <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_it'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
   </record>
 </odoo>

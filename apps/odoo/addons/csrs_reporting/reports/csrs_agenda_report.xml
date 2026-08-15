@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="report_csrs_agenda" model="ir.actions.report">
+    <field name="name">Agenda hebdomadaire PENT</field>
+    <field name="model">csrs.agenda.version</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">csrs_reporting.report_csrs_agenda_document</field>
+    <field name="report_file">csrs_reporting.report_csrs_agenda_document</field>
+    <field name="print_report_name">'Agenda PENT %s - %s v%s' % (object.period_start, object.period_end, object.version)</field>
+  </record>
+
+  <template id="report_csrs_agenda_document">
+    <t t-call="web.html_container">
+      <t t-foreach="docs" t-as="agenda">
+        <t t-set="snapshot" t-value="agenda.snapshot"/>
+        <t t-call="web.external_layout">
+          <div class="page">
+            <h1>Agenda hebdomadaire PENT</h1>
+            <p>
+              <strong t-out="snapshot.get('agenda_direction_label')"/>
+              <span> — du </span><span t-out="snapshot.get('period_start')"/>
+              <span> au </span><span t-out="snapshot.get('period_end')"/>
+            </p>
+            <p>Version <span t-out="agenda.version"/> générée le <span t-field="agenda.generated_at"/>.</p>
+
+            <t t-if="snapshot.get('unclassified_users')">
+              <div class="alert alert-warning">
+                <strong>Classement à vérifier :</strong>
+                <span t-out="', '.join(person.get('name', '') for person in snapshot.get('unclassified_users', []))"/>
+              </div>
+            </t>
+
+            <h2>Événements majeurs</h2>
+            <p style="white-space: pre-wrap" t-out="snapshot.get('major_events') or 'RAS'"/>
+
+            <h2>Mouvements et disponibilités</h2>
+            <table class="table table-sm table-bordered">
+              <thead><tr><th>Type</th><th>Personne ou groupe</th><th>Période</th><th>Note</th></tr></thead>
+              <tbody>
+                <t t-foreach="snapshot.get('arrivals', [])" t-as="visit">
+                  <tr><td>Arrivée</td><td t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/><td t-out="visit.get('arrived_at')"/><td/></tr>
+                </t>
+                <t t-foreach="snapshot.get('departures', [])" t-as="visit">
+                  <tr><td>Départ</td><td t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/><td t-out="visit.get('departed_at')"/><td/></tr>
+                </t>
+                <t t-foreach="snapshot.get('availability', [])" t-as="item">
+                  <tr><td t-out="item.get('kind_label')"/><td t-out="item.get('employee', {}).get('name')"/><td><span t-out="item.get('start_date')"/> – <span t-out="item.get('end_date')"/></td><td t-out="item.get('note')"/></tr>
+                </t>
+                <tr t-if="not snapshot.get('arrivals') and not snapshot.get('departures') and not snapshot.get('availability')"><td colspan="4">Aucun mouvement ou indisponibilité.</td></tr>
+              </tbody>
+            </table>
+
+            <t t-foreach="snapshot.get('units', [])" t-as="unit">
+              <h2><span t-out="unit.get('code')"/> <span t-out="unit.get('name')"/></h2>
+              <t t-foreach="unit.get('employees', [])" t-as="employee">
+                <h3><span t-out="employee.get('person', {}).get('name')"/> — <span t-out="employee.get('completion_rate')" t-options="{'widget': 'float', 'precision': 1}"/> %</h3>
+                <table class="table table-sm table-bordered">
+                  <thead><tr><th>Tâche</th><th>État</th><th>Progression</th><th>Évolution</th><th>Observation</th></tr></thead>
+                  <tbody>
+                    <t t-foreach="employee.get('tasks', [])" t-as="task">
+                      <tr><td t-out="task.get('title')"/><td t-out="task.get('status_label')"/><td><span t-out="task.get('percentage')"/> %</td><td><span t-out="task.get('progress_delta')"/> points</td><td t-out="task.get('observation')"/></tr>
+                    </t>
+                  </tbody>
+                </table>
+              </t>
+            </t>
+            <p t-if="not snapshot.get('units')">Aucune tâche PENT sur cette période.</p>
+          </div>
+        </t>
+      </t>
+    </t>
+  </template>
+</odoo>
