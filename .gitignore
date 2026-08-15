@@ -11,6 +11,7 @@
 .*ignore*
 .secret*
 secrets/
+.DEV.org
 
 # Python
 __pycache__/
