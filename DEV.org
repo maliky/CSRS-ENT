@@ -12,8 +12,8 @@ Then we will implement the other procedure detailed in logigrams.org
 - Django reste la façade publique, porte les sessions techniques et appelle Odoo par la passerelle centrale; Odoo reste l'unique source de vérité métier.
 - Le premier lot fonctionnel couvre ensemble les tâches, les propositions, la supervision d'équipe, les absences et missions, ainsi que les agendas de direction et leurs PDF archivés.
 - =/app/= devient l'unique interface publique; =/= et =/connexion/= y redirigent. La connexion et les parcours React reprennent l'expérience de =csrs_report= sous la marque CSRS ENT.
-- Les tâches, propositions, progressions et agendas existants ne sont pas migrés. Les comptes et l'organigramme déjà repris dans Odoo sont réutilisés; =csrs_report= reste consultable comme historique.
-- L'administration des comptes et de l'organigramme reste dans Odoo. Les autres procédures de =docs/logigrams.org= seront traitées après ce lot.
+- Les tâches, propositions, progressions et agendas existants ne sont pas migrés. La reprise contrôlée crée les comptes et l'organigramme dans Odoo; =csrs_report= reste consultable comme historique.
+- L'administration React des comptes, des unités et des délégations appelle uniquement la façade Odoo; les autorisations, données et historiques restent dans Odoo. Les autres procédures de =docs/logigrams.org= seront traitées après ce lot.
 - Les PDF d'agenda conservent les sections, regroupements, versions, avertissements et la présentation du document de référence.
 
 ** Réalisation du premier lot
@@ -22,6 +22,7 @@ Then we will implement the other procedure detailed in logigrams.org
 - [x] tâches, propositions, progression append-only, validation, remise en correction et clôture anticipée dans Odoo.
 - [x] supervision d'équipe, absences et missions, visites, brouillons d'agenda et PDF versionnés dans Odoo.
 - [x] API Django typée, protégée par CSRF et limitée à la façade =csrs.api= du module Odoo.
+- [x] gestion IT des tâches, utilisateurs et organigramme avec révisions, restrictions de suppression et audit Odoo.
 - [x] contrats OpenAPI et TypeScript strict, tests comportementaux Django, Odoo et React.
 - [ ] recette fonctionnelle en préproduction par les rôles concernés.
 - [ ] autres procédures décrites dans =docs/logigrams.org=.
@@ -31,9 +32,9 @@ Then we will implement the other procedure detailed in logigrams.org
 
 - Dépôt : =/home/jil/csrs_ent=
 - Projet Django : =csrs_ent=
-- Référence fonctionnelle consultée en lecture seule : =/home/jil/csrs_report=, branche =dev=, application =report.ent.koba.sarl=.
+- Référence fonctionnelle consultée en lecture seule : =/home/jil/csrs_report=, déploiement de préproduction =preprod.report.ent.koba.sarl=.
 - Référence d'exploitation consultée en lecture seule : =/home/jil/git/ent.git=, branche =main=.
-- Phase : bootstrap Django + Odoo implémenté; reprise active CSRS validée dans la base préprod; cible publique =ent.koba.sarl=.
+- Phase : administration et reprise v2 validées dans le code; promotion, reprise active et bascule publique vers =preprod.ent.koba.sarl= encore à exécuter.
 - Outil Compose présent sur l'hôte : =docker-compose= 1.29.2; le greffon =docker compose= v2 n'est pas installé.
 
 ** Décisions confirmées
@@ -128,7 +129,7 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 
 ** réponses de cadrage appliquées
 
-- domaine public : =ent.koba.sarl= pour Django; Odoo reste privé sur =127.0.0.1:18069=.
+- domaine public de préproduction : =preprod.ent.koba.sarl= pour Django; Odoo reste privé sur =127.0.0.1:18069=.
 - accès initial : conservation transitoire des mots de passe actuels, sans texte clair ni réinitialisation collective.
 - identifiant : email principal et alias court secondaire.
 - organigramme : état actif d'abord; l'historique sera repris après validation si nécessaire.
@@ -137,20 +138,21 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 ** validation du bootstrap
 
 - [x] contrôle django.
-- [x] 24 tests Django de passerelle, session, CSRF, erreurs et contrats HTTP.
-- [x] suite Odoo transactionnelle des ACL, tâches, propositions, conflits et PDF; 31 tests React.
+- [x] 29 tests Django de passerelle, session, CSRF, erreurs et contrats HTTP.
+- [x] 26 scénarios Odoo transactionnels des ACL, tâches, administration, reprise, conflits et PDF; 32 tests React.
 - [x] Ruff, mypy strict, TypeScript strict et compilation Python.
 - [x] analyse xml et syntaxe bash.
 - [x] résolution de la configuration compose avec l'environnement d'exemple par =docker-compose= 1.29.2.
 - [x] vérification de cohérence de la documentation et absence de commentaire agent non résolu.
-- [x] reprise active : 42 comptes, 43 services, 41 rattachements, 40 lignes hiérarchiques et 5 délégations; une réexécution complète ne produit aucune écriture.
+- [x] export v2 et simulation de reprise : 42 comptes, 43 services actifs, 41 rattachements principaux ouverts, 40 lignes hiérarchiques principales ouvertes et 3 délégations, sans affichage d'empreinte.
+- [ ] reprise appliquée et réexécution sans écriture dans la base Odoo de préproduction.
 
 ** état de la préproduction
 
 - [x] branches =dev= et =preprod= alignées sur le même commit validé; =prod= reste inchangée avant recette.
 - [x] versions immuables dans =/srv/apps/csrs-ent-preprod/releases/=, lien =current= et configuration protégée hors git.
 - [x] préproduction réinitialisée sans reprise des données de l'ancien projet Compose.
-- [x] django public sur =https://ent.koba.sarl/= avec redirection http, certificat renouvelable et assets react servis.
+- [ ] DNS, Nginx et certificat validés pour =https://preprod.ent.koba.sarl/=, puis retrait immédiat de l'ancien nom =ent.koba.sarl=.
 - [x] odoo et mailpit liés à =127.0.0.1=; postgresql et redis sans port hôte.
-- [x] les 42 empreintes django restent inchangées après redémarrage odoo et seront converties individuellement après une connexion réussie.
+- [ ] les 42 empreintes Django sont importées par le canal temporaire protégé puis converties individuellement après une connexion réussie.
 - [ ] recette fonctionnelle par rôle et promotion du commit accepté vers =prod=.

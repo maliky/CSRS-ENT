@@ -3,7 +3,7 @@
 
 * Connexion
 
-Ouvrir =https://ent.koba.sarl/app/=. Saisir l'adresse email ou l'identifiant court habituel et le même mot de passe que celui repris depuis l'ancienne application. =/= et =/connexion/= redirigent vers cette page unique.
+Ouvrir =https://preprod.ent.koba.sarl/app/=. Saisir l'adresse email ou l'identifiant court habituel et le même mot de passe que celui repris depuis l'ancienne application. =/= et =/connexion/= redirigent vers cette page unique.
 
 Si CSRS ENT demande un changement de mot de passe, choisir un nouveau mot de passe depuis l'écran affiché avant d'utiliser les autres fonctions.
 
@@ -34,6 +34,16 @@ Le secrétariat enregistre l'arrivée d'un visiteur, le nombre de personnes et, 
 La rubrique =Agendas= affiche l'aperçu hebdomadaire de la Direction des programmes ou de la Direction administrative. Le secrétariat complète le brouillon, contrôle les avertissements et génère le PDF.
 
 Chaque génération crée une version immuable avec son PDF archivé. Une nouvelle correction produit une nouvelle version sans remplacer les documents précédents. Les versions restent accessibles depuis =Agendas archivés=.
+
+* Administration IT
+
+L'administrateur IT dispose de =Gérer les tâches=, =Utilisateurs= et =Organigramme=. Ces rubriques ne sont pas visibles pour les autres rôles et chaque opération est de nouveau autorisée dans Odoo.
+
+=Gérer les tâches= permet de filtrer les tâches puis de supprimer une sélection avec son motif, le mot de confirmation =SUPPRIMER= et le contrôle de la version courante. La suppression est définitive, mais un événement d'audit conserve l'identité des tâches supprimées et leur état au moment de l'opération.
+
+=Utilisateurs= permet de créer ou modifier un compte, son unité principale, ses autres rattachements, son responsable et son classement dans les agendas. Une désactivation conserve l'historique. La suppression est limitée à un compte natif déjà inactif et sans historique métier. Le mot de passe temporaire n'est affiché qu'une fois et impose son remplacement à la connexion suivante.
+
+=Organigramme= permet de créer, renommer, déplacer ou désactiver une unité, puis d'attribuer et révoquer les délégations datées. Une modification de responsable clôt l'ancienne ligne hiérarchique, ouvre la nouvelle et transfère les tâches actives avec une nouvelle révision. Odoo refuse les cycles et les mises à jour fondées sur une version ancienne.
 
 * Déconnexion et assistance
 
