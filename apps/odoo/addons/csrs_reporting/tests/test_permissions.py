@@ -112,7 +112,7 @@ class CsrsPermissionTests(TransactionCase):
                 administrator.id, token
             )
 
-    def test_delegations_respect_role_dates_and_global_scope_without_groups(self):
+    def test_delegations_respect_role_dates_without_linking_global_groups(self):
         root = self.env["hr.department"].create(
             {"name": "CSRS", "csrs_code": "ROOT"}
         )
@@ -157,7 +157,7 @@ class CsrsPermissionTests(TransactionCase):
 
         delegated = self.env["csrs.api"].with_user(self.outsider)
         session = delegated.api_session()
-        self.assertFalse(session["capabilities"]["prepare_weekly_agenda"])
+        self.assertTrue(session["capabilities"]["prepare_weekly_agenda"])
         self.assertNotIn(self.agent, delegated._managed_users())
         self.assertNotIn(
             self.env.ref("csrs_reporting.group_csrs_dg"), self.outsider.group_ids
@@ -167,17 +167,22 @@ class CsrsPermissionTests(TransactionCase):
             self.outsider.group_ids,
         )
 
-        facade.api_role_grant_create(
-            {
-                **common,
-                "department_id": root.id,
-                "role_code": "AGENDA_SECRETARIAT",
-                "scope": "tree",
-            }
+        today = fields.Date.context_today(self)
+        self.assertEqual(
+            delegated.api_agenda_preview(
+                today.isoformat(),
+                (today + timedelta(days=6)).isoformat(),
+                "programs",
+            )["snapshot"]["agenda_direction"],
+            "programs",
         )
-
-        self.assertTrue(
-            delegated.api_session()["capabilities"]["prepare_weekly_agenda"]
+        self.assertEqual(
+            delegated.api_agenda_preview(
+                today.isoformat(),
+                (today + timedelta(days=6)).isoformat(),
+                "administration",
+            )["snapshot"]["agenda_direction"],
+            "administration",
         )
 
     def test_it_bulk_delete_is_revision_checked_and_audited(self):

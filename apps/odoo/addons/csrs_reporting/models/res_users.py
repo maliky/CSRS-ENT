@@ -91,13 +91,10 @@ class ResUsers(models.Model):
             ]
         )
 
-    def csrs_has_global_role_grant(self, *role_codes):
-        """A global use case requires a valid tree grant rooted at the top level."""
+    def csrs_has_active_role_grant(self, *role_codes):
+        """Feature roles follow legacy CSRS semantics while retaining grant dates."""
         self.ensure_one()
-        return any(
-            grant.scope == "tree" and not grant.department_id.parent_id
-            for grant in self.csrs_active_role_grants(role_codes)
-        )
+        return bool(self.csrs_active_role_grants(role_codes))
 
     def csrs_import_legacy_password_hash(self, password_hash, replace_native=False):
         """Install one validated Django hash without ever logging its value."""
