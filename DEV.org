@@ -1,7 +1,12 @@
 #+title: PENT - Plan de développement
 #+startup: overview
+* <2026-08-15 Sat 08:20> Montee en puissance
+Je souhaite implementer avec odoo et django plusieures procedure metier.
+La pemiere c'est celle des taches.  Le but est de reproduire le workflow que nous avons dans csrs_report mais en s appuyant sur odoo.  quand je dit reproduire c est du point de vue de l utilisateur final.  Given the dev csrs_report/MANUAL.org  attached, he must feel that it is similare to use pent that to use csrs_report for task and agenda, same interface, similare buttons, graphics... in the back what he does not see is that it is not django 's table but django makes call to odoo table.
+Then we will implement the other procedure detailed in logigrams.org
 
-* État initial
+* <2026-08-15 Sat 08:20>
+** État initial
 
 - Dépôt : =/home/jil/pent=
 - Projet Django : =pent=
@@ -10,9 +15,9 @@
 - Phase : bootstrap Django + Odoo implémenté; reprise active CSRS validée dans la base préprod; cible publique =ent.koba.sarl=.
 - Outil Compose présent sur l'hôte : =docker-compose= 1.29.2; le greffon =docker compose= v2 n'est pas installé.
 
-* Décisions confirmées
+** Décisions confirmées
 
-** architecture
+*** architecture
 
 odoo est le système d'enregistrement unique. django ne possède aucun modèle métier : il sert de façade web/api, porte les sessions techniques et appelle odoo par une passerelle centralisée. un stockage technique futur de sessions, files ou caches ne devra contenir aucun objet métier odoo.
 
@@ -20,11 +25,11 @@ le module odoo =csrs_reporting= réutilise =res.users=, =res.partner=, =hr.depar
 
 le portage n'est pas une réplication automatique des tables de =csrs_report=. chaque capacité est rapprochée d'un modèle odoo standard, puis complétée dans odoo seulement lorsque le standard ne porte pas la règle confirmée.
 
-** interface
+*** interface
 
 l'interface combine django et react avec un accent sur react, dans la continuité de l'application actuelle. react porte progressivement les parcours principaux; django conserve la passerelle, les sessions, les réponses serveur utiles et les écrans non encore migrés. le routage précis sera fixé avant le premier lot frontend.
 
-** authentification et comptes
+*** authentification et comptes
 
 la cible initiale est une session odoo relayée par django : le navigateur s'authentifie auprès de django en https, django vérifie les identifiants auprès d'odoo via la passerelle centrale, puis conserve uniquement une session technique révocable. aucun mot de passe odoo n'est stocké en clair dans django, une session ou les journaux.
 
@@ -35,11 +40,11 @@ les alternatives non retenues pour le premier lot sont :
 - oauth/oidc : délègue l'identité à un fournisseur standard et évite de transmettre le mot de passe à pent, mais exige un fournisseur configuré et une intégration odoo correspondante.
 - sso institutionnel : expérience de connexion unique à l'échelle de l'établissement, généralement bâtie sur oidc ou saml, mais dépend de l'infrastructure d'identité institutionnelle.
 
-** branches
+*** branches
 
 le dépôt utilise exactement trois branches : =dev= pour l'intégration, =preprod= pour le commit déployé sur cet hôte et =master= pour la production. une promotion réutilise le même commit validé de =dev= vers =preprod= puis =master=. le nom =main= ne sera pas maintenu comme quatrième alias sans décision explicite.
 
-* source de migration vérifiée
+** source de migration vérifiée
 
 inventaire agrégé en lecture seule du 2026-08-14 :
 
@@ -61,7 +66,7 @@ correspondance initiale proposée :
 
 les 42 empreintes django =pbkdf2_sha256= sont transférées par un fichier temporaire protégé, sans affichage ni journalisation. odoo les accepte transitoirement et les convertit vers son propre schéma après la première connexion réussie; une réimportation ne rétrograde jamais une empreinte déjà convertie.
 
-* besoins fonctionnels repris de csrs
+** besoins fonctionnels repris de csrs
 
 - une saisie courte et responsive, utilisable sur téléphone et ordinateur.
 - un responsable principal peut créer, modifier, valider et fermer; un responsable secondaire peut voir et commenter.
@@ -69,13 +74,13 @@ les 42 empreintes django =pbkdf2_sha256= sont transférées par un fichier tempo
 - les affectations, validations et changements de progression restent auditables.
 - les autorisations sont appliquées côté serveur et les écritures concurrentes utilisent une révision explicite.
 
-* approche de réalisation
+** approche de réalisation
 
 le code suit un cœur fonctionnel fortement typé et une enveloppe impérative limitée à django, rpc et odoo. les règles de validation, normalisation et correspondance sont déterministes et testables sans réseau; les entrées non fiables sont converties dès la frontière vers des types précis et, lorsque possible, immuables.
 
 chaque comportement commence par un test lisible given/when/then. les fonctions pures ont des tests unitaires, la passerelle a des tests de contrat, django a des tests http et odoo a des tests transactionnels des règles métier, acl, règles d'enregistrement et conflits de révision. les parcours critiques react recevront des tests de composant et des tests comportementaux navigateur.
 
-* frontières du bootstrap
+** frontières du bootstrap
 
 - [x] projet django =pent= sans =models.py= métier, sans migration métier et sans base applicative.
 - [x] client rpc odoo centralisé et sonde de disponibilité.
@@ -89,7 +94,7 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 - [x] interface django/react responsive et TypeScript strict.
 - [ ] stratégie de reprise des autres données existantes.
 
-* plan de préproduction sur cet hôte
+** plan de préproduction sur cet hôte
 
 1. créer le dépôt nu =/home/jil/git/pent.git= et publier =dev=; créer localement =preprod= et =master= à partir du premier commit validé.
 2. réserver le projet compose =pent_preprod=, les volumes odoo et postgresql nommés, les ports locaux non publics et un fichier d'environnement réel hors git.
@@ -99,7 +104,7 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 6. déployer le même commit sur =preprod=, vérifier django puis odoo sur leurs ports locaux, et seulement ensuite configurer nginx, dns et tls.
 7. effectuer une recette comportementale par rôle et promouvoir exactement le commit accepté vers =master=.
 
-* réponses de cadrage appliquées
+** réponses de cadrage appliquées
 
 - domaine public : =ent.koba.sarl= pour Django; Odoo reste privé sur =127.0.0.1:18069=.
 - accès initial : conservation transitoire des mots de passe actuels, sans texte clair ni réinitialisation collective.
@@ -107,7 +112,7 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 - organigramme : état actif d'abord; l'historique sera repris après validation si nécessaire.
 - notifications : aucune livraison réelle avant recette; Mailpit est la seule cible SMTP de préproduction.
 
-* validation du bootstrap
+** validation du bootstrap
 
 - [x] contrôle django.
 - [x] 19 tests Django de passerelle, session, CSRF, limitation et pages.
@@ -118,7 +123,7 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 - [x] vérification de cohérence de la documentation et absence de commentaire agent non résolu.
 - [x] reprise active : 42 comptes, 43 services, 41 rattachements, 40 lignes hiérarchiques et 5 délégations; une réexécution complète ne produit aucune écriture.
 
-* état de la préproduction
+** état de la préproduction
 
 - [x] branches =dev= et =preprod= alignées sur le même commit validé; =master= reste inchangée avant recette.
 - [x] checkout d'exploitation =/srv/apps/pent-preprod/app= et configuration protégée hors git.
