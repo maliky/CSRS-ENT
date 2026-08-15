@@ -405,6 +405,44 @@ class CsrsMigrationTests(TransactionCase):
         [password_after] = self.env.cr.fetchone()
         self.assertEqual(password_after, password_before)
 
+    def test_reconcile_rebinds_department_source_ids_by_stable_code(self):
+        payload = self.payload()
+        payload["departments"].append(
+            {
+                "source_id": 9_000_202,
+                "code": "CSRSENTTEST2",
+                "name": "Service test CSRS ENT 2",
+                "short_name": "Service test 2",
+                "kind": "unit",
+                "display_order": 8,
+                "active": True,
+            }
+        )
+        first = self.env["hr.department"].create(
+            {
+                "name": "Ancien service 1",
+                "csrs_code": "CSRSENTTEST",
+                "csrs_source_id": 9_000_202,
+            }
+        )
+        second = self.env["hr.department"].create(
+            {
+                "name": "Ancien service 2",
+                "csrs_code": "CSRSENTTEST2",
+                "csrs_source_id": 9_000_201,
+            }
+        )
+
+        report = self.env["csrs.migration.importer"].import_payload(
+            payload, apply=True, reconcile=True
+        )
+
+        self.assertEqual(first.csrs_source_id, 9_000_201)
+        self.assertEqual(second.csrs_source_id, 9_000_202)
+        self.assertEqual(
+            report["updated"]["department_source_ids_released"], 2
+        )
+
     def test_reporting_lines_are_preserved_as_dated_records(self):
         payload = self.payload()
         manager = dict(payload["users"][0])

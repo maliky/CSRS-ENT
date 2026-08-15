@@ -38,6 +38,9 @@ class CsrsMigrationImporter(models.AbstractModel):
 
         if reconcile:
             self._remove_demo_identity_snapshot(report)
+            self._prepare_department_reconciliation(
+                snapshot["departments"], report
+            )
         departments = self._upsert_departments(snapshot["departments"], report)
         self._link_departments(snapshot["department_links"], departments)
         users, employees = self._upsert_users(snapshot["users"], report)
@@ -436,6 +439,36 @@ class CsrsMigrationImporter(models.AbstractModel):
                 report["created"]["departments"] += 1
             result[source_id] = department
         return result
+
+    def _prepare_department_reconciliation(
+        self, rows: list[dict[str, object]], report: dict[str, object]
+    ) -> None:
+        """Release obsolete numeric identities before adopting stable codes."""
+        Department = self.env["hr.department"].sudo().with_context(active_test=False)
+        source_codes = {
+            row["source_id"]: str(row["code"]).strip().upper() for row in rows
+        }
+        incoming_codes = frozenset(source_codes.values())
+        incoming_source_ids = frozenset(source_codes)
+        released = Department.browse()
+        for department in Department.search([("csrs_source_id", "!=", False)]):
+            current_source_id = department.csrs_source_id
+            current_code = (department.csrs_code or "").strip().upper()
+            if source_codes.get(current_source_id) == current_code:
+                continue
+            if (
+                current_source_id in incoming_source_ids
+                or current_code in incoming_codes
+            ):
+                released |= department
+        if released:
+            Department.flush_model(["csrs_source_id"])
+            self.env.cr.execute(
+                "UPDATE hr_department SET csrs_source_id=NULL WHERE id = ANY(%s)",
+                [released.ids],
+            )
+            released.invalidate_recordset(["csrs_source_id"])
+            report["updated"]["department_source_ids_released"] += len(released)
 
     def _link_departments(self, rows, departments):
         parents = {
