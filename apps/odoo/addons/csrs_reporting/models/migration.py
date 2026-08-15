@@ -451,6 +451,7 @@ class CsrsMigrationImporter(models.AbstractModel):
         incoming_codes = frozenset(source_codes.values())
         incoming_source_ids = frozenset(source_codes)
         released = Department.browse()
+        displaced = Department.browse()
         for department in Department.search([("csrs_source_id", "!=", False)]):
             current_source_id = department.csrs_source_id
             current_code = (department.csrs_code or "").strip().upper()
@@ -461,6 +462,8 @@ class CsrsMigrationImporter(models.AbstractModel):
                 or current_code in incoming_codes
             ):
                 released |= department
+                if current_code not in incoming_codes:
+                    displaced |= department
         if released:
             Department.flush_model(["csrs_source_id"])
             self.env.cr.execute(
@@ -469,6 +472,9 @@ class CsrsMigrationImporter(models.AbstractModel):
             )
             released.invalidate_recordset(["csrs_source_id"])
             report["updated"]["department_source_ids_released"] += len(released)
+        if displaced:
+            displaced.write({"active": False})
+            report["updated"]["departments_archived"] += len(displaced)
 
     def _link_departments(self, rows, departments):
         parents = {

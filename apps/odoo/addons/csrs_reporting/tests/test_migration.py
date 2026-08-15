@@ -443,6 +443,28 @@ class CsrsMigrationTests(TransactionCase):
             report["updated"]["department_source_ids_released"], 2
         )
 
+    def test_reconcile_archives_a_displaced_department_absent_by_code(self):
+        payload = self.payload()
+        displaced = self.env["hr.department"].create(
+            {
+                "name": "Ancien service absent",
+                "csrs_code": "ABSENT",
+                "csrs_source_id": 9_000_201,
+            }
+        )
+
+        report = self.env["csrs.migration.importer"].import_payload(
+            payload, apply=True, reconcile=True
+        )
+
+        replacement = self.env["hr.department"].search(
+            [("csrs_source_id", "=", 9_000_201)]
+        )
+        self.assertNotEqual(replacement, displaced)
+        self.assertFalse(displaced.active)
+        self.assertFalse(displaced.csrs_source_id)
+        self.assertEqual(report["updated"]["departments_archived"], 1)
+
     def test_reporting_lines_are_preserved_as_dated_records(self):
         payload = self.payload()
         manager = dict(payload["users"][0])
