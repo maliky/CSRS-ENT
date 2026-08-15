@@ -405,6 +405,39 @@ class CsrsMigrationTests(TransactionCase):
         [password_after] = self.env.cr.fetchone()
         self.assertEqual(password_after, password_before)
 
+    def test_reconcile_preserves_authoritative_demo_domain_identity(self):
+        payload = self.payload()
+        payload["users"][0].update(
+            {
+                "email": "authoritative-source@demo.invalid",
+                "alias": "authoritative-source",
+            }
+        )
+        importer = self.env["csrs.migration.importer"]
+        importer.import_payload(payload, apply=True, reconcile=True)
+        imported = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        imported.with_context(no_reset_password=True).write(
+            {"password": "UpgradedSourcePassword123!"}
+        )
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [imported.id]
+        )
+        [password_before] = self.env.cr.fetchone()
+
+        importer.import_payload(payload, apply=True, reconcile=True)
+
+        preserved = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [preserved.id]
+        )
+        [password_after] = self.env.cr.fetchone()
+        self.assertEqual(preserved, imported)
+        self.assertEqual(password_after, password_before)
+
     def test_reconcile_rebinds_department_source_ids_by_stable_code(self):
         payload = self.payload()
         payload["departments"].append(

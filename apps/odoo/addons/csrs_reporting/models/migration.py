@@ -37,7 +37,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             return report
 
         if reconcile:
-            self._remove_demo_identity_snapshot(report)
+            self._remove_demo_identity_snapshot(snapshot["users"], report)
             self._prepare_department_reconciliation(
                 snapshot["departments"], report
             )
@@ -718,10 +718,38 @@ class CsrsMigrationImporter(models.AbstractModel):
                 Grant.create(values)
                 report["created"]["role_grants"] += 1
 
-    def _remove_demo_identity_snapshot(self, report):
+    def _remove_demo_identity_snapshot(
+        self, rows: list[dict[str, object]], report: dict[str, object]
+    ) -> None:
         """Delete only the known demo identities while preserving ``dev``."""
         Users = self.env["res.users"].sudo().with_context(active_test=False)
+        Employees = self.env["hr.employee"].sudo().with_context(active_test=False)
         administrator = self.env.ref("base.user_admin")
+        by_email = {
+            str(row["email"]).strip().casefold(): row for row in rows
+        }
+        by_alias = {
+            str(row["alias"]).strip().casefold(): row
+            for row in rows
+            if row.get("alias")
+        }
+
+        def source_row(user):
+            matches = {
+                row["source_id"]: row
+                for row in (
+                    by_email.get((user.login or "").strip().casefold()),
+                    by_email.get((user.email or "").strip().casefold()),
+                    by_alias.get((user.csrs_alias or "").strip().casefold()),
+                )
+                if row
+            }
+            if len(matches) > 1:
+                raise ValidationError(
+                    _("Une identité de démonstration correspond à plusieurs comptes source.")
+                )
+            return next(iter(matches.values()), None)
+
         demos = Users.search(
             [
                 "|",
@@ -729,14 +757,39 @@ class CsrsMigrationImporter(models.AbstractModel):
                 ("email", "ilike", "@demo.invalid"),
             ]
         )
+        authoritative = {user.id: source_row(user) for user in demos}
         preserved = demos.filtered(
-            lambda user: user == administrator or user.csrs_alias == "dev"
+            lambda user: user == administrator
+            or user.csrs_alias == "dev"
+            or bool(authoritative[user.id])
         )
-        if preserved:
-            preserved.write({"csrs_source_id": False})
-            self.env["hr.employee"].sudo().with_context(active_test=False).search(
-                [("user_id", "in", preserved.ids)]
-            ).write({"csrs_source_id": False})
+        rebound = preserved.filtered(
+            lambda user: (
+                authoritative[user.id]
+                and user.csrs_source_id
+                != authoritative[user.id]["source_id"]
+            )
+            or (
+                not authoritative[user.id]
+                and user.csrs_alias == "dev"
+                and bool(user.csrs_source_id)
+            )
+        )
+        if rebound:
+            Users.flush_model(["csrs_source_id"])
+            self.env.cr.execute(
+                "UPDATE res_users SET csrs_source_id=NULL WHERE id = ANY(%s)",
+                [rebound.ids],
+            )
+            rebound.invalidate_recordset(["csrs_source_id"])
+            employees = Employees.search([("user_id", "in", rebound.ids)])
+            if employees:
+                Employees.flush_model(["csrs_source_id"])
+                self.env.cr.execute(
+                    "UPDATE hr_employee SET csrs_source_id=NULL WHERE id = ANY(%s)",
+                    [employees.ids],
+                )
+                employees.invalidate_recordset(["csrs_source_id"])
         removable = demos - preserved
         if not removable:
             report["unchanged"]["demo_users_removed"] += 1
