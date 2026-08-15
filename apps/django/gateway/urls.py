@@ -27,6 +27,41 @@ urlpatterns = [
     path("api/v1/planning/options/", api_views.PlanningOptionsView.as_view()),
     path("api/v1/planning/preview/", api_views.PlanningPreviewView.as_view()),
     path("api/v1/tasks/", api_views.TaskCreateView.as_view()),
+    path("api/v1/task-management/", api_views.TaskManagementView.as_view()),
+    path("api/v1/tasks/bulk-delete/", api_views.TaskBulkDeleteView.as_view()),
+    path("api/v1/users/", api_views.UserListCreateView.as_view()),
+    path("api/v1/users/options/", api_views.UserOptionsView.as_view()),
+    path("api/v1/users/bulk-action/", api_views.UserBulkActionView.as_view()),
+    path("api/v1/users/<int:pk>/", api_views.UserDetailView.as_view()),
+    path(
+        "api/v1/users/<int:pk>/deactivate/",
+        api_views.UserDeactivateView.as_view(),
+    ),
+    path(
+        "api/v1/users/<int:pk>/reactivate/",
+        api_views.UserReactivateView.as_view(),
+    ),
+    path(
+        "api/v1/users/<int:pk>/temporary-password/",
+        api_views.UserTemporaryPasswordView.as_view(),
+    ),
+    path("api/v1/organization/", api_views.OrganizationView.as_view()),
+    path(
+        "api/v1/organization/units/",
+        api_views.OrganizationUnitCreateView.as_view(),
+    ),
+    path(
+        "api/v1/organization/units/<int:pk>/",
+        api_views.OrganizationUnitDetailView.as_view(),
+    ),
+    path(
+        "api/v1/organization/grants/",
+        api_views.RoleGrantCreateView.as_view(),
+    ),
+    path(
+        "api/v1/organization/grants/<int:pk>/revoke/",
+        api_views.RoleGrantRevokeView.as_view(),
+    ),
     path("api/v1/tasks/<int:pk>/", api_views.TaskDetailView.as_view()),
     path("api/v1/tasks/<int:pk>/progress/", api_views.TaskProgressView.as_view()),
     path(

@@ -1,7 +1,7 @@
 {
     "name": "CSRS Reporting",
     "summary": "Suivi des tâches CSRS avec Odoo comme source de vérité",
-    "version": "19.0.4.0.0",
+    "version": "19.0.5.0.0",
     "category": "Services/Project",
     "author": "CSRS",
     "license": "LGPL-3",

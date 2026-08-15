@@ -15,56 +15,105 @@
         <t t-set="snapshot" t-value="agenda.snapshot"/>
         <t t-call="web.external_layout">
           <div class="page">
-            <h1>Agenda hebdomadaire CSRS ENT</h1>
-            <p>
-              <strong t-out="snapshot.get('agenda_direction_label')"/>
-              <span> — du </span><span t-out="snapshot.get('period_start')"/>
-              <span> au </span><span t-out="snapshot.get('period_end')"/>
-            </p>
-            <p>Version <span t-out="agenda.version"/> générée le <span t-field="agenda.generated_at"/>.</p>
-
-            <t t-if="snapshot.get('unclassified_users')">
-              <div class="alert alert-warning">
-                <strong>Classement à vérifier :</strong>
-                <span t-out="', '.join(person.get('name', '') for person in snapshot.get('unclassified_users', []))"/>
+            <style>
+              .csrs-agenda { color: #24332c; font-size: 10.5pt; }
+              .csrs-agenda h1 { color: #176b45; font-size: 22pt; margin: 0 0 4px; }
+              .csrs-agenda .period { color: #52615a; font-size: 12pt; margin-bottom: 14px; }
+              .csrs-agenda .meta { border-top: 1px solid #bcd1c4; border-bottom: 1px solid #bcd1c4; color: #52615a; padding: 5px 0; margin-bottom: 12px; }
+              .csrs-agenda .section-title { color: #176b45; font-size: 14pt; margin: 14px 0 7px; }
+              .csrs-agenda .summary-table { width: 100%; border-collapse: separate; border-spacing: 6px; margin: 0 -6px; table-layout: fixed; }
+              .csrs-agenda .summary-card { border: 1px solid #bcd1c4; background: #eaf4ee; padding: 9px; vertical-align: top; }
+              .csrs-agenda .summary-label { color: #176b45; font-size: 9pt; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+              .csrs-agenda .summary-value { white-space: pre-wrap; }
+              .csrs-agenda .unit { border: 1px solid #bcd1c4; margin: 0 0 12px; page-break-inside: avoid; }
+              .csrs-agenda .unit-title { background: #176b45; color: #fff; font-size: 13pt; font-weight: 700; padding: 7px 9px; }
+              .csrs-agenda .employee-title { background: #eaf4ee; border-bottom: 1px solid #bcd1c4; color: #24332c; font-weight: 700; padding: 6px 9px; }
+              .csrs-agenda .rate { float: right; color: #176b45; }
+              .csrs-agenda table.tasks { border-collapse: collapse; width: 100%; }
+              .csrs-agenda table.tasks th { background: #f4f8f5; color: #52615a; font-size: 8.5pt; text-transform: uppercase; }
+              .csrs-agenda table.tasks th, .csrs-agenda table.tasks td { border: 1px solid #d8e5dc; padding: 5px; vertical-align: top; }
+              .csrs-agenda .muted { color: #52615a; }
+              .csrs-agenda .warning { border: 1px solid #d3a933; background: #fff7dc; padding: 8px; margin: 0 0 10px; }
+              .csrs-agenda .empty { border: 1px dashed #bcd1c4; color: #52615a; padding: 12px; text-align: center; }
+            </style>
+            <div class="csrs-agenda">
+              <h1>AGENDA — <span t-out="snapshot.get('agenda_direction_label', '').upper()"/></h1>
+              <div class="period">Du <span t-out="snapshot.get('period_start')"/> au <span t-out="snapshot.get('period_end')"/></div>
+              <div class="meta">
+                Version <span t-out="agenda.version"/> · Générée le <span t-field="agenda.generated_at"/> · CSRS ENT
               </div>
-            </t>
 
-            <h2>Événements majeurs</h2>
-            <p style="white-space: pre-wrap" t-out="snapshot.get('major_events') or 'RAS'"/>
-
-            <h2>Mouvements et disponibilités</h2>
-            <table class="table table-sm table-bordered">
-              <thead><tr><th>Type</th><th>Personne ou groupe</th><th>Période</th><th>Note</th></tr></thead>
-              <tbody>
-                <t t-foreach="snapshot.get('arrivals', [])" t-as="visit">
-                  <tr><td>Arrivée</td><td t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/><td t-out="visit.get('arrived_at')"/><td/></tr>
-                </t>
-                <t t-foreach="snapshot.get('departures', [])" t-as="visit">
-                  <tr><td>Départ</td><td t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/><td t-out="visit.get('departed_at')"/><td/></tr>
-                </t>
-                <t t-foreach="snapshot.get('availability', [])" t-as="item">
-                  <tr><td t-out="item.get('kind_label')"/><td t-out="item.get('employee', {}).get('name')"/><td><span t-out="item.get('start_date')"/> – <span t-out="item.get('end_date')"/></td><td t-out="item.get('note')"/></tr>
-                </t>
-                <tr t-if="not snapshot.get('arrivals') and not snapshot.get('departures') and not snapshot.get('availability')"><td colspan="4">Aucun mouvement ou indisponibilité.</td></tr>
-              </tbody>
-            </table>
-
-            <t t-foreach="snapshot.get('units', [])" t-as="unit">
-              <h2><span t-out="unit.get('code')"/> <span t-out="unit.get('name')"/></h2>
-              <t t-foreach="unit.get('employees', [])" t-as="employee">
-                <h3><span t-out="employee.get('person', {}).get('name')"/> — <span t-out="employee.get('completion_rate')" t-options="{'widget': 'float', 'precision': 1}"/> %</h3>
-                <table class="table table-sm table-bordered">
-                  <thead><tr><th>Tâche</th><th>État</th><th>Progression</th><th>Évolution</th><th>Observation</th></tr></thead>
-                  <tbody>
-                    <t t-foreach="employee.get('tasks', [])" t-as="task">
-                      <tr><td t-out="task.get('title')"/><td t-out="task.get('status_label')"/><td><span t-out="task.get('percentage')"/> %</td><td><span t-out="task.get('progress_delta')"/> points</td><td t-out="task.get('observation')"/></tr>
-                    </t>
-                  </tbody>
-                </table>
+              <t t-if="snapshot.get('unclassified_users')">
+                <div class="warning">
+                  <strong>Classement à vérifier :</strong>
+                  <span t-out="', '.join(person.get('name', '') for person in snapshot.get('unclassified_users', []))"/>
+                </div>
               </t>
-            </t>
-            <p t-if="not snapshot.get('units')">Aucune tâche CSRS ENT sur cette période.</p>
+
+              <table class="summary-table">
+                <tr>
+                  <td class="summary-card">
+                    <div class="summary-label">Événements majeurs</div>
+                    <div class="summary-value" t-out="snapshot.get('major_events') or 'RAS'"/>
+                  </td>
+                  <td class="summary-card">
+                    <div class="summary-label">Arrivées (<span t-out="len(snapshot.get('arrivals', []))"/>)</div>
+                    <t t-if="snapshot.get('arrivals')">
+                      <div t-foreach="snapshot.get('arrivals', [])" t-as="visit">
+                        <span t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/>
+                        <span class="muted"> — <span t-out="visit.get('arrived_at')"/></span>
+                      </div>
+                    </t>
+                    <span t-else="" class="muted">Aucune arrivée</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="summary-card">
+                    <div class="summary-label">Départs (<span t-out="len(snapshot.get('departures', []))"/>)</div>
+                    <t t-if="snapshot.get('departures')">
+                      <div t-foreach="snapshot.get('departures', [])" t-as="visit">
+                        <span t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/>
+                        <span class="muted"> — <span t-out="visit.get('departed_at')"/></span>
+                      </div>
+                    </t>
+                    <span t-else="" class="muted">Aucun départ</span>
+                  </td>
+                  <td class="summary-card">
+                    <div class="summary-label">Congés, absences et missions (<span t-out="len(snapshot.get('availability', []))"/>)</div>
+                    <t t-if="snapshot.get('availability')">
+                      <div t-foreach="snapshot.get('availability', [])" t-as="item">
+                        <strong t-out="item.get('employee', {}).get('name')"/> — <span t-out="item.get('kind_label')"/>
+                        <span class="muted"> (<span t-out="item.get('start_date')"/> – <span t-out="item.get('end_date')"/>)</span>
+                        <span t-if="item.get('note')"> : <span t-out="item.get('note')"/></span>
+                      </div>
+                    </t>
+                    <span t-else="" class="muted">Aucune indisponibilité</span>
+                  </td>
+                </tr>
+              </table>
+
+              <h2 class="section-title">Activité par unité</h2>
+              <t t-foreach="snapshot.get('units', [])" t-as="unit">
+                <div class="unit">
+                  <div class="unit-title"><span t-if="unit.get('code')"><span t-out="unit.get('code')"/> — </span><span t-out="unit.get('name')"/></div>
+                  <t t-foreach="unit.get('employees', [])" t-as="employee">
+                    <div class="employee-title">
+                      <span t-out="employee.get('person', {}).get('name')"/>
+                      <span class="rate"><span t-out="'%.1f' % employee.get('completion_rate', 0)"/> %</span>
+                    </div>
+                    <table class="tasks">
+                      <thead><tr><th style="width: 34%">Tâche</th><th style="width: 14%">État</th><th style="width: 12%">Progression</th><th style="width: 12%">Évolution</th><th>Observation</th></tr></thead>
+                      <tbody>
+                        <t t-foreach="employee.get('tasks', [])" t-as="task">
+                          <tr><td t-out="task.get('title')"/><td t-out="task.get('status_label')"/><td><span t-out="task.get('percentage')"/> %</td><td><span t-if="task.get('progress_delta', 0) &gt;= 0">+</span><span t-out="task.get('progress_delta')"/> pts</td><td t-out="task.get('observation') or '—'"/></tr>
+                        </t>
+                      </tbody>
+                    </table>
+                  </t>
+                </div>
+              </t>
+              <div t-if="not snapshot.get('units')" class="empty">Aucune tâche CSRS ENT sur cette période.</div>
+            </div>
           </div>
         </t>
       </t>

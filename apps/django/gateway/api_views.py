@@ -44,8 +44,19 @@ from .serializers import (
     ProposalUpdateSerializer,
     RevisionSerializer,
     TaskCreateSerializer,
+    TaskBulkDeleteSerializer,
+    TaskManagementQuerySerializer,
     TaskUpdateSerializer,
     TransitionSerializer,
+    StateTokenSerializer,
+    UserBulkActionSerializer,
+    UserManagementQuerySerializer,
+    UserUpdateSerializer,
+    UserWriteSerializer,
+    OrganizationUnitSerializer,
+    OrganizationUnitUpdateSerializer,
+    RevokeGrantSerializer,
+    RoleGrantSerializer,
     VisitSerializer,
 )
 
@@ -202,6 +213,172 @@ class TaskTransitionView(OdooAPIView):
     def post(self, request: Request, pk: int) -> Response:
         payload = _payload(TransitionSerializer, request.data)
         return Response(self.rpc(request, "api_task_transition", [pk, payload]))
+
+
+class TaskManagementView(OdooAPIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        payload = _payload(TaskManagementQuerySerializer, request.query_params)
+        return Response(
+            self.rpc(
+                request,
+                "api_task_management",
+                [
+                    payload["q"],
+                    payload["status"],
+                    payload.get("employee_id"),
+                    payload["page"],
+                    payload["page_size"],
+                ],
+            )
+        )
+
+
+class TaskBulkDeleteView(OdooAPIView):
+    @extend_schema(request=TaskBulkDeleteSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(TaskBulkDeleteSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_task_bulk_delete",
+                [payload["assignments"], payload["reason"]],
+            )
+        )
+
+
+class UserListCreateView(OdooAPIView):
+    @extend_schema(operation_id="user_list", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        payload = _payload(UserManagementQuerySerializer, request.query_params)
+        return Response(
+            self.rpc(
+                request,
+                "api_users",
+                [
+                    payload["q"],
+                    payload["state"],
+                    payload.get("unit_id"),
+                    payload["page"],
+                    payload["page_size"],
+                ],
+            )
+        )
+
+    @extend_schema(request=UserWriteSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(UserWriteSerializer, request.data)
+        return Response(self.rpc(request, "api_user_create", [payload]), status=201)
+
+
+class UserOptionsView(OdooAPIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        return Response(self.rpc(request, "api_user_options"))
+
+
+class UserDetailView(OdooAPIView):
+    @extend_schema(operation_id="user_retrieve", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request, pk: int) -> Response:
+        return Response(self.rpc(request, "api_user", [pk]))
+
+    @extend_schema(request=UserUpdateSerializer, responses=OpenApiTypes.OBJECT)
+    def patch(self, request: Request, pk: int) -> Response:
+        payload = _payload(UserUpdateSerializer, request.data)
+        return Response(self.rpc(request, "api_user_update", [pk, payload]))
+
+
+class UserActiveView(OdooAPIView):
+    active = False
+
+    @extend_schema(request=StateTokenSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(StateTokenSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_user_set_active",
+                [pk, payload["state_token"], self.active],
+            )
+        )
+
+
+class UserDeactivateView(UserActiveView):
+    active = False
+
+
+class UserReactivateView(UserActiveView):
+    active = True
+
+
+class UserTemporaryPasswordView(OdooAPIView):
+    @extend_schema(request=StateTokenSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(StateTokenSerializer, request.data)
+        response = Response(
+            self.rpc(
+                request,
+                "api_user_temporary_password",
+                [pk, payload["state_token"]],
+            )
+        )
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class UserBulkActionView(OdooAPIView):
+    @extend_schema(request=UserBulkActionSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(UserBulkActionSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_user_bulk_action",
+                [payload["action"], payload["users"], payload.get("reason", "")],
+            )
+        )
+
+
+class OrganizationView(OdooAPIView):
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        return Response(self.rpc(request, "api_organization"))
+
+
+class OrganizationUnitCreateView(OdooAPIView):
+    @extend_schema(request=OrganizationUnitSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(OrganizationUnitSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_organization_unit_create", [payload]), status=201
+        )
+
+
+class OrganizationUnitDetailView(OdooAPIView):
+    @extend_schema(
+        request=OrganizationUnitUpdateSerializer, responses=OpenApiTypes.OBJECT
+    )
+    def patch(self, request: Request, pk: int) -> Response:
+        payload = _payload(OrganizationUnitUpdateSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_organization_unit_update", [pk, payload])
+        )
+
+
+class RoleGrantCreateView(OdooAPIView):
+    @extend_schema(request=RoleGrantSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(RoleGrantSerializer, request.data)
+        return Response(self.rpc(request, "api_role_grant_create", [payload]), status=201)
+
+
+class RoleGrantRevokeView(OdooAPIView):
+    @extend_schema(request=RevokeGrantSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(RevokeGrantSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_role_grant_revoke", [pk, payload["reason"]])
+        )
 
 
 class ProposalListCreateView(OdooAPIView):

@@ -252,6 +252,119 @@ class BusinessApiTests(SimpleTestCase):
         session.save()
 
     @patch("gateway.api_views.OdooClient.call")
+    def test_task_bulk_delete_validates_then_delegates(self, call: MagicMock) -> None:
+        call.return_value = {
+            "audit_id": 8,
+            "deleted_assignments": 1,
+            "deleted_tasks": 1,
+        }
+
+        response = self.client.post(
+            "/api/v1/tasks/bulk-delete/",
+            data=json.dumps(
+                {
+                    "assignments": [{"id": 17, "revision": 3}],
+                    "reason": "Tâche créée par erreur",
+                    "confirmation": "SUPPRIMER",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_task_bulk_delete",
+            [[{"id": 17, "revision": 3}], "Tâche créée par erreur"],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_task_management_delegates_validated_filters(self, call: MagicMock) -> None:
+        call.return_value = {"items": [], "total": 0}
+
+        response = self.client.get(
+            "/api/v1/task-management/?q=note&status=active&page=2&page_size=20"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_task_management",
+            ["note", "active", None, 2, 20],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_user_create_delegates_complete_organization_payload(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 44, "name": "Awa Doe"}
+        payload = {
+            "email": "awa@example.invalid",
+            "login_alias": "awa",
+            "first_name": "Awa",
+            "last_name": "Doe",
+            "position": "Analyste",
+            "phone": "",
+            "agenda_direction": "programs",
+            "include_in_direction_agendas": True,
+            "unit_ids": [3],
+            "primary_unit_id": 3,
+            "primary_supervisor_id": 7,
+            "organization_effective_date": "2026-08-15",
+        }
+
+        response = self.client.post(
+            "/api/v1/users/", data=json.dumps(payload), content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, 201)
+        call.assert_called_once_with(
+            "opaque-session", "api_user_create", [payload]
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_temporary_password_response_is_never_cacheable(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {
+            "temporary_password": "Temporary-Secret-123",
+            "state_token": "next-token",
+        }
+
+        response = self.client.post(
+            "/api/v1/users/44/temporary-password/",
+            data=json.dumps({"state_token": "current-token"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "no-store")
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_user_temporary_password",
+            [44, "current-token"],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_user_deactivation_delegates_the_expected_state(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 44, "is_active": False}
+
+        response = self.client.post(
+            "/api/v1/users/44/deactivate/",
+            data=json.dumps({"state_token": "current-token"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_user_set_active",
+            [44, "current-token", False],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
     def test_progress_endpoint_validates_then_delegates(self, call: MagicMock) -> None:
         call.return_value = {"id": 17, "revision": 3, "percentage": 50}
 

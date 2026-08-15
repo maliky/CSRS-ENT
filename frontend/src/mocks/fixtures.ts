@@ -28,6 +28,7 @@ export const sessionFixture: Session = {
     view_weekly_agenda: true,
     delete_tasks: false,
     manage_users: false,
+    manage_organization: false,
     password_change_required: false,
   },
 };
