@@ -1,4 +1,4 @@
-# Architecture PENT
+# Architecture CSRS ENT
 
 ## Une seule source métier
 
@@ -6,7 +6,7 @@ Le navigateur appelle l'interface React servie par Django. Django valide le cont
 
 ```text
 navigateur
-  -> React PENT sous /app/
+  -> React CSRS ENT sous /app/
   -> API Django (session, JSON, CSRF)
   -> gateway/odoo.py (client RPC unique)
   -> csrs.api (façade de cas d'usage Odoo)
@@ -29,7 +29,7 @@ La reprise en lecture seule de `csrs_report` crée les comptes, employés, servi
 | Compte utilisateur | `res.users` et `res.partner` | Réutiliser le standard |
 | Unité et agent | `hr.department`, `hr.employee` et `csrs.organization.membership` | État actif repris; historique différé |
 | Plan et action | `project.project` et métadonnées CSRS | À préciser avant portage |
-| Tâche | `project.task` étendu | Cycle de vie, révision et validation PENT |
+| Tâche | `project.task` étendu | Cycle de vie, révision et validation CSRS ENT |
 | Proposition de tâche | `csrs.task.proposal` | Acceptation atomique vers `project.task` |
 | Affectation et ligne hiérarchique | responsable principal standard et responsables secondaires CSRS | Autorisations appliquées dans Odoo |
 | Progression | `csrs.progress.entry` | Append-only dans Odoo |

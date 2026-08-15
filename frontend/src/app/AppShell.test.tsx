@@ -32,7 +32,9 @@ test("réduit la barre latérale et mémorise le choix", async () => {
     team.compareDocumentPosition(proposals) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Réduire le menu" }));
-  expect(window.localStorage.getItem("pent.sidebar.collapsed")).toBe("true");
+  expect(window.localStorage.getItem("csrs_ent.sidebar.collapsed")).toBe(
+    "true",
+  );
   expect(
     screen.getByRole("button", { name: "Déployer le menu" }),
   ).toBeInTheDocument();

@@ -41,7 +41,7 @@ def client_ip(meta: dict[str, object], trusted_proxies: frozenset[str]) -> str:
 def rate_key(kind: str, value: str) -> str:
     """Avoid storing email addresses or IPs in cache key listings."""
     digest = sha256(value.encode("utf-8")).hexdigest()
-    return f"pent:login:{kind}:{digest}"
+    return f"csrs_ent:login:{kind}:{digest}"
 
 
 @dataclass(frozen=True, slots=True)

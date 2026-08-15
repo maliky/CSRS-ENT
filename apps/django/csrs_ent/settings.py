@@ -1,4 +1,4 @@
-"""Settings for the stateless-business PENT Django gateway."""
+"""Settings for the stateless-business CSRS ENT Django gateway."""
 
 from pathlib import Path
 import os
@@ -43,7 +43,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "pent.urls"
+ROOT_URLCONF = "csrs_ent.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -56,7 +56,7 @@ TEMPLATES = [
         },
     }
 ]
-WSGI_APPLICATION = "pent.wsgi.application"
+WSGI_APPLICATION = "csrs_ent.wsgi.application"
 
 # Odoo owns every persistent business object. Django has no ORM database.
 DATABASES: dict[str, dict[str, str]] = {}
@@ -73,7 +73,7 @@ CACHES = (
     else {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "pent-development",
+            "LOCATION": "csrs_ent-development",
         }
     }
 )
@@ -102,7 +102,7 @@ SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
 ODOO_URL = os.getenv("ODOO_URL", "http://127.0.0.1:8069")
-ODOO_DATABASE = os.getenv("ODOO_DB_NAME", "pent_odoo")
+ODOO_DATABASE = os.getenv("ODOO_DB_NAME", "csrs_ent")
 ODOO_TIMEOUT = float(os.getenv("ODOO_TIMEOUT", "5"))
 
 REST_FRAMEWORK = {
@@ -113,7 +113,7 @@ REST_FRAMEWORK = {
     "UNAUTHENTICATED_TOKEN": None,
 }
 SPECTACULAR_SETTINGS = {
-    "TITLE": "API PENT",
-    "DESCRIPTION": "Façade HTTP typée vers les règles métier Odoo PENT.",
+    "TITLE": "API CSRS ENT",
+    "DESCRIPTION": "Façade HTTP typée vers les règles métier Odoo CSRS ENT.",
     "VERSION": "1.0.0",
 }

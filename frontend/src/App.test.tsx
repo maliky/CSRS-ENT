@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { App, parseSession } from "./App";
-import { sessionFixture } from "./mocks/fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -18,7 +17,7 @@ test("affiche l’unique écran de connexion pour une session anonyme", async ()
   render(<App />);
 
   expect(
-    await screen.findByRole("heading", { name: "Connexion à PENT" }),
+    await screen.findByRole("heading", { name: "Connexion à CSRS ENT" }),
   ).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Se connecter" }),
@@ -33,7 +32,7 @@ test("affiche un refus explicite sans conserver le mot de passe", async () => {
   vi.stubGlobal("fetch", fetchMock);
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole("heading", { name: "Connexion à PENT" });
+  await screen.findByRole("heading", { name: "Connexion à CSRS ENT" });
 
   await user.type(screen.getByLabelText("Email ou identifiant court"), "agent");
   await user.type(screen.getByLabelText("Mot de passe"), "incorrect");
@@ -50,18 +49,11 @@ test("affiche un refus explicite sans conserver le mot de passe", async () => {
   );
 });
 
-test("ouvre l’espace PENT après validation de la session", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => sessionFixture,
-      text: async () => JSON.stringify(sessionFixture),
-    }),
-  );
-
+test("ouvre l’espace CSRS ENT après validation de la session", async () => {
   render(<App />);
 
-  expect((await screen.findAllByText("PENT")).length).toBeGreaterThan(0);
+  expect((await screen.findAllByText("CSRS ENT")).length).toBeGreaterThan(0);
+  expect(
+    await screen.findByText("Finaliser les priorités de la quinzaine"),
+  ).toBeInTheDocument();
 });

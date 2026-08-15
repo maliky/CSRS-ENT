@@ -7,7 +7,7 @@ from odoo.fields import Command
 
 class CsrsTaskProposal(models.Model):
     _name = "csrs.task.proposal"
-    _description = "Proposition de tâche PENT"
+    _description = "Proposition de tâche CSRS ENT"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc, id desc"
 
@@ -48,7 +48,7 @@ class CsrsTaskProposal(models.Model):
     revision = fields.Integer(required=True, default=1, readonly=True, copy=False)
 
     _code_unique = models.Constraint(
-        "UNIQUE (code)", "Ce code de proposition PENT est déjà utilisé."
+        "UNIQUE (code)", "Ce code de proposition CSRS ENT est déjà utilisé."
     )
 
     @api.constrains("start_date", "due_date", "estimated_work_days")

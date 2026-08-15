@@ -1,4 +1,4 @@
-"""Narrow JSON-serializable PENT use cases called only through Django."""
+"""Narrow JSON-serializable CSRS ENT use cases called only through Django."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def _decimal(value):
 
 class CsrsApi(models.AbstractModel):
     _name = "csrs.api"
-    _description = "Façade RPC métier PENT"
+    _description = "Façade RPC métier CSRS ENT"
 
     def _require_group(self, *xmlids):
         if not any(self.env.user.has_group(xmlid) for xmlid in xmlids):
@@ -229,7 +229,7 @@ class CsrsApi(models.AbstractModel):
         return {
             "id": task.id,
             "revision": task.csrs_revision,
-            "code": task.csrs_code or f"PENT-{task.id}",
+            "code": task.csrs_code or f"CSRS-ENT-{task.id}",
             "title": task.name,
             "status": task.csrs_status,
             "status_label": STATUS_LABELS.get(task.csrs_status, task.csrs_status),

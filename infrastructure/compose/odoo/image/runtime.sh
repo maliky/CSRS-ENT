@@ -9,7 +9,7 @@ readonly DATABASE_USER="${USER:?USER is required}"
 readonly DATABASE_PASSWORD="${PASSWORD:?PASSWORD is required}"
 readonly DATABASE_NAME="${ODOO_DB_NAME:?ODOO_DB_NAME is required}"
 readonly BASE_CONFIG=/etc/odoo/odoo.conf
-readonly RUNTIME_CONFIG=/tmp/pent-odoo.conf
+readonly RUNTIME_CONFIG=/tmp/csrs-ent-odoo.conf
 readonly SMTP_HOST="${ODOO_SMTP_HOST:-mailpit}"
 readonly SMTP_PORT="${ODOO_SMTP_PORT:-1025}"
 
@@ -34,7 +34,7 @@ printf 'smtp_ssl = False\n' >>"$RUNTIME_CONFIG"
 case "$MODE" in
   bootstrap)
     export ODOO_RUNTIME_CONFIG="$RUNTIME_CONFIG"
-    exec /usr/local/bin/pent-odoo-bootstrap
+    exec /usr/local/bin/csrs-ent-odoo-bootstrap
     ;;
   server)
     exec odoo server \
@@ -47,7 +47,7 @@ case "$MODE" in
     ;;
   import)
     export ODOO_RUNTIME_CONFIG="$RUNTIME_CONFIG"
-    exec /usr/local/bin/pent-odoo-import
+    exec /usr/local/bin/csrs-ent-odoo-import
     ;;
   test)
     exec odoo server \
@@ -64,7 +64,7 @@ case "$MODE" in
       --stop-after-init
     ;;
   *)
-    echo "Usage: pent-odoo-runtime bootstrap|server|import|test" >&2
+    echo "Usage: csrs-ent-odoo-runtime bootstrap|server|import|test" >&2
     exit 2
     ;;
 esac

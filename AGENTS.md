@@ -1,6 +1,6 @@
 # Instructions de travail
 
-Ces directives s'appliquent à tout le dépôt PENT.
+Ces directives s'appliquent à tout le dépôt CSRS ENT.
 
 ## Architecture obligatoire
 

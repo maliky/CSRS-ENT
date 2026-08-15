@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly REVISION="${1:-}"
+readonly BARE_REPOSITORY=/home/jil/git/csrs-ent.git
+readonly DEPLOY_ROOT=/srv/apps/csrs-ent-preprod
+readonly ENV_FILE="${DEPLOY_ROOT}/config/.env"
+readonly RELEASES_DIR="${DEPLOY_ROOT}/releases"
+readonly RELEASE_DIR="${RELEASES_DIR}/${REVISION}"
+readonly LOCK_FILE=/run/lock/csrs-ent-preprod-deploy.lock
+
+if [[ ! $REVISION =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Révision Git invalide." >&2
+  exit 2
+fi
+
+exec 9>"$LOCK_FILE"
+flock -n 9 || {
+  echo "Un déploiement CSRS ENT est déjà en cours." >&2
+  exit 3
+}
+
+test -f "$ENV_FILE"
+runuser -u jil -- git --git-dir="$BARE_REPOSITORY" fetch --prune github "+refs/heads/*:refs/remotes/github/*"
+readonly PREPROD_REVISION="$(git --git-dir="$BARE_REPOSITORY" rev-parse refs/remotes/github/preprod^{commit})"
+if [[ $REVISION != "$PREPROD_REVISION" ]]; then
+  echo "La révision demandée n'est pas la tête de preprod." >&2
+  exit 4
+fi
+
+mkdir -p "$RELEASES_DIR"
+if [[ ! -d $RELEASE_DIR ]]; then
+  mkdir "$RELEASE_DIR"
+  git --git-dir="$BARE_REPOSITORY" archive "$REVISION" | tar -x -C "$RELEASE_DIR"
+fi
+
+"${RELEASE_DIR}/scripts/deploy_preprod.sh" "$ENV_FILE"
+curl --fail --silent --show-error http://127.0.0.1:18007/healthz/ >/dev/null
+curl --fail --silent --show-error http://127.0.0.1:18007/readyz/ >/dev/null
+curl --fail --silent --show-error https://ent.koba.sarl/healthz/ >/dev/null
+
+ln -sfn "$RELEASE_DIR" "${DEPLOY_ROOT}/current"
+
+find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+  | sort -nr \
+  | tail -n +4 \
+  | cut -d' ' -f2- \
+  | xargs -r rm -rf --
+
+echo "CSRS ENT preprod déployé : $REVISION"

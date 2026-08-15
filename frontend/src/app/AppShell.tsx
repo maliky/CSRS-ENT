@@ -20,7 +20,7 @@ import { useApi } from "../lib/useApi";
 import styles from "./shell.module.css";
 import { PasswordChangePage } from "../features/users/PasswordChangePage";
 
-const SIDEBAR_STORAGE_KEY = "pent.sidebar.collapsed";
+const SIDEBAR_STORAGE_KEY = "csrs_ent.sidebar.collapsed";
 
 export function AppShell() {
   const {
@@ -102,7 +102,7 @@ export function AppShell() {
       </a>
       <header className={styles.mobileBar}>
         <NavLink to="/" className={styles.mobileBrand}>
-          PENT
+          CSRS ENT
         </NavLink>
         <button
           ref={mobileToggle}
@@ -133,9 +133,9 @@ export function AppShell() {
         aria-label="Navigation principale"
       >
         <div className={styles.sidebarHeader}>
-          <NavLink to="/" className={styles.brand} title="PENT">
-            <span className={styles.brandMark}>PE</span>
-            <span className={styles.brandLabel}>PENT</span>
+          <NavLink to="/" className={styles.brand} title="CSRS ENT">
+            <span className={styles.brandMark}>CS</span>
+            <span className={styles.brandLabel}>CSRS ENT</span>
           </NavLink>
           <button
             ref={mobileClose}
@@ -239,7 +239,7 @@ export function AppShell() {
           <Outlet context={session} />
         </main>
         <footer className={styles.footer}>
-          PENT · Suivi collaboratif et responsable
+          CSRS ENT · Suivi collaboratif et responsable
         </footer>
       </div>
     </div>

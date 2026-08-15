@@ -1,24 +1,24 @@
-#+title: PENT - Plan de développement
+#+title: CSRS ENT - Plan de développement
 #+startup: overview
 * <2026-08-15 Sat 08:20> Montee en puissance
 fix the duplicate button at ent.koba.sarl. make the login screen similare to preprod.report.ent.koba.sarl
 
 Je souhaite implementer avec odoo et django plusieures procedure metier.
-La pemiere c'est celle des taches.  Le but est de reproduire le workflow que nous avons dans csrs_report mais en s appuyant sur odoo.  quand je dit reproduire c est du point de vue de l utilisateur final.  Given the dev ~/csrs_report/docs/MANUAL.org  , he must feel that it is similare to use pent that to use csrs_report for task and agenda, same interface, similare buttons, graphics... in the back what he does not see is that it is not django 's table but django makes call to odoo table.
+La pemiere c'est celle des taches.  Le but est de reproduire le workflow que nous avons dans csrs_report mais en s appuyant sur odoo.  quand je dit reproduire c est du point de vue de l utilisateur final.  Given the dev ~/csrs_report/docs/MANUAL.org  , he must feel that it is similare to use CSRS ENT that to use csrs_report for task and agenda, same interface, similare buttons, graphics... in the back what he does not see is that it is not django 's table but django makes call to odoo table.
 Then we will implement the other procedure detailed in logigrams.org
 
 ** Décisions de réalisation confirmées
 
 - Django reste la façade publique, porte les sessions techniques et appelle Odoo par la passerelle centrale; Odoo reste l'unique source de vérité métier.
 - Le premier lot fonctionnel couvre ensemble les tâches, les propositions, la supervision d'équipe, les absences et missions, ainsi que les agendas de direction et leurs PDF archivés.
-- =/app/= devient l'unique interface publique; =/= et =/connexion/= y redirigent. La connexion et les parcours React reprennent l'expérience de =csrs_report= sous la marque PENT.
+- =/app/= devient l'unique interface publique; =/= et =/connexion/= y redirigent. La connexion et les parcours React reprennent l'expérience de =csrs_report= sous la marque CSRS ENT.
 - Les tâches, propositions, progressions et agendas existants ne sont pas migrés. Les comptes et l'organigramme déjà repris dans Odoo sont réutilisés; =csrs_report= reste consultable comme historique.
 - L'administration des comptes et de l'organigramme reste dans Odoo. Les autres procédures de =docs/logigrams.org= seront traitées après ce lot.
 - Les PDF d'agenda conservent les sections, regroupements, versions, avertissements et la présentation du document de référence.
 
 ** Réalisation du premier lot
 
-- [x] interface React unique, connexion PENT et redirection de =/= et =/connexion/= vers =/app/=.
+- [x] interface React unique, connexion CSRS ENT et redirection de =/= et =/connexion/= vers =/app/=.
 - [x] tâches, propositions, progression append-only, validation, remise en correction et clôture anticipée dans Odoo.
 - [x] supervision d'équipe, absences et missions, visites, brouillons d'agenda et PDF versionnés dans Odoo.
 - [x] API Django typée, protégée par CSRF et limitée à la façade =csrs.api= du module Odoo.
@@ -29,8 +29,8 @@ Then we will implement the other procedure detailed in logigrams.org
 * <2026-08-15 Sat 08:20>
 ** État initial
 
-- Dépôt : =/home/jil/pent=
-- Projet Django : =pent=
+- Dépôt : =/home/jil/csrs_ent=
+- Projet Django : =csrs_ent=
 - Référence fonctionnelle consultée en lecture seule : =/home/jil/csrs_report=, branche =dev=, application =report.ent.koba.sarl=.
 - Référence d'exploitation consultée en lecture seule : =/home/jil/git/ent.git=, branche =main=.
 - Phase : bootstrap Django + Odoo implémenté; reprise active CSRS validée dans la base préprod; cible publique =ent.koba.sarl=.
@@ -58,7 +58,7 @@ la base existante de =csrs_report= sur =report.ent.koba.sarl= est la source auto
 
 les alternatives non retenues pour le premier lot sont :
 
-- oauth/oidc : délègue l'identité à un fournisseur standard et évite de transmettre le mot de passe à pent, mais exige un fournisseur configuré et une intégration odoo correspondante.
+- oauth/oidc : délègue l'identité à un fournisseur standard et évite de transmettre le mot de passe à CSRS ENT, mais exige un fournisseur configuré et une intégration odoo correspondante.
 - sso institutionnel : expérience de connexion unique à l'échelle de l'établissement, généralement bâtie sur oidc ou saml, mais dépend de l'infrastructure d'identité institutionnelle.
 
 *** branches
@@ -103,7 +103,7 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 
 ** frontières du bootstrap
 
-- [x] projet django =pent= sans =models.py= métier, sans migration métier et sans base applicative.
+- [x] projet django =csrs_ent= sans =models.py= métier, sans migration métier et sans base applicative.
 - [x] client rpc odoo centralisé et sonde de disponibilité.
 - [x] module odoo initial avec progression append-only sur les tâches.
 - [x] stack compose locale avec un postgresql réservé à odoo.
@@ -118,8 +118,8 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 
 ** plan de préproduction sur cet hôte
 
-1. créer le dépôt nu =/home/jil/git/pent.git= et publier =dev=; créer localement =preprod= et =prod= à partir du premier commit validé.
-2. réserver le projet compose =pent_preprod=, les volumes odoo et postgresql nommés, les ports locaux non publics et un fichier d'environnement réel hors git.
+1. créer le dépôt nu =/home/jil/git/csrs-ent.git= et publier =dev=; créer localement =preprod= et =prod= à partir du premier commit validé.
+2. réserver le projet compose =csrs_ent_preprod=, les volumes odoo et postgresql nommés, les ports locaux non publics et un fichier d'environnement réel hors git.
 3. ajouter les contrôles de types stricts python et typescript, puis faire passer les tests django, odoo, react, compose et les analyses statiques avant la première promotion.
 4. implémenter l'authentification odoo relayée et ses tests de session, csrf, expiration, révocation et refus d'autorisation.
 5. implémenter la migration idempotente des comptes et de l'organigramme depuis =csrs_report= avec =--dry-run=, rapport sans données sensibles, sauvegarde odoo et procédure de retour arrière.
@@ -148,8 +148,8 @@ chaque comportement commence par un test lisible given/when/then. les fonctions 
 ** état de la préproduction
 
 - [x] branches =dev= et =preprod= alignées sur le même commit validé; =prod= reste inchangée avant recette.
-- [x] checkout d'exploitation =/srv/apps/pent-preprod/app= et configuration protégée hors git.
-- [x] sauvegarde pré-import conservée dans =/srv/apps/pent-preprod/backups/=.
+- [x] versions immuables dans =/srv/apps/csrs-ent-preprod/releases/=, lien =current= et configuration protégée hors git.
+- [x] préproduction réinitialisée sans reprise des données de l'ancien projet Compose.
 - [x] django public sur =https://ent.koba.sarl/= avec redirection http, certificat renouvelable et assets react servis.
 - [x] odoo et mailpit liés à =127.0.0.1=; postgresql et redis sans port hôte.
 - [x] les 42 empreintes django restent inchangées après redémarrage odoo et seront converties individuellement après une connexion réussie.
