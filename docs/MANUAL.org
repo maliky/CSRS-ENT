@@ -35,6 +35,18 @@ La rubrique =Agendas= affiche l'aperçu hebdomadaire de la Direction des program
 
 Chaque génération crée une version immuable avec son PDF archivé. Une nouvelle correction produit une nouvelle version sans remplacer les documents précédents. Les versions restent accessibles depuis =Agendas archivés=.
 
+* Projets de recherche
+
+La rubrique =Projets= permet à tout agent de proposer un projet avec ses objectifs, dates, bailleur, partenaires et équipe. Après autorisation du DG et désignation du chef de projet, le dossier couvre neuf onglets : fiche projet, plan d'action, résultats, livrables, finances, conformité, risques, rapports et clôture. Le porteur ou le chef de projet ajoute et modifie les éléments tant que l'onglet n'est pas validé; les activités du plan d'action deviennent des tâches Odoo suivies avec leur charge et leur progression.
+
+Chaque onglet suit le cycle =Brouillon → Soumis → Vérifié → Validé → Clôturé=. Le contrôleur peut demander une correction motivée. La validation finale appartient au DG, exige la phrase de confirmation affichée et crée une preuve électronique immuable. Une révision devenue ancienne est refusée.
+
+* Procédures métier
+
+La rubrique =Procédures= centralise les bons de sortie de fonds, demandes d'achat, absences, ordres de mission, notifications de paiement, visas et dossiers de gestion des données. Le formulaire adapte les champs au type choisi et accepte les justificatifs PDF, JPEG ou PNG. Le dossier indique l'étape courante, les actions autorisées et son journal d'événements.
+
+Les visas, contrôles et corrections suivent le circuit défini dans Odoo. Les étapes sensibles sont limitées au rôle concerné; la validation DG exige une confirmation électronique. Un bon de sortie approuvé réserve le montant sur la ligne budgétaire du projet, et les achats utilisent les objets Odoo d'achat plutôt qu'une comptabilité parallèle.
+
 * Administration IT
 
 L'administrateur IT dispose de =Gérer les tâches=, =Utilisateurs= et =Organigramme=. Ces rubriques ne sont pas visibles pour les autres rôles et chaque opération est de nouveau autorisée dans Odoo.

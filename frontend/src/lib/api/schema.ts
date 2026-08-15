@@ -283,6 +283,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/processes/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["processes_list"];
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["processes_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/processes/{id}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["processes_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/processes/{id}/transition/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["processes_transition_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/processes/options/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["processes_options_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/proposals/": {
     parameters: {
       query?: never;
@@ -347,6 +416,127 @@ export interface paths {
     put?: never;
     /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
     post: operations["proposals_resubmit_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/research-projects/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["research_projects_list"];
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["research_projects_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/research-projects/{id}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["research_projects_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    patch: operations["research_projects_partial_update"];
+    trace?: never;
+  };
+  "/api/v1/research-projects/{id}/items/{resource}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["research_projects_items_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/research-projects/{id}/items/{resource}/{item_pk}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    patch: operations["research_projects_items_partial_update"];
+    trace?: never;
+  };
+  "/api/v1/research-projects/{id}/sections/{section_pk}/transition/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["research_projects_sections_transition_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/research-projects/{id}/transition/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["research_projects_transition_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/research-projects/options/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["research_projects_options_retrieve"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -685,12 +875,6 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /**
-     * @description * `deactivate` - deactivate
-     *     * `delete` - delete
-     * @enum {string}
-     */
-    ActionEnum: "deactivate" | "delete";
-    /**
      * @description * `programs` - programs
      *     * `administration` - administration
      * @enum {string}
@@ -747,6 +931,13 @@ export interface components {
      * @enum {string}
      */
     KindEnum: "leave" | "absence" | "mission";
+    /**
+     * @description * `application/pdf` - application/pdf
+     *     * `image/jpeg` - image/jpeg
+     *     * `image/png` - image/png
+     * @enum {string}
+     */
+    MimetypeEnum: "application/pdf" | "image/jpeg" | "image/png";
     Observation: {
       revision: number;
       message: string;
@@ -808,6 +999,26 @@ export interface components {
       calendar_id?: number;
       revision?: number;
     };
+    PatchedResearchProjectItem: {
+      revision?: number;
+      values?: {
+        [key: string]: unknown;
+      };
+    };
+    PatchedResearchProjectUpdate: {
+      name?: string;
+      objectives?: string;
+      /** @default  */
+      institutional_commitments: string;
+      /** Format: date */
+      date_start?: string | null;
+      /** Format: date */
+      date_end?: string | null;
+      donor_name?: string;
+      partner_names?: string[];
+      team_user_ids?: number[];
+      revision?: number;
+    };
     PatchedTaskUpdate: {
       /** Format: date */
       start_date?: string;
@@ -850,6 +1061,53 @@ export interface components {
       /** Format: decimal */
       estimated_work_days?: string;
     };
+    ProcessCreate: {
+      process_type: components["schemas"]["ProcessTypeEnum"];
+      origin_department_id: number;
+      project_id?: number | null;
+      subject: string;
+      description: string;
+      /**
+       * Format: decimal
+       * @default 0.00
+       */
+      amount: string;
+      details: {
+        [key: string]: unknown;
+      };
+      documents?: components["schemas"]["ProcessDocument"][];
+    };
+    ProcessDocument: {
+      name: string;
+      mimetype: components["schemas"]["MimetypeEnum"];
+      content_base64: string;
+    };
+    ProcessTransition: {
+      revision: number;
+      action: string;
+      /** @default  */
+      note: string;
+      /** @default  */
+      confirmation: string;
+    };
+    /**
+     * @description * `fund` - fund
+     *     * `purchase` - purchase
+     *     * `absence` - absence
+     *     * `mission` - mission
+     *     * `payment_notice` - payment_notice
+     *     * `visa` - visa
+     *     * `data` - data
+     * @enum {string}
+     */
+    ProcessTypeEnum:
+      | "fund"
+      | "purchase"
+      | "absence"
+      | "mission"
+      | "payment_notice"
+      | "visa"
+      | "data";
     Progress: {
       revision: number;
       /** Format: date */
@@ -860,6 +1118,24 @@ export interface components {
       /** @default false */
       blocked: boolean;
     };
+    ProjectSectionTransition: {
+      revision: number;
+      action: components["schemas"]["ProjectSectionTransitionActionEnum"];
+      /** @default  */
+      reason: string;
+      /** @default  */
+      confirmation: string;
+    };
+    /**
+     * @description * `submit` - submit
+     *     * `verify` - verify
+     *     * `correct` - correct
+     *     * `validate` - validate
+     *     * `close` - close
+     * @enum {string}
+     */
+    ProjectSectionTransitionActionEnum:
+      "submit" | "verify" | "correct" | "validate" | "close";
     ProposalCreate: {
       /** Format: date */
       start_date: string;
@@ -878,6 +1154,39 @@ export interface components {
       /** @default  */
       reason: string;
     };
+    ResearchProjectCreate: {
+      name: string;
+      objectives: string;
+      /** @default  */
+      institutional_commitments: string;
+      /** Format: date */
+      date_start?: string | null;
+      /** Format: date */
+      date_end?: string | null;
+      donor_name?: string;
+      partner_names?: string[];
+      team_user_ids?: number[];
+    };
+    ResearchProjectItem: {
+      revision: number;
+      values: {
+        [key: string]: unknown;
+      };
+    };
+    ResearchProjectTransition: {
+      revision: number;
+      action: components["schemas"]["ResearchProjectTransitionActionEnum"];
+      lead_id?: number | null;
+      /** @default  */
+      reason: string;
+    };
+    /**
+     * @description * `approve` - approve
+     *     * `reject` - reject
+     *     * `close` - close
+     * @enum {string}
+     */
+    ResearchProjectTransitionActionEnum: "approve" | "reject" | "close";
     Revision: {
       revision: number;
     };
@@ -946,12 +1255,18 @@ export interface components {
      */
     TransitionEnum: "validate" | "reject" | "close_early";
     UserBulkAction: {
-      action: components["schemas"]["ActionEnum"];
+      action: components["schemas"]["UserBulkActionActionEnum"];
       users: components["schemas"]["UserSelection"][];
       reason?: string;
       /** @default  */
       confirmation: string;
     };
+    /**
+     * @description * `deactivate` - deactivate
+     *     * `delete` - delete
+     * @enum {string}
+     */
+    UserBulkActionActionEnum: "deactivate" | "delete";
     UserSelection: {
       id: number;
       state_token: string;
@@ -1546,6 +1861,127 @@ export interface operations {
       };
     };
   };
+  processes_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  processes_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProcessCreate"];
+        "application/x-www-form-urlencoded": components["schemas"]["ProcessCreate"];
+        "multipart/form-data": components["schemas"]["ProcessCreate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  processes_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  processes_transition_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProcessTransition"];
+        "application/x-www-form-urlencoded": components["schemas"]["ProcessTransition"];
+        "multipart/form-data": components["schemas"]["ProcessTransition"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  processes_options_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
   proposal_list: {
     parameters: {
       query?: never;
@@ -1691,6 +2127,247 @@ export interface operations {
         "multipart/form-data": components["schemas"]["Revision"];
       };
     };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResearchProjectCreate"];
+        "application/x-www-form-urlencoded": components["schemas"]["ResearchProjectCreate"];
+        "multipart/form-data": components["schemas"]["ResearchProjectCreate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_partial_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedResearchProjectUpdate"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedResearchProjectUpdate"];
+        "multipart/form-data": components["schemas"]["PatchedResearchProjectUpdate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_items_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+        resource: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResearchProjectItem"];
+        "application/x-www-form-urlencoded": components["schemas"]["ResearchProjectItem"];
+        "multipart/form-data": components["schemas"]["ResearchProjectItem"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_items_partial_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+        item_pk: number;
+        resource: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedResearchProjectItem"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedResearchProjectItem"];
+        "multipart/form-data": components["schemas"]["PatchedResearchProjectItem"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_sections_transition_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+        section_pk: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProjectSectionTransition"];
+        "application/x-www-form-urlencoded": components["schemas"]["ProjectSectionTransition"];
+        "multipart/form-data": components["schemas"]["ProjectSectionTransition"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_transition_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResearchProjectTransition"];
+        "application/x-www-form-urlencoded": components["schemas"]["ResearchProjectTransition"];
+        "multipart/form-data": components["schemas"]["ResearchProjectTransition"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  research_projects_options_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       200: {
         headers: {

@@ -28,8 +28,8 @@ if [[ "${CSRS_MIGRATION_STDIN:-false}" == true ]]; then
   dd of="$source_file" status=none
 fi
 
-if [[ "$MODE" != dry-run && "$MODE" != apply ]]; then
-  echo "CSRS_MIGRATION_MODE doit valoir dry-run ou apply." >&2
+if [[ "$MODE" != dry-run && "$MODE" != apply && "$MODE" != reconcile ]]; then
+  echo "CSRS_MIGRATION_MODE doit valoir dry-run, apply ou reconcile." >&2
   exit 2
 fi
 if [[ ! -r "$source_file" ]]; then
@@ -55,8 +55,11 @@ import os
 with open(os.environ["CSRS_MIGRATION_FILE"], encoding="utf-8") as source:
     payload = json.load(source)
 
-apply = os.environ["CSRS_MIGRATION_MODE"] == "apply"
-report = env["csrs.migration.importer"].import_payload(payload, apply=apply)
+mode = os.environ["CSRS_MIGRATION_MODE"]
+apply = mode in {"apply", "reconcile"}
+report = env["csrs.migration.importer"].import_payload(
+    payload, apply=apply, reconcile=mode == "reconcile"
+)
 if apply:
     env.cr.commit()
 else:

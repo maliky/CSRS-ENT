@@ -10,6 +10,12 @@ TERMINAL_STATUSES = {"completed", "closed_early"}
 class ProjectTask(models.Model):
     _inherit = "project.task"
 
+    csrs_source_id = fields.Integer(
+        string="Identifiant d'affectation source", index=True, readonly=True, copy=False
+    )
+    csrs_task_source_id = fields.Integer(
+        string="Identifiant de tâche source", index=True, readonly=True, copy=False
+    )
     csrs_managed = fields.Boolean(
         string="Tâche CSRS ENT", default=False, required=True, index=True, copy=False
     )
@@ -75,7 +81,22 @@ class ProjectTask(models.Model):
         string="Historique de progression CSRS",
         copy=False,
     )
+    csrs_institutional_action_id = fields.Many2one(
+        "csrs.institutional.action",
+        string="Action institutionnelle",
+        ondelete="restrict",
+        index=True,
+    )
+    csrs_legacy_revision_ids = fields.One2many(
+        "csrs.legacy.task.revision",
+        "task_id",
+        string="Révisions importées",
+        copy=False,
+    )
 
+    _csrs_source_unique = models.Constraint(
+        "UNIQUE (csrs_source_id)", "Cette affectation source est déjà importée."
+    )
     _csrs_code_unique = models.Constraint(
         "UNIQUE (csrs_code)", "Ce code de tâche CSRS ENT est déjà utilisé."
     )
@@ -314,6 +335,8 @@ class CsrsProgressEntry(models.Model):
     task_id = fields.Many2one(
         "project.task", string="Tâche", required=True, ondelete="cascade", index=True
     )
+    csrs_source_id = fields.Integer(index=True, readonly=True, copy=False)
+    csrs_history_id = fields.Integer(index=True, readonly=True, copy=False)
     author_id = fields.Many2one(
         "res.users", string="Auteur", required=True, ondelete="restrict", index=True
     )
@@ -341,6 +364,9 @@ class CsrsProgressEntry(models.Model):
         "CHECK (progress_percent >= 0 AND progress_percent <= 100)",
         "La progression doit être comprise entre 0 et 100.",
     )
+    _csrs_progress_history_unique = models.Constraint(
+        "UNIQUE (csrs_history_id)", "Cette révision de progression est déjà importée."
+    )
 
     @api.model_create_multi
     def create(self, values_list):
@@ -353,3 +379,54 @@ class CsrsProgressEntry(models.Model):
 
     def unlink(self):
         raise UserError(_("L'historique de progression est immuable."))
+
+
+class CsrsLegacyTaskRevision(models.Model):
+    _name = "csrs.legacy.task.revision"
+    _description = "Révision historique importée d'une tâche CSRS"
+    _order = "occurred_at, id"
+
+    task_id = fields.Many2one("project.task", ondelete="cascade", index=True)
+    proposal_id = fields.Many2one(
+        "csrs.task.proposal", ondelete="cascade", index=True
+    )
+    source_model = fields.Selection(
+        [
+            ("task", "Tâche"),
+            ("assignment", "Affectation"),
+            ("proposal", "Proposition"),
+            ("progress", "Progression"),
+        ],
+        required=True,
+        readonly=True,
+        index=True,
+    )
+    source_history_id = fields.Integer(required=True, readonly=True, index=True)
+    source_record_id = fields.Integer(required=True, readonly=True, index=True)
+    actor_id = fields.Many2one("res.users", readonly=True, ondelete="restrict")
+    occurred_at = fields.Datetime(required=True, readonly=True, index=True)
+    change_kind = fields.Char(readonly=True)
+    snapshot = fields.Json(required=True, readonly=True)
+
+    _source_revision_unique = models.Constraint(
+        "UNIQUE (source_model, source_history_id)",
+        "Cette révision historique est déjà importée.",
+    )
+    _target_required = models.Constraint(
+        "CHECK ((task_id IS NOT NULL) <> (proposal_id IS NOT NULL))",
+        "Une révision doit viser exactement une tâche ou une proposition.",
+    )
+
+    @api.model_create_multi
+    def create(self, values_list):
+        if not self.env.is_superuser():
+            raise UserError(_("Utilisez la reprise historique auditée."))
+        return super().create(values_list)
+
+    def write(self, values):
+        raise UserError(_("Une révision historique est immuable."))
+
+    def unlink(self):
+        if not self.env.context.get("csrs_task_deletion"):
+            raise UserError(_("Une révision historique est immuable."))
+        return super().unlink()

@@ -167,10 +167,7 @@ class CsrsApi(models.AbstractModel):
                 "deactivate": bool(user.active)
                 and user != self.env.user
                 and not protected,
-                "delete": not user.active
-                and not user.csrs_source_id
-                and user != self.env.user
-                and not protected,
+                "delete": self._user_can_be_deleted(user),
             },
             "position": employee.job_title if employee else "",
         }
@@ -318,6 +315,8 @@ class CsrsApi(models.AbstractModel):
                 "delete_tasks": is_it,
                 "manage_users": is_it,
                 "manage_organization": is_it,
+                "manage_research_projects": True,
+                "manage_processes": True,
                 "password_change_required": bool(
                     user.csrs_password_change_required
                 ),
@@ -389,8 +388,11 @@ class CsrsApi(models.AbstractModel):
             "employee": self._person(employee),
             "manager": self._person(task.csrs_manager_id),
             "action": (
-                {"id": task.project_id.id, "label": task.project_id.name}
-                if task.project_id
+                {
+                    "id": task.csrs_institutional_action_id.id,
+                    "label": task.csrs_institutional_action_id.name,
+                }
+                if task.csrs_institutional_action_id
                 else None
             ),
         }
@@ -519,8 +521,10 @@ class CsrsApi(models.AbstractModel):
         return {
             "employees": [self._person(user) for user in managed.sorted("name")],
             "actions": [
-                {"id": project.id, "label": project.name}
-                for project in self.env["project.project"].search([], order="name")
+                {"id": action.id, "label": f"{action.code} — {action.name}"}
+                for action in self.env["csrs.institutional.action"].sudo().search(
+                    [("active", "=", True)], order="code, name"
+                )
             ],
             "calendars": [
                 {"id": item.id, "label": item.name}
@@ -587,7 +591,9 @@ class CsrsApi(models.AbstractModel):
             {
                 "name": str(payload["title"]).strip(),
                 "description": str(payload["description"]).strip(),
-                "project_id": int(payload.get("action_id") or 0),
+                "csrs_institutional_action_id": int(
+                    payload.get("action_id") or 0
+                ),
                 "user_ids": [Command.set(employee.ids)],
                 "csrs_managed": True,
                 "csrs_manager_id": self.env.user.id,
@@ -611,7 +617,9 @@ class CsrsApi(models.AbstractModel):
             {
                 "name": str(payload["title"]).strip(),
                 "description": str(payload["description"]).strip(),
-                "project_id": int(payload.get("action_id") or 0),
+                "csrs_institutional_action_id": int(
+                    payload.get("action_id") or 0
+                ),
                 "csrs_start_date": payload["start_date"],
                 "date_deadline": payload["due_date"],
                 "csrs_estimated_work_days": float(payload["estimated_work_days"]),
@@ -1091,7 +1099,11 @@ class CsrsApi(models.AbstractModel):
         }
 
     def _user_can_be_deleted(self, user):
-        if user.active or user.csrs_source_id or user == self.env.user:
+        if (
+            user.active
+            or user == self.env.user
+            or user.id == self.env.ref("base.user_admin").id
+        ):
             return False
         checks = (
             self.env["csrs.organization.membership"].sudo().search_count(
@@ -1102,15 +1114,87 @@ class CsrsApi(models.AbstractModel):
                 limit=1,
             ),
             self.env["csrs.role.grant"].sudo().search_count(
-                [("user_id", "=", user.id)], limit=1
+                [
+                    "|",
+                    "|",
+                    ("user_id", "=", user.id),
+                    ("granted_by_id", "=", user.id),
+                    ("revoked_by_id", "=", user.id),
+                ],
+                limit=1,
             ),
             self.env["project.task"].sudo().search_count(
-                ["|", ("user_ids", "in", [user.id]), ("csrs_manager_id", "=", user.id)],
+                [
+                    "|",
+                    "|",
+                    ("user_ids", "in", [user.id]),
+                    ("csrs_manager_id", "=", user.id),
+                    ("csrs_secondary_manager_user_ids", "in", [user.id]),
+                ],
                 limit=1,
             ),
             self.env["csrs.task.proposal"].sudo().search_count(
                 ["|", ("author_id", "=", user.id), ("manager_id", "=", user.id)],
                 limit=1,
+            ),
+            self.env["csrs.progress.entry"].sudo().search_count(
+                [("author_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.legacy.task.revision"].sudo().search_count(
+                [("actor_id", "=", user.id)], limit=1
+            ),
+            self.env["project.project"].sudo().search_count(
+                [
+                    "|",
+                    "|",
+                    ("csrs_proposer_id", "=", user.id),
+                    ("csrs_lead_id", "=", user.id),
+                    ("csrs_team_user_ids", "in", [user.id]),
+                ],
+                limit=1,
+            ),
+            self.env["csrs.project.section"].sudo().search_count(
+                [
+                    "|",
+                    "|",
+                    ("submitted_by_id", "=", user.id),
+                    ("verified_by_id", "=", user.id),
+                    ("validated_by_id", "=", user.id),
+                ],
+                limit=1,
+            ),
+            self.env["csrs.project.approval"].sudo().search_count(
+                [("signer_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.project.result"].sudo().search_count(
+                [("owner_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.project.compliance"].sudo().search_count(
+                [("owner_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.project.risk"].sudo().search_count(
+                [("owner_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.process.case"].sudo().search_count(
+                [("requester_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.process.event"].sudo().search_count(
+                [("actor_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.fund.request"].sudo().search_count(
+                [("initiator_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.absence.request"].sudo().search_count(
+                [("interim_user_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.agenda.draft"].sudo().search_count(
+                [("updated_by_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.agenda.version"].sudo().search_count(
+                [("generated_by_id", "=", user.id)], limit=1
+            ),
+            self.env["csrs.audit.event"].sudo().search_count(
+                [("actor_id", "=", user.id)], limit=1
             ),
         )
         return not any(checks)
@@ -1144,7 +1228,7 @@ class CsrsApi(models.AbstractModel):
         if len(reason) < 3:
             raise ValidationError(_("Le motif de suppression est obligatoire."))
         if any(not self._user_can_be_deleted(user) for user in users):
-            raise AccessError(_("Un compte sélectionné doit être inactif, natif et sans historique."))
+            raise AccessError(_("Un compte sélectionné doit être inactif et sans historique."))
         audit = self.env["csrs.audit.event"].sudo().create(
             {
                 "event_type": "user_delete",
@@ -1337,8 +1421,11 @@ class CsrsApi(models.AbstractModel):
             "due_date": _iso(proposal.due_date),
             "estimated_work_days": _decimal(proposal.estimated_work_days),
             "action": (
-                {"id": proposal.project_id.id, "label": proposal.project_id.name}
-                if proposal.project_id
+                {
+                    "id": proposal.institutional_action_id.id,
+                    "label": proposal.institutional_action_id.name,
+                }
+                if proposal.institutional_action_id
                 else None
             ),
             "calendar": {
@@ -1391,7 +1478,7 @@ class CsrsApi(models.AbstractModel):
             {
                 "title": str(payload["title"]).strip(),
                 "description": str(payload["description"]).strip(),
-                "project_id": int(payload.get("action_id") or 0),
+                "institutional_action_id": int(payload.get("action_id") or 0),
                 "calendar_id": int(payload["calendar_id"]),
                 "start_date": payload["start_date"],
                 "due_date": payload["due_date"],
@@ -1405,7 +1492,9 @@ class CsrsApi(models.AbstractModel):
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
             raise UserError(_("Proposition introuvable."))
-        proposal.action_csrs_update(payload, payload.get("revision"))
+        values = dict(payload)
+        values["institutional_action_id"] = int(values.pop("action_id", 0) or 0)
+        proposal.action_csrs_update(values, payload.get("revision"))
         return self._proposal_payload(proposal)
 
     @api.model

@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly SOURCE_PROJECT="${1:-/home/jil/csrs_report}"
+readonly SSH_TARGET="${1:-jil@179.237.107.40}"
 readonly OUTPUT_FILE="${2:-}"
+readonly SOURCE_PROJECT="${CSRS_REMOTE_PROJECT:-/home/jil/csrs_report}"
 readonly REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly EXPORT_SCRIPT="${REPOSITORY_ROOT}/scripts/export_csrs_source.py"
-readonly SOURCE_CONTAINER="${CSRS_SOURCE_CONTAINER:-}"
 
 if [[ -z $OUTPUT_FILE ]]; then
-  echo "Usage: $0 [DEPOT_CSRS_REPORT] FICHIER_JSON" >&2
-  exit 2
-fi
-if [[ ! -f ${SOURCE_PROJECT}/manage.py ]]; then
-  echo "Projet source introuvable." >&2
+  echo "Usage: $0 [CIBLE_SSH] FICHIER_JSON" >&2
   exit 2
 fi
 if [[ -e $OUTPUT_FILE ]]; then
@@ -27,16 +23,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ -n $SOURCE_CONTAINER ]]; then
-  docker exec -i "$SOURCE_CONTAINER" \
-    python manage.py shell --no-imports -v 0 <"$EXPORT_SCRIPT" >"$TEMP_FILE"
-else
-  (
-    cd "$SOURCE_PROJECT"
-    PYTHONDONTWRITEBYTECODE=1 PYENV_VERSION=csrs \
-      python manage.py shell --no-imports -v 0 <"$EXPORT_SCRIPT" >"$TEMP_FILE"
-  )
-fi
+ssh -o BatchMode=yes "$SSH_TARGET" \
+  "cd '$SOURCE_PROJECT' && docker-compose exec -T web python manage.py shell --no-imports -v 0" \
+  <"$EXPORT_SCRIPT" >"$TEMP_FILE"
 
 PYTHONDONTWRITEBYTECODE=1 PYENV_VERSION=csrs python -c '
 import json
@@ -51,10 +40,10 @@ required = {
     "progress_history",
 }
 if payload.get("version") != 3 or not required.issubset(payload):
-    raise SystemExit("Export CSRS invalide.")
+    raise SystemExit("Export CSRS distant invalide.")
 ' "$TEMP_FILE"
 
 chmod 0600 "$TEMP_FILE"
 mv -- "$TEMP_FILE" "$OUTPUT_FILE"
 trap - EXIT
-echo "Export CSRS v3 créé avec un mode 0600; son contenu sensible n'a pas été affiché."
+echo "Export distant CSRS v3 créé avec un mode 0600; son contenu sensible n'a pas été affiché."
