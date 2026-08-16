@@ -73,8 +73,9 @@ def index(request: HttpRequest) -> HttpResponse:
 
 @ensure_csrf_cookie
 @require_GET
-def react_app(request: HttpRequest) -> HttpResponse:
-    """Serve the progressively enhanced React shell at /app/."""
+def react_app(request: HttpRequest, path: str | None = None) -> HttpResponse:
+    """Serve the React shell for the entry point and every client-side route."""
+    del path
     return render(request, "gateway/react.html")
 
 

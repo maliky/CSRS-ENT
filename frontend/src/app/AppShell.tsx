@@ -1,15 +1,20 @@
 import {
+  BriefcaseBusiness,
   CalendarDays,
+  ChevronDown,
   ClipboardList,
   FileCheck2,
   FolderKanban,
+  Gauge,
   Lightbulb,
   ListPlus,
   LogOut,
   Menu,
   Network,
+  Building2,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
   Users,
   UserRoundCheck,
   UserRoundCog,
@@ -156,99 +161,159 @@ export function AppShell() {
           </button>
         </div>
         <nav className={styles.nav}>
-          <NavLink to="/" end className={navClass} title="Mes tâches">
-            <ClipboardList size={iconSize} aria-hidden="true" />
-            <span className={styles.navLabel}>Mes tâches</span>
-          </NavLink>
-          {session.capabilities.view_team && (
-            <NavLink to="/equipe" className={navClass} title="Mon équipe">
-              <Users size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Mon équipe</span>
-            </NavLink>
-          )}
-          {session.capabilities.view_weekly_agenda && (
-            <NavLink
-              to="/agenda"
-              className={navClass}
-              title="Agenda hebdomadaire"
-            >
-              <CalendarDays size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Agenda</span>
-            </NavLink>
-          )}
-          {session.capabilities.manage_availability && (
-            <NavLink
-              to="/absences"
-              className={navClass}
-              title="Absences et missions"
-            >
-              <UserRoundCheck size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Absences et missions</span>
-            </NavLink>
-          )}
-          <NavLink to="/propositions" className={navClass} title="Propositions">
-            <Lightbulb size={iconSize} aria-hidden="true" />
-            <span className={styles.navLabel}>Propositions</span>
-          </NavLink>
-          {session.capabilities.manage_research_projects && (
-            <NavLink
-              to="/projets"
-              className={navClass}
-              title="Projets de recherche"
-            >
-              <FolderKanban size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Projets</span>
-            </NavLink>
-          )}
-          {session.capabilities.manage_processes && (
-            <NavLink
-              to="/procedures"
-              className={navClass}
-              title="Procédures métier"
-            >
-              <FileCheck2 size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Procédures</span>
-            </NavLink>
-          )}
-          {session.capabilities.create_task && (
-            <NavLink
-              to="/taches/nouvelle"
-              className={navClass}
-              title="Affecter"
-            >
-              <ListPlus size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Affecter</span>
-            </NavLink>
-          )}
-          {session.capabilities.delete_tasks && (
-            <NavLink
-              to="/administration/taches"
-              className={navClass}
-              title="Gestion des tâches"
-            >
-              <ListX size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Gérer les tâches</span>
-            </NavLink>
-          )}
-          {session.capabilities.manage_users && (
-            <NavLink
-              to="/administration/utilisateurs"
-              className={navClass}
-              title="Gestion des utilisateurs"
-            >
-              <UserRoundCog size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Utilisateurs</span>
-            </NavLink>
-          )}
-          {session.capabilities.manage_organization && (
-            <NavLink
-              to="/administration/organigramme"
-              className={navClass}
-              title="Organigramme"
-            >
-              <Network size={iconSize} aria-hidden="true" />
-              <span className={styles.navLabel}>Organigramme</span>
-            </NavLink>
+          <details className={styles.navGroup} open>
+            <summary className={styles.navGroupSummary} title="Travail">
+              <BriefcaseBusiness size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Travail</span>
+              <ChevronDown
+                className={styles.groupChevron}
+                size={16}
+                aria-hidden="true"
+              />
+            </summary>
+            <div className={styles.navGroupItems}>
+              <NavLink to="/" end className={navClass} title="Mes tâches">
+                <ClipboardList size={iconSize} aria-hidden="true" />
+                <span className={styles.navLabel}>Mes tâches</span>
+              </NavLink>
+              {session.capabilities.view_team && (
+                <NavLink to="/equipe" className={navClass} title="Mon équipe">
+                  <Users size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Mon équipe</span>
+                </NavLink>
+              )}
+              <NavLink
+                to="/propositions"
+                className={navClass}
+                title="Propositions"
+              >
+                <Lightbulb size={iconSize} aria-hidden="true" />
+                <span className={styles.navLabel}>Propositions</span>
+              </NavLink>
+              {session.capabilities.create_task && (
+                <NavLink
+                  to="/taches/nouvelle"
+                  className={navClass}
+                  title="Affecter"
+                >
+                  <ListPlus size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Affecter</span>
+                </NavLink>
+              )}
+              {session.capabilities.delete_tasks && (
+                <NavLink
+                  to="/administration/taches"
+                  className={navClass}
+                  title="Gestion des tâches"
+                >
+                  <ListX size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Gérer les tâches</span>
+                </NavLink>
+              )}
+            </div>
+          </details>
+          <details className={styles.navGroup} open>
+            <summary className={styles.navGroupSummary} title="Pilotage">
+              <Gauge size={iconSize} aria-hidden="true" />
+              <span className={styles.navLabel}>Pilotage</span>
+              <ChevronDown
+                className={styles.groupChevron}
+                size={16}
+                aria-hidden="true"
+              />
+            </summary>
+            <div className={styles.navGroupItems}>
+              {session.capabilities.view_weekly_agenda && (
+                <NavLink
+                  to="/agenda"
+                  className={navClass}
+                  title="Agenda hebdomadaire"
+                >
+                  <CalendarDays size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Agenda</span>
+                </NavLink>
+              )}
+              {session.capabilities.manage_availability && (
+                <NavLink
+                  to="/absences"
+                  className={navClass}
+                  title="Absences et missions"
+                >
+                  <UserRoundCheck size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Absences et missions</span>
+                </NavLink>
+              )}
+              {session.capabilities.manage_research_projects && (
+                <NavLink
+                  to="/projets"
+                  className={navClass}
+                  title="Projets de recherche"
+                >
+                  <FolderKanban size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Projets</span>
+                </NavLink>
+              )}
+              {session.capabilities.manage_processes && (
+                <NavLink
+                  to="/procedures"
+                  className={navClass}
+                  title="Procédures métier"
+                >
+                  <FileCheck2 size={iconSize} aria-hidden="true" />
+                  <span className={styles.navLabel}>Procédures</span>
+                </NavLink>
+              )}
+            </div>
+          </details>
+          {(session.capabilities.manage_users ||
+            session.capabilities.manage_organization ||
+            session.capabilities.manage_partners) && (
+            <details className={styles.navGroup} open>
+              <summary
+                className={styles.navGroupSummary}
+                title="Administration"
+              >
+                <Settings size={iconSize} aria-hidden="true" />
+                <span className={styles.navLabel}>Administration</span>
+                <ChevronDown
+                  className={styles.groupChevron}
+                  size={16}
+                  aria-hidden="true"
+                />
+              </summary>
+              <div className={styles.navGroupItems}>
+                {session.capabilities.manage_users && (
+                  <NavLink
+                    to="/administration/utilisateurs"
+                    className={navClass}
+                    title="Gestion des utilisateurs"
+                  >
+                    <UserRoundCog size={iconSize} aria-hidden="true" />
+                    <span className={styles.navLabel}>Utilisateurs</span>
+                  </NavLink>
+                )}
+                {session.capabilities.manage_organization && (
+                  <NavLink
+                    to="/administration/organigramme"
+                    className={navClass}
+                    title="Organigramme"
+                  >
+                    <Network size={iconSize} aria-hidden="true" />
+                    <span className={styles.navLabel}>Organigramme</span>
+                  </NavLink>
+                )}
+                {session.capabilities.manage_partners && (
+                  <NavLink
+                    to="/administration/organisations"
+                    className={navClass}
+                    title="Organisations partenaires"
+                  >
+                    <Building2 size={iconSize} aria-hidden="true" />
+                    <span className={styles.navLabel}>Organisations</span>
+                  </NavLink>
+                )}
+              </div>
+            </details>
           )}
         </nav>
         <div className={styles.sidebarSecondary}>

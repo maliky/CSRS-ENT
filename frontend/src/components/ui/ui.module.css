@@ -40,6 +40,73 @@
   color: white;
 }
 
+.dateInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  align-items: stretch;
+}
+.dateInput > input:first-child {
+  min-width: 0;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.datePicker {
+  position: relative;
+  display: grid;
+  min-height: 2.75rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-left: 0;
+  border-start-end-radius: var(--radius-sm);
+  border-end-end-radius: var(--radius-sm);
+  background: var(--color-surface-alt);
+  color: var(--color-primary);
+}
+.nativeDatePicker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  opacity: 0;
+}
+.datePicker:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.workloadInput {
+  display: grid;
+  gap: 0.4rem;
+}
+.workloadFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, auto);
+}
+.workloadFields > input {
+  min-width: 0;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.workloadFields > select {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+.workloadInput small {
+  color: var(--color-muted);
+}
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .card {
   padding: clamp(1rem, 2.5vw, 1.5rem);
   border: 1px solid var(--color-border);

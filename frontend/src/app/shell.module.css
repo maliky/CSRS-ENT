@@ -60,6 +60,44 @@
   display: grid;
   gap: 0.25rem;
   padding: 1rem 0.75rem;
+  overflow-y: auto;
+}
+.navGroup {
+  display: grid;
+  gap: 0.2rem;
+}
+.navGroupSummary {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: #b8cbc5;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+.navGroupSummary::-webkit-details-marker {
+  display: none;
+}
+.navGroupSummary:hover,
+.navGroupSummary:focus-visible {
+  color: white;
+  background: rgb(255 255 255 / 9%);
+}
+.navGroupItems {
+  display: grid;
+  gap: 0.2rem;
+  padding-left: 0.65rem;
+}
+.groupChevron {
+  margin-left: auto;
+  transition: transform 160ms ease;
+}
+.navGroup:not([open]) .groupChevron {
+  transform: rotate(-90deg);
 }
 .navItem {
   width: 100%;
@@ -145,14 +183,19 @@
 }
 .collapsed .brandLabel,
 .collapsed .navLabel,
+.collapsed .groupChevron,
 .collapsed .userDetails {
   display: none;
 }
 .collapsed .navItem,
+.collapsed .navGroupSummary,
 .collapsed .user,
 .collapsed .collapseButton {
   justify-content: center;
   padding-right: 0;
+  padding-left: 0;
+}
+.collapsed .navGroupItems {
   padding-left: 0;
 }
 .collapsed .active {
@@ -240,14 +283,19 @@
   }
   .collapsed .brandLabel,
   .collapsed .navLabel,
+  .collapsed .groupChevron,
   .collapsed .userDetails {
     display: initial;
   }
   .collapsed .navItem,
+  .collapsed .navGroupSummary,
   .collapsed .user {
     justify-content: flex-start;
     padding-right: 0.75rem;
     padding-left: 0.75rem;
+  }
+  .collapsed .navGroupItems {
+    padding-left: 0.65rem;
   }
   .main {
     min-height: calc(100vh - 9rem);

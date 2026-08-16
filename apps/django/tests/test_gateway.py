@@ -29,6 +29,12 @@ class GatewayViewTests(SimpleTestCase):
 
         self.assertRedirects(response, "/app/", fetch_redirect_response=False)
 
+    def test_nested_react_route_uses_the_application_shell(self) -> None:
+        response = self.client.get("/app/projets")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<div id="root"></div>', html=True)
+
     def test_health_does_not_depend_on_odoo(self) -> None:
         response = self.client.get("/healthz/")
 
@@ -452,6 +458,8 @@ class BusinessApiTests(SimpleTestCase):
             "institutional_commitments": "Laboratoire et terrain",
             "date_start": "2026-09-01",
             "date_end": "2027-08-31",
+            "donor_id": 31,
+            "partner_ids": [32],
         }
 
         response = self.client.post(
@@ -464,6 +472,38 @@ class BusinessApiTests(SimpleTestCase):
         call.assert_called_once_with(
             "opaque-session", "api_research_project_create", [payload]
         )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_partner_administration_uses_typed_it_only_contract(
+        self, call: MagicMock
+    ) -> None:
+        payload = {
+            "name": "Fondation santé",
+            "email": "contact@example.test",
+            "phone": "01020304",
+            "active": True,
+        }
+        call.return_value = {"id": 31, **payload, "state_token": "token"}
+
+        response = self.client.post(
+            "/api/v1/partners/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        call.assert_called_once_with("opaque-session", "api_partner_create", [payload])
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_partner_update_requires_its_state_token(self, call: MagicMock) -> None:
+        response = self.client.patch(
+            "/api/v1/partners/31/",
+            data=json.dumps({"name": "Fondation santé", "active": False}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        call.assert_not_called()
 
     @patch("gateway.api_views.OdooClient.call")
     def test_project_section_transition_preserves_the_revision_contract(

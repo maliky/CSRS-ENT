@@ -10,6 +10,7 @@ import {
   ErrorState,
   FrenchDateInput,
   Skeleton,
+  WorkloadInput,
 } from "../../components/ui";
 
 export function ProposalFormPage({ mode }: { mode: "create" | "edit" }) {
@@ -61,6 +62,9 @@ function ProposalForm({
 }) {
   const navigate = useNavigate();
   const calendarId = proposal?.calendar.id ?? options.defaults.calendar_id;
+  const hoursPerDay =
+    options.calendars.find((calendar) => calendar.id === calendarId)
+      ?.hours_per_day ?? 8;
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<Error | null>(null);
   const [schedule, setSchedule] = useState({
@@ -228,20 +232,16 @@ function ProposalForm({
             />
           </div>
           <div className="form-field">
-            <label htmlFor="workload">Charge estimée</label>
-            <input
+            <WorkloadInput
               id="workload"
-              type="number"
-              min="0.1"
-              step="0.1"
-              required
-              value={schedule.estimated_work_days}
+              valueDays={schedule.estimated_work_days}
+              hoursPerDay={hoursPerDay}
               onFocus={() => setSource("workload")}
-              onChange={(event) => {
+              onValueChange={(estimatedWorkDays) => {
                 setSource("workload");
                 setSchedule({
                   ...schedule,
-                  estimated_work_days: event.target.value,
+                  estimated_work_days: estimatedWorkDays,
                 });
               }}
             />

@@ -47,6 +47,7 @@ export function ProcessDetailPage() {
 
   async function transition(action: string) {
     if (!process.data) return;
+    setMutationError("");
     let note = "";
     let confirmation = "";
     if (["correct", "reject"].includes(action)) {

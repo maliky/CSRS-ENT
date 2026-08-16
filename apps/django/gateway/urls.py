@@ -54,6 +54,8 @@ urlpatterns = [
         "api/v1/organization/units/<int:pk>/",
         api_views.OrganizationUnitDetailView.as_view(),
     ),
+    path("api/v1/partners/", api_views.PartnerListCreateView.as_view()),
+    path("api/v1/partners/<int:pk>/", api_views.PartnerDetailView.as_view()),
     path(
         "api/v1/organization/grants/",
         api_views.RoleGrantCreateView.as_view(),

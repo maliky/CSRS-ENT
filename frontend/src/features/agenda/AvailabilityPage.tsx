@@ -91,11 +91,20 @@ export function AvailabilityPage() {
   async function cancel(item: StaffAvailability) {
     const reason = window.prompt("Motif de l’annulation");
     if (!reason) return;
-    await apiFetch(`/api/v1/availability/${item.id}/cancel/`, {
-      method: "POST",
-      body: JSON.stringify({ revision: item.revision, reason }),
-    });
-    await availability.reload();
+    setError(null);
+    try {
+      await apiFetch(`/api/v1/availability/${item.id}/cancel/`, {
+        method: "POST",
+        body: JSON.stringify({ revision: item.revision, reason }),
+      });
+      await availability.reload();
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError
+          ? caught
+          : new ApiError("Annulation impossible", 0, "unknown"),
+      );
+    }
   }
 
   return (
