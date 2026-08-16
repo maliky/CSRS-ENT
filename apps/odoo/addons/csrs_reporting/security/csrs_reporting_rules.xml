@@ -3,7 +3,7 @@
   <record id="rule_csrs_task_boundary" model="ir.rule">
     <field name="name">Frontière globale des tâches CSRS</field>
     <field name="model_id" ref="project.model_project_task"/>
-    <field name="domain_force">['|', ('csrs_managed', '=', False), (1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_hr') or user.has_group('csrs_reporting.group_csrs_secretariat') or user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', ('csrs_managed', '=', False), '|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">['|', ('csrs_managed', '=', False), (1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_hr') or user.has_group('csrs_reporting.group_csrs_secretariat') or user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', ('csrs_managed', '=', False), '|', '|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
@@ -13,7 +13,7 @@
     <field name="name">Tâches CSRS des participants</field>
     <field name="model_id" ref="project.model_project_task"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">['|', ('csrs_managed', '=', False), '|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">['|', ('csrs_managed', '=', False), '|', '|', '|', ('user_ids', 'in', [user.id]), ('csrs_manager_id', '=', user.id), ('csrs_secondary_manager_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
@@ -33,7 +33,7 @@
     <field name="name">Progressions CSRS des participants</field>
     <field name="model_id" ref="model_csrs_progress_entry"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">['|', '|', ('task_id.user_ids', 'in', [user.id]), ('task_id.csrs_manager_id', '=', user.id), ('task_id.csrs_secondary_manager_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">['|', '|', '|', ('task_id.user_ids', 'in', [user.id]), ('task_id.csrs_manager_id', '=', user.id), ('task_id.csrs_secondary_manager_user_ids', 'in', [user.id]), ('task_id.project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
@@ -109,7 +109,7 @@
     <field name="name">Onglets des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_section"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="False"/>
     <field name="perm_create" eval="False"/>
@@ -119,7 +119,7 @@
     <field name="name">Projets de recherche CSRS accessibles</field>
     <field name="model_id" ref="project.model_project_project"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[('csrs_research_project', '=', True)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else [('csrs_research_project', '=', True), '|', '|', ('csrs_proposer_id', '=', user.id), ('csrs_lead_id', '=', user.id), ('csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[('csrs_research_project', '=', True)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else [('csrs_research_project', '=', True), '|', '|', '|', ('csrs_proposer_id', '=', user.id), ('csrs_lead_id', '=', user.id), ('csrs_team_user_ids', 'in', [user.id]), ('csrs_supervisor_user_ids', 'in', [user.id])]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="True"/>
     <field name="perm_create" eval="True"/>
@@ -129,43 +129,43 @@
     <field name="name">Approbations des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_approval"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('section_id.project_id.csrs_proposer_id', '=', user.id), ('section_id.project_id.csrs_lead_id', '=', user.id), ('section_id.project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('section_id.project_id.csrs_proposer_id', '=', user.id), ('section_id.project_id.csrs_lead_id', '=', user.id), ('section_id.project_id.csrs_team_user_ids', 'in', [user.id]), ('section_id.project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_project_result_participant" model="ir.rule">
     <field name="name">Résultats des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_result"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_project_budget_participant" model="ir.rule">
     <field name="name">Budgets des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_budget_line"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_project_compliance_participant" model="ir.rule">
     <field name="name">Conformité des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_compliance"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_project_risk_participant" model="ir.rule">
     <field name="name">Risques des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_risk"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_project_report_participant" model="ir.rule">
     <field name="name">Rapports des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_report"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_project_closure_participant" model="ir.rule">
     <field name="name">Clôtures des projets accessibles</field>
     <field name="model_id" ref="model_csrs_project_closure"/>
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
-    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id])]</field>
+    <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_dg') or user.has_group('csrs_reporting.group_csrs_it') else ['|', '|', '|', ('project_id.csrs_proposer_id', '=', user.id), ('project_id.csrs_lead_id', '=', user.id), ('project_id.csrs_team_user_ids', 'in', [user.id]), ('project_id.csrs_supervisor_user_ids', 'in', [user.id])]</field>
   </record>
   <record id="rule_csrs_process_case_participant" model="ir.rule">
     <field name="name">Dossiers de processus accessibles</field>

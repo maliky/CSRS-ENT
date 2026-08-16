@@ -7,7 +7,11 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command
 
 from .processes import CORRECTABLE_STATES, PROCESS_TYPES, TRANSITIONS
-from .research_project import SECTION_CODES, SECTION_CONTROLLER_LABELS
+from .research_project import (
+    REQUIRED_SECTION_CODES,
+    SECTION_CODES,
+    SECTION_CONTROLLER_LABELS,
+)
 
 
 PROJECT_STATE_LABELS = {
@@ -216,30 +220,19 @@ class CsrsApiProjects(models.AbstractModel):
     _inherit = "csrs.api"
 
     def _project_can_view(self, project):
-        user = self.env.user
-        return bool(
-            user.has_group("csrs_reporting.group_csrs_dg")
-            or user.has_group("csrs_reporting.group_csrs_it")
-            or user
-            in (
-                project.csrs_proposer_id
-                | project.csrs_lead_id
-                | project.csrs_team_user_ids
-            )
-        )
+        return bool(project.with_user(self.env.user)._csrs_can_view())
+
+    def _project_can_supervise(self, project):
+        return bool(project.with_user(self.env.user)._csrs_can_supervise())
 
     def _project_can_edit(self, project):
-        user = self.env.user
-        return bool(
-            user.has_group("csrs_reporting.group_csrs_dg")
-            or user == project.csrs_lead_id
-            or (project.csrs_state == "proposal" and user == project.csrs_proposer_id)
-        )
+        return bool(project.with_user(self.env.user)._csrs_can_edit())
 
     def _project_record(self, project_id):
         project = (
             self.env["project.project"]
             .sudo()
+            .with_context(active_test=False)
             .browse(int(project_id))
             .exists()
             .filtered("csrs_research_project")
@@ -249,6 +242,16 @@ class CsrsApiProjects(models.AbstractModel):
         return project
 
     def _project_summary(self, project):
+        user = self.env.user
+        if user in (project.csrs_proposer_id | project.csrs_lead_id):
+            access_scope = "owned"
+        elif user in project.csrs_team_user_ids:
+            access_scope = "team"
+        elif user in project.csrs_supervisor_user_ids:
+            access_scope = "supervised"
+        else:
+            access_scope = "governance"
+        supervise = self._project_can_supervise(project)
         return {
             "id": project.id,
             "reference": project.csrs_reference,
@@ -260,8 +263,12 @@ class CsrsApiProjects(models.AbstractModel):
             "lead": self._person(project.csrs_lead_id) if project.csrs_lead_id else None,
             "date_start": project.date_start.isoformat() if project.date_start else None,
             "date_end": project.date.isoformat() if project.date else None,
+            "access_scope": access_scope,
+            "archived": not project.active,
             "capabilities": {
                 "edit": self._project_can_edit(project),
+                "supervise": supervise,
+                "archive": project.active and supervise,
                 "approve": project.csrs_state == "proposal"
                 and self.env.user.has_group("csrs_reporting.group_csrs_dg"),
                 "reject": project.csrs_state == "proposal"
@@ -274,7 +281,13 @@ class CsrsApiProjects(models.AbstractModel):
     def _project_detail(self, project):
         sections = []
         labels = dict(SECTION_CODES)
-        for section in project.csrs_section_ids.sorted("id"):
+        sequence_by_code = {
+            code: index for index, (code, _label) in enumerate(SECTION_CODES, start=1)
+        }
+        ordered_sections = project.csrs_section_ids.sorted(
+            key=lambda item: sequence_by_code[item.code]
+        )
+        for section in ordered_sections:
             current_section = section.with_user(self.env.user)
             ready, _readiness_message = current_section._readiness()
             sections.append(
@@ -282,6 +295,9 @@ class CsrsApiProjects(models.AbstractModel):
                     "id": section.id,
                     "code": section.code,
                     "label": labels[section.code],
+                    "sequence": sequence_by_code[section.code],
+                    "required": section.code in REQUIRED_SECTION_CODES,
+                    "unlocked": current_section._is_unlocked(),
                     "state": section.state,
                     "revision": section.revision,
                     "correction_reason": section.correction_reason or "",
@@ -294,11 +310,12 @@ class CsrsApiProjects(models.AbstractModel):
                     else "",
                     "capabilities": {
                         "submit": ready
+                        and current_section._is_unlocked()
                         and self._project_can_edit(project)
                         and section.state in {"draft", "correction"},
                         "verify": current_section._can_control()
                         and section.state == "submitted",
-                        "correct": current_section._can_control()
+                        "correct": current_section._can_request_correction()
                         and section.state in {"submitted", "verified"},
                         "validate": self.env.user.has_group(
                             "csrs_reporting.group_csrs_dg"
@@ -325,6 +342,11 @@ class CsrsApiProjects(models.AbstractModel):
                 for partner in project.csrs_partner_ids
             ],
             "sections": sections,
+            "recap_unlocked": all(
+                section.with_user(self.env.user)._readiness()[0]
+                for section in ordered_sections
+                if section.code in REQUIRED_SECTION_CODES
+            ),
             "action_plan": [
                 {
                     "id": task.id,
@@ -462,12 +484,19 @@ class CsrsApiProjects(models.AbstractModel):
         }
 
     @api.model
-    def api_research_projects(self):
+    def api_research_projects(self, status="active"):
+        if status not in {"active", "archived"}:
+            raise ValidationError(_("Filtre de projet invalide."))
         projects = (
             self.env["project.project"]
             .sudo()
+            .with_context(active_test=False)
             .search(
-                [("csrs_research_project", "=", True)], order="create_date desc, id desc"
+                [
+                    ("csrs_research_project", "=", True),
+                    ("active", "=", status == "active"),
+                ],
+                order="create_date desc, id desc",
             )
         )
         return {
@@ -614,6 +643,8 @@ class CsrsApiProjects(models.AbstractModel):
             project.action_csrs_reject(payload.get("reason"), revision)
         elif action == "close":
             project.action_csrs_close(revision)
+        elif action == "archive":
+            project.action_csrs_archive(payload.get("reason"), revision)
         else:
             raise ValidationError(_("Transition de projet invalide."))
         return self._project_detail(project.sudo())
@@ -655,6 +686,8 @@ class CsrsApiProjects(models.AbstractModel):
         if not isinstance(item_values, dict):
             raise ValidationError(_("Élément de projet invalide."))
         section = project.csrs_section_ids.filtered(lambda item: item.code == resource)
+        if section and not section._is_unlocked():
+            raise UserError(_("Terminez les étapes obligatoires précédentes."))
         if section and section.state not in {"draft", "correction"}:
             raise UserError(_("Cet onglet n'est plus modifiable hors brouillon."))
         model_name, allowed = PROJECT_ITEM_MODELS[resource]

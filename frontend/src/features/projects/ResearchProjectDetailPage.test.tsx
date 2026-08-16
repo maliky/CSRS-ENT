@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "../../lib/router";
 import type { ResearchProjectDetail } from "../../lib/api/types";
 import { server } from "../../mocks/server";
@@ -25,26 +26,38 @@ function projectFixture(): ResearchProjectDetail {
     lead: null,
     date_start: "2026-09-01",
     date_end: "2027-08-31",
-    capabilities: { edit: true, approve: false, reject: false, close: false },
+    access_scope: "owned",
+    archived: false,
+    capabilities: {
+      edit: true,
+      supervise: false,
+      archive: false,
+      approve: false,
+      reject: false,
+      close: false,
+    },
     objectives: "Mesurer l’incidence.",
     institutional_commitments: "Laboratoire et terrain",
     team: [person],
     donor: null,
     partners: [],
     sections: [
-      "project",
-      "action_plan",
-      "results",
-      "deliverables",
-      "finance",
-      "compliance",
-      "risks",
-      "reports",
-      "closure",
-    ].map((code, index) => ({
+      ["project", "Projet"],
+      ["action_plan", "Plan d’action"],
+      ["results", "Résultats"],
+      ["deliverables", "Livrables"],
+      ["finance", "Finances"],
+      ["compliance", "Conformité"],
+      ["risks", "Risques"],
+      ["reports", "Rapports"],
+      ["closure", "Clôture"],
+    ].map(([code, label], index) => ({
       id: index + 1,
       code,
-      label: code,
+      label,
+      sequence: index + 1,
+      required: ["project", "action_plan", "finance", "closure"].includes(code),
+      unlocked: true,
       state: "draft",
       revision: 1,
       correction_reason: "",
@@ -59,6 +72,7 @@ function projectFixture(): ResearchProjectDetail {
         close: false,
       },
     })),
+    recap_unlocked: true,
     action_plan: [],
     budget: [],
     risks: [],
@@ -70,7 +84,7 @@ function projectFixture(): ResearchProjectDetail {
   };
 }
 
-test("affiche les neuf sections de contrôle depuis la même interface", async () => {
+test("affiche le parcours numéroté avec dix écrans", async () => {
   server.use(
     http.get("/api/v1/research-projects/71/", () =>
       HttpResponse.json(projectFixture()),
@@ -90,15 +104,13 @@ test("affiche les neuf sections de contrôle depuis la même interface", async (
     </MemoryRouter>,
   );
 
-  const cycle = (
-    await screen.findByRole("heading", {
-      name: "Cycle des neuf onglets",
-    })
-  ).closest("section");
-  expect(cycle).not.toBeNull();
+  const journey = await screen.findByRole("navigation", {
+    name: "Parcours du projet",
+  });
+  expect(within(journey).getAllByRole("button")).toHaveLength(10);
   expect(
-    within(cycle as HTMLElement).getAllByRole("heading", { level: 3 }),
-  ).toHaveLength(9);
+    within(journey).getByRole("button", { name: /1\. Projet/ }),
+  ).toHaveAttribute("aria-current", "step");
 });
 
 test("explique qu'une finance vide ne peut pas être soumise", async () => {
@@ -122,7 +134,7 @@ test("explique qu'une finance vide ne peut pas être soumise", async () => {
     ),
   );
   render(
-    <MemoryRouter initialEntries={["/projets/71"]}>
+    <MemoryRouter initialEntries={["/projets/71?etape=finance"]}>
       <Routes>
         <Route
           path="/projets/:projectId"
@@ -133,7 +145,7 @@ test("explique qu'une finance vide ne peut pas être soumise", async () => {
   );
 
   const finance = (
-    await screen.findByRole("heading", { name: "finance" })
+    await screen.findByRole("heading", { name: "Finances" })
   ).closest("section");
   expect(finance).not.toBeNull();
   expect(
@@ -196,6 +208,7 @@ test("ajoute un résultat avec la révision courante du projet", async () => {
   expect(
     await screen.findByRole("heading", { name: "Projet paludisme" }),
   ).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /3\. Résultats/ }));
   const results = screen
     .getByRole("heading", { name: "Résultats" })
     .closest("section");
@@ -222,4 +235,61 @@ test("ajoute un résultat avec la révision courante du projet", async () => {
   expect(
     await screen.findByText("Deux publications · cible 2"),
   ).toBeInTheDocument();
+});
+
+test("archive un projet supervisé avec un motif explicite", async () => {
+  const user = userEvent.setup();
+  let project = projectFixture();
+  project.capabilities = {
+    ...project.capabilities,
+    edit: true,
+    supervise: true,
+    archive: true,
+  };
+  let payload: Record<string, unknown> | null = null;
+  vi.spyOn(window, "prompt").mockReturnValue("Projet remplacé.");
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  server.use(
+    http.get("/api/v1/research-projects/71/", () => HttpResponse.json(project)),
+    http.get("/api/v1/research-projects/options/", () =>
+      HttpResponse.json({ users: [person], partners: [] }),
+    ),
+    http.post(
+      "/api/v1/research-projects/71/transition/",
+      async ({ request }) => {
+        payload = (await request.json()) as Record<string, unknown>;
+        project = {
+          ...project,
+          archived: true,
+          capabilities: {
+            ...project.capabilities,
+            edit: false,
+            archive: false,
+          },
+        };
+        return HttpResponse.json(project);
+      },
+    ),
+  );
+  render(
+    <MemoryRouter initialEntries={["/projets/71"]}>
+      <Routes>
+        <Route
+          path="/projets/:projectId"
+          element={<ResearchProjectDetailPage />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await user.click(await screen.findByRole("button", { name: "Archiver" }));
+
+  await waitFor(() =>
+    expect(payload).toMatchObject({
+      action: "archive",
+      revision: 4,
+      reason: "Projet remplacé.",
+    }),
+  );
+  expect(await screen.findByText("Archivé")).toBeInTheDocument();
 });

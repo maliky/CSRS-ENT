@@ -23,7 +23,10 @@ type ProjectList = { items: ResearchProjectSummary[] };
 type ProjectOptions = { users: Person[]; partners: Partner[] };
 
 export function ResearchProjectsPage() {
-  const projects = useApi<ProjectList>("/api/v1/research-projects/");
+  const [view, setView] = useState<"mine" | "supervised" | "archived">("mine");
+  const projects = useApi<ProjectList>(
+    `/api/v1/research-projects/?status=${view === "archived" ? "archived" : "active"}`,
+  );
   const options = useApi<ProjectOptions>("/api/v1/research-projects/options/");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -78,6 +81,16 @@ export function ResearchProjectsPage() {
         retry={() => void projects.reload()}
       />
     );
+  const visibleProjects = projects.data.items.filter((project) => {
+    if (view === "archived") return project.archived;
+    if (!project.access_scope) return view === "mine";
+    if (view === "supervised")
+      return (
+        project.access_scope === "supervised" ||
+        project.access_scope === "governance"
+      );
+    return project.access_scope === "owned" || project.access_scope === "team";
+  });
 
   return (
     <>
@@ -94,6 +107,26 @@ export function ResearchProjectsPage() {
           <Plus size={18} aria-hidden="true" /> Nouvelle proposition
         </Button>
       </header>
+      <div className="cluster" role="group" aria-label="Vue des projets">
+        <Button
+          variant={view === "mine" ? "primary" : "secondary"}
+          onClick={() => setView("mine")}
+        >
+          Mes projets
+        </Button>
+        <Button
+          variant={view === "supervised" ? "primary" : "secondary"}
+          onClick={() => setView("supervised")}
+        >
+          À superviser
+        </Button>
+        <Button
+          variant={view === "archived" ? "primary" : "secondary"}
+          onClick={() => setView("archived")}
+        >
+          Archivés
+        </Button>
+      </div>
       {showForm && (
         <Card>
           <form
@@ -248,18 +281,18 @@ export function ResearchProjectsPage() {
           </form>
         </Card>
       )}
-      {!projects.data.items.length ? (
+      {!visibleProjects.length ? (
         <EmptyState title="Aucun projet">
-          Proposez le premier projet de recherche depuis ce registre.
+          Aucun projet ne correspond à cette vue.
         </EmptyState>
       ) : (
         <div className="grid">
-          {projects.data.items.map((project) => (
+          {visibleProjects.map((project) => (
             <Card key={project.id}>
               <div className="cluster">
                 <FolderKanban aria-hidden="true" />
                 <StatusBadge status={project.state}>
-                  {project.state_label}
+                  {project.archived ? "Archivé" : project.state_label}
                 </StatusBadge>
               </div>
               <p className="eyebrow">{project.reference}</p>

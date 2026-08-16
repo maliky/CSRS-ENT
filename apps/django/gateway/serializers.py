@@ -387,12 +387,20 @@ class ResearchProjectCreateSerializer(serializers.Serializer[dict[str, object]])
         return attrs
 
 
+class ResearchProjectQuerySerializer(serializers.Serializer[dict[str, object]]):
+    status = serializers.ChoiceField(
+        choices=("active", "archived"), required=False, default="active"
+    )
+
+
 class ResearchProjectUpdateSerializer(ResearchProjectCreateSerializer):
     revision = serializers.IntegerField(min_value=1)
 
 
 class ResearchProjectTransitionSerializer(RevisionSerializer):
-    action = serializers.ChoiceField(choices=("approve", "reject", "close"))
+    action = serializers.ChoiceField(
+        choices=("approve", "reject", "close", "archive")
+    )
     lead_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
@@ -401,9 +409,11 @@ class ResearchProjectTransitionSerializer(RevisionSerializer):
             raise serializers.ValidationError(
                 {"lead_id": "Choisissez le chef de projet."}
             )
-        if attrs["action"] == "reject" and not str(attrs.get("reason") or "").strip():
+        if attrs["action"] in {"reject", "archive"} and not str(
+            attrs.get("reason") or ""
+        ).strip():
             raise serializers.ValidationError(
-                {"reason": "Le motif de rejet est obligatoire."}
+                {"reason": "Le motif est obligatoire."}
             )
         return attrs
 

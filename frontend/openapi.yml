@@ -864,6 +864,19 @@ paths:
     get:
       operationId: research_projects_list
       description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: query
+          name: status
+          schema:
+            enum:
+              - active
+              - archived
+            type: string
+            default: active
+            minLength: 1
+          description: |-
+            * `active` - active
+            * `archived` - archived
       tags:
         - research-projects
       responses:
@@ -2393,11 +2406,13 @@ components:
         - approve
         - reject
         - close
+        - archive
       type: string
       description: |-
         * `approve` - approve
         * `reject` - reject
         * `close` - close
+        * `archive` - archive
     Revision:
       type: object
       properties:

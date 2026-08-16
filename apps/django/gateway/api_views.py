@@ -61,6 +61,7 @@ from .serializers import (
     RevokeGrantSerializer,
     ResearchProjectCreateSerializer,
     ResearchProjectItemSerializer,
+    ResearchProjectQuerySerializer,
     ResearchProjectTransitionSerializer,
     ResearchProjectUpdateSerializer,
     RoleGrantSerializer,
@@ -601,9 +602,16 @@ class AgendaVersionPdfView(OdooAPIView):
 
 
 class ResearchProjectListCreateView(OdooAPIView):
-    @extend_schema(operation_id="research_projects_list", responses=OpenApiTypes.OBJECT)
+    @extend_schema(
+        operation_id="research_projects_list",
+        parameters=[ResearchProjectQuerySerializer],
+        responses=OpenApiTypes.OBJECT,
+    )
     def get(self, request: Request) -> Response:
-        return Response(self.rpc(request, "api_research_projects"))
+        payload = _payload(ResearchProjectQuerySerializer, request.query_params)
+        return Response(
+            self.rpc(request, "api_research_projects", [payload["status"]])
+        )
 
     @extend_schema(request=ResearchProjectCreateSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request: Request) -> Response:
