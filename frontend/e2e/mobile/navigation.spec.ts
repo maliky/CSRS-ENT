@@ -15,6 +15,6 @@ test("le menu mobile ouvre les parcours principaux puis restitue le focus", asyn
     navigation.getByRole("link", { name: "Propositions" }),
   ).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Projets" })).toBeVisible();
-  await page.getByRole("button", { name: "Fermer le menu" }).click();
+  await navigation.getByRole("button", { name: "Fermer le menu" }).click();
   await expect(open).toBeFocused();
 });
