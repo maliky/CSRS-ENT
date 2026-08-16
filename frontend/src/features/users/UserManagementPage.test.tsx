@@ -25,6 +25,7 @@ const users = [
 }));
 
 function renderPage() {
+  const inactiveUserIds = new Set<number>();
   server.use(
     http.get("/api/v1/users/options/", () =>
       HttpResponse.json({
@@ -34,20 +35,39 @@ function renderPage() {
         agenda_directions: [],
       }),
     ),
-    http.get("/api/v1/users/", () =>
-      HttpResponse.json({
-        items: users,
-        total: 3,
+    http.get("/api/v1/users/", ({ request }) => {
+      const requestedState = new URL(request.url).searchParams.get("state");
+      const items = users
+        .filter((item) => {
+          const inactive = inactiveUserIds.has(Number(item.id));
+          if (requestedState === "inactive") return inactive;
+          if (requestedState === "active") return !inactive;
+          return true;
+        })
+        .map((item) => ({
+          ...item,
+          is_active: !inactiveUserIds.has(Number(item.id)),
+          batch_capabilities: {
+            deactivate: !inactiveUserIds.has(Number(item.id)),
+            delete: inactiveUserIds.has(Number(item.id)),
+          },
+        }));
+      return HttpResponse.json({
+        items,
+        total: items.length,
         page: 1,
         pages: 1,
         page_size: 20,
-      }),
-    ),
+      });
+    }),
     http.post("/api/v1/users/bulk-action/", async ({ request }) => {
       const body = (await request.json()) as {
         action: string;
-        users: unknown[];
+        users: { id: number }[];
       };
+      if (body.action === "deactivate") {
+        for (const item of body.users) inactiveUserIds.add(item.id);
+      }
       return HttpResponse.json({
         action: body.action,
         affected: body.users.length,
@@ -116,4 +136,6 @@ test("affiche automatiquement les comptes inactifs après une désactivation", a
   await waitFor(() =>
     expect(screen.getByLabelText("État")).toHaveValue("inactive"),
   );
+  expect(await screen.findByText("Alpha")).toBeInTheDocument();
+  expect(screen.getByText("Inactif")).toBeInTheDocument();
 });

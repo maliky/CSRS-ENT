@@ -399,6 +399,57 @@ class CsrsPermissionTests(TransactionCase):
             1,
         )
 
+    def test_it_lists_and_reactivates_a_deactivated_account(self):
+        candidate = self.env["res.users"].with_context(
+            no_reset_password=True
+        ).create(
+            {
+                "name": "Compte à désactiver",
+                "login": "inactive-account@example.invalid",
+                "email": "inactive-account@example.invalid",
+                "group_ids": [
+                    Command.link(
+                        self.env.ref("csrs_reporting.group_csrs_agent").id
+                    )
+                ],
+            }
+        )
+        employee = self.env["hr.employee"].create(
+            {
+                "name": candidate.name,
+                "user_id": candidate.id,
+                "job_title": "Agent de recette",
+            }
+        )
+        facade = self.env["csrs.api"].with_user(self.it)
+
+        facade.api_user_bulk_action(
+            "deactivate",
+            [
+                {
+                    "id": candidate.id,
+                    "state_token": facade._user_state_token(candidate),
+                }
+            ],
+        )
+
+        self.assertFalse(candidate.active)
+        self.assertFalse(employee.active)
+        page = facade.api_users(state="inactive")
+        summaries = {item["id"]: item for item in page["items"]}
+        self.assertIn(candidate.id, summaries)
+        self.assertEqual(summaries[candidate.id]["position"], "Agent de recette")
+
+        reactivated = facade.api_user_set_active(
+            candidate.id,
+            summaries[candidate.id]["state_token"],
+            True,
+        )
+
+        self.assertTrue(reactivated["is_active"])
+        self.assertTrue(candidate.active)
+        self.assertTrue(employee.active)
+
     def test_manager_change_transfers_active_tasks_and_keeps_history(self):
         department = self.env["hr.department"].create(
             {"name": "Administration", "csrs_code": "ADM"}

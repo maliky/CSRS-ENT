@@ -94,12 +94,17 @@ class CsrsApi(models.AbstractModel):
 
     def _employee_for_user(self, user):
         """Resolve the private HR row only after the use case has scoped the user."""
-        return self.env["hr.employee"].sudo().search(
-            [
-                ("user_id", "=", user.id),
-                ("company_id", "in", [False, self.env.company.id]),
-            ],
-            limit=1,
+        return (
+            self.env["hr.employee"]
+            .sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("user_id", "=", user.id),
+                    ("company_id", "in", [False, self.env.company.id]),
+                ],
+                limit=1,
+            )
         )
 
     def _person(self, user):
