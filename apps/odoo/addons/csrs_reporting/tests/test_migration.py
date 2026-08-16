@@ -639,6 +639,27 @@ class CsrsMigrationTests(TransactionCase):
             self.env["hr.employee"].search_count([("user_id", "=", user.id)]), 1
         )
 
+    def test_import_rejects_ambiguous_existing_email(self):
+        payload = self.payload()
+        email = payload["users"][0]["email"]
+        existing = self.env["res.users"].browse()
+        for index in range(2):
+            existing |= self.env["res.users"].create(
+                {
+                    "name": f"Compte ambigu {index}",
+                    "login": f"ambiguous-{index}@example.invalid",
+                    "email": email,
+                }
+            )
+
+        with self.assertRaises(ValidationError):
+            self.env["csrs.migration.importer"].import_payload(payload, apply=True)
+
+        self.assertFalse(any(existing.mapped("csrs_source_id")))
+        self.assertFalse(
+            self.env["res.users"].search([("csrs_source_id", "=", 9_000_101)])
+        )
+
     def test_cycle_is_rejected_before_any_write(self):
         payload = self.payload()
         payload["departments"].append(

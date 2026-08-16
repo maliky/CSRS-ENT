@@ -514,7 +514,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             source_id = row["source_id"]
             user = Users.search([("csrs_source_id", "=", source_id)], limit=1)
             by_login = Users.search([("login", "=ilike", row["email"])], limit=1)
-            by_email = Users.search([("email", "=ilike", row["email"])], limit=1)
+            by_email = Users.search([("email", "=ilike", row["email"])], limit=2)
             alias = (row.get("alias") or "").strip()
             by_alias = (
                 Users.search([("csrs_alias", "=ilike", alias)], limit=2)
