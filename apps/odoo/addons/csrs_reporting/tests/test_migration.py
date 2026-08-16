@@ -323,10 +323,17 @@ class CsrsMigrationTests(TransactionCase):
             ),
             {},
         )
-        second = importer.import_payload(self.payload_v3(), apply=True)
+        task.with_context(csrs_authorized_mutation=True).write(
+            {"csrs_status": "planned"}
+        )
+
+        repaired = importer.import_payload(self.payload_v3(), apply=True)
+        third = importer.import_payload(self.payload_v3(), apply=True)
 
         self.assertEqual(first["created"]["tasks"], 1)
-        self.assertEqual(second["unchanged"]["tasks"], 1)
+        self.assertEqual(repaired["updated"]["tasks"], 1)
+        self.assertEqual(task.csrs_status, "active")
+        self.assertEqual(third["unchanged"]["tasks"], 1)
         self.assertEqual(task.csrs_progress_percent, 30)
         self.assertEqual(len(task.csrs_progress_entry_ids), 1)
         self.assertEqual(len(task.csrs_legacy_revision_ids), 3)

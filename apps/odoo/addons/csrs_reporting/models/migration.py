@@ -1023,7 +1023,12 @@ class CsrsMigrationImporter(models.AbstractModel):
                     "csrs_institutional_action_id": action.id if action else False,
                 }
             if record:
-                self._write_or_report(record, values, report, "tasks")
+                self._write_or_report(
+                    record.with_context(csrs_authorized_mutation=True),
+                    values,
+                    report,
+                    "tasks",
+                )
             else:
                 record = Task.with_context(csrs_authorized_mutation=True).create(values)
                 report["created"]["tasks"] += 1
