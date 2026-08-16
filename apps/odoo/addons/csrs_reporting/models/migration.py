@@ -1093,6 +1093,10 @@ class CsrsMigrationImporter(models.AbstractModel):
         current_by_assignment = defaultdict(list)
         for row in snapshot["progress_entries"]:
             current_by_assignment[row["assignment_source_id"]].append(row)
+        assignment_revisions = {
+            row["source_id"]: int(row.get("revision") or 1)
+            for row in snapshot["task_assignments"]
+        }
         for assignment_id, task in tasks.items():
             rows = history_by_assignment.get(assignment_id)
             if not rows:
@@ -1156,15 +1160,15 @@ class CsrsMigrationImporter(models.AbstractModel):
             if current:
                 last = current[-1]
             if last:
+                source_revision = max(
+                    revision, assignment_revisions.get(assignment_id, 0)
+                )
                 source_progress = {
                     "csrs_progress_percent": float(last["percentage"]),
                     "csrs_blocked": bool(last.get("blocked")),
-                    "csrs_revision": revision,
+                    "csrs_revision": source_revision,
                 }
                 if task.id in imported_task_ids:
-                    source_progress["csrs_revision"] = max(
-                        task.csrs_revision, revision
-                    )
                     task.with_context(csrs_authorized_mutation=True).write(
                         source_progress
                     )
