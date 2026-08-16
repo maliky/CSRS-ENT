@@ -90,6 +90,7 @@
 .navGroupItems {
   display: grid;
   gap: 0.2rem;
+  padding-left: 0.65rem;
 }
 .groupChevron {
   margin-left: auto;
@@ -194,6 +195,9 @@
   padding-right: 0;
   padding-left: 0;
 }
+.collapsed .navGroupItems {
+  padding-left: 0;
+}
 .collapsed .active {
   box-shadow: inset 3px 0 #f4c95d;
 }
@@ -289,6 +293,9 @@
     justify-content: flex-start;
     padding-right: 0.75rem;
     padding-left: 0.75rem;
+  }
+  .collapsed .navGroupItems {
+    padding-left: 0.65rem;
   }
   .main {
     min-height: calc(100vh - 9rem);

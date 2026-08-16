@@ -7,6 +7,22 @@ La recette Playwright contrôle les parcours publics de CSRS ENT par fonctionnal
 
 Les scénarios avec écriture sont séparés et ne s'exécutent que lorsque =CSRS_E2E_MUTATIONS=true=. Ils doivent utiliser un jeu Odoo réservé dont le nom commence par =e2e-=.
 
+* Convention BDD et traçabilité
+
+Les scénarios Playwright restent dans l'organisation existante et rendent les étapes métier visibles avec =test.step("Given …")=, =test.step("When …")= et =test.step("Then …")=. Cette convention évite d'ajouter un second moteur de tests ou une arborescence Gherkin parallèle sans bénéfice fonctionnel.
+
+=docs/logigrams.org= est la source maintenue pour les procédures. =besoin.org= et =MANUAL.org= précisent les comportements transverses et les écrans. Un comportement non confirmé par ces sources ou par le code existant reste un écart à instruire, pas une capacité supposée.
+
+| Source | Parcours | Couverture automatisée |
+|--------+----------+------------------------|
+| =secrets/DEV.org=, navigation | Groupes et sous-menus, petit écran, URL inconnue | Tests du composant =AppShell= et scénarios Playwright =mobile= et =read-only= |
+| =secrets/DEV.org=, comptes | Activation, désactivation, listes active et inactive | Tests React et Odoo existants, scénario Playwright avec données réservées |
+| =docs/logigrams.org=, procédures | Création, champs documentés, transitions, correction, révision et audit | Tests React de liste et de détail, matrice transactionnelle Odoo des sept procédures, scénario Playwright agent |
+| =besoin.org=, autorisations | Visibilité par rôle et refus d'accès direct | Tests Odoo des rôles et scénario Playwright de contournement d'URL |
+| =MANUAL.org=, agenda | Annulation et erreur de concurrence | Test React de conservation de l'état après refus et scénarios agenda existants |
+
+Les scénarios de génération documentaire, de notification et les variantes métier non encore exprimées par un écran ou un contrat stable doivent être ajoutés séparément lorsqu'ils deviennent implémentables. La recette ne les marque pas implicitement comme terminés.
+
 * Préparer les données Odoo
 
 La commande accepte =status=, =seed=, =clean= et =reseed= :

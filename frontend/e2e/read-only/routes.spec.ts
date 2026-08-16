@@ -100,3 +100,22 @@ test("les listes administratives permettent de sélectionner toute la page", asy
     }
   }
 });
+
+test("une URL inexistante produit une erreur compréhensible", async ({
+  page,
+}) => {
+  await test.step("Given une session utilisateur valide", async () => {
+    await page.goto("/app/");
+    await expect(page.locator("#navigation-principale")).toBeVisible();
+  });
+
+  await test.step("When l'utilisateur ouvre une page qui n'existe pas", async () => {
+    await page.goto("/app/page-inexistante");
+  });
+
+  await test.step("Then l'interface explique que la page est indisponible", async () => {
+    await expect(
+      page.getByText("Cette page n'existe pas ou n'est plus accessible."),
+    ).toBeVisible();
+  });
+});
