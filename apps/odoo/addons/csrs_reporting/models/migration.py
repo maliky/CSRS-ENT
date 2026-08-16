@@ -56,13 +56,15 @@ class CsrsMigrationImporter(models.AbstractModel):
         if snapshot["version"] == 3:
             plans, action_plans, actions = self._upsert_planning(snapshot, report)
             calendars = self._upsert_calendars(snapshot, report)
-            task_definitions, tasks = self._upsert_tasks(
+            task_definitions, tasks, imported_task_ids = self._upsert_tasks(
                 snapshot, users, departments, actions, calendars, report
             )
             proposals = self._upsert_proposals(
                 snapshot, users, actions, calendars, tasks, report
             )
-            self._upsert_progress_history(snapshot, users, tasks, report)
+            self._upsert_progress_history(
+                snapshot, users, tasks, imported_task_ids, report
+            )
             self._upsert_task_activities(snapshot, users, tasks, report)
             self._upsert_legacy_revisions(
                 snapshot, users, task_definitions, tasks, proposals, report
@@ -973,6 +975,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             row["task_source_id"]: row for row in snapshot["task_assignments"]
         }
         tasks = {}
+        imported_task_ids = set()
         for source_id, definition in definitions.items():
             assignment = assignments.get(source_id)
             record = Task.search([("csrs_task_source_id", "=", source_id)], limit=1)
@@ -1023,16 +1026,19 @@ class CsrsMigrationImporter(models.AbstractModel):
                     "csrs_institutional_action_id": action.id if action else False,
                 }
             if record:
-                self._write_or_report(record, values, report, "tasks")
+                if self._changes(record, values):
+                    report["unchanged"]["task_source_conflicts"] += 1
+                report["unchanged"]["tasks"] += 1
             else:
                 record = Task.with_context(csrs_authorized_mutation=True).create(values)
                 report["created"]["tasks"] += 1
+                imported_task_ids.add(record.id)
             tasks[source_id] = record
         assignment_tasks = {
             row["source_id"]: tasks[row["task_source_id"]]
             for row in snapshot["task_assignments"]
         }
-        return tasks, assignment_tasks
+        return tasks, assignment_tasks, frozenset(imported_task_ids)
 
     def _upsert_proposals(
         self, snapshot, users, actions, calendars, tasks, report
@@ -1076,7 +1082,9 @@ class CsrsMigrationImporter(models.AbstractModel):
             proposals[row["source_id"]] = record
         return proposals
 
-    def _upsert_progress_history(self, snapshot, users, tasks, report):
+    def _upsert_progress_history(
+        self, snapshot, users, tasks, imported_task_ids, report
+    ):
         Progress = self.env["csrs.progress.entry"].sudo()
         history_by_assignment = defaultdict(list)
         for row in snapshot["progress_history"]:
@@ -1148,14 +1156,20 @@ class CsrsMigrationImporter(models.AbstractModel):
             if current:
                 last = current[-1]
             if last:
-                next_revision = max(task.csrs_revision, revision)
-                task.with_context(csrs_authorized_mutation=True).write(
-                    {
-                        "csrs_progress_percent": float(last["percentage"]),
-                        "csrs_blocked": bool(last.get("blocked")),
-                        "csrs_revision": next_revision,
-                    }
-                )
+                source_progress = {
+                    "csrs_progress_percent": float(last["percentage"]),
+                    "csrs_blocked": bool(last.get("blocked")),
+                    "csrs_revision": revision,
+                }
+                if task.id in imported_task_ids:
+                    source_progress["csrs_revision"] = max(
+                        task.csrs_revision, revision
+                    )
+                    task.with_context(csrs_authorized_mutation=True).write(
+                        source_progress
+                    )
+                elif self._changes(task, source_progress):
+                    report["unchanged"]["task_progress_source_conflicts"] += 1
 
     def _upsert_task_activities(self, snapshot, users, tasks, report):
         Messages = self.env["mail.message"].sudo()
