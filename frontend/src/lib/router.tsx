@@ -253,17 +253,22 @@ function matchPattern(
   pathname: string,
   exact: boolean,
 ): Record<string, string> | null {
-  if (pattern === "*") return {};
   const patternParts = normalizedPath(pattern).split("/").filter(Boolean);
   const pathParts = normalizedPath(pathname).split("/").filter(Boolean);
+  const wildcardIndex = patternParts.indexOf("*");
+  if (wildcardIndex !== -1 && wildcardIndex !== patternParts.length - 1)
+    return null;
+  const comparedPartCount =
+    wildcardIndex === -1 ? patternParts.length : wildcardIndex;
+  const requiresExactLength = wildcardIndex === -1 && exact;
   if (
-    exact
-      ? patternParts.length !== pathParts.length
-      : patternParts.length > pathParts.length
+    requiresExactLength
+      ? comparedPartCount !== pathParts.length
+      : comparedPartCount > pathParts.length
   )
     return null;
   const params: Record<string, string> = {};
-  for (let index = 0; index < patternParts.length; index += 1) {
+  for (let index = 0; index < comparedPartCount; index += 1) {
     const expected = patternParts[index];
     const actual = pathParts[index];
     if (expected.startsWith(":"))
