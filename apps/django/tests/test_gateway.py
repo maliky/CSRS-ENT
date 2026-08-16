@@ -474,6 +474,58 @@ class BusinessApiTests(SimpleTestCase):
         )
 
     @patch("gateway.api_views.OdooClient.call")
+    def test_research_project_list_delegates_the_archive_filter(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"items": []}
+
+        response = self.client.get("/api/v1/research-projects/?status=archived")
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session", "api_research_projects", ["archived"]
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_research_project_archive_requires_a_reason_and_delegates(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 71, "archived": True, "revision": 5}
+
+        invalid = self.client.post(
+            "/api/v1/research-projects/71/transition/",
+            data=json.dumps({"action": "archive", "revision": 4, "reason": ""}),
+            content_type="application/json",
+        )
+        response = self.client.post(
+            "/api/v1/research-projects/71/transition/",
+            data=json.dumps(
+                {
+                    "action": "archive",
+                    "revision": 4,
+                    "reason": "Projet remplacé par la nouvelle convention",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_research_project_transition",
+            [
+                71,
+                {
+                    "action": "archive",
+                    "revision": 4,
+                    "lead_id": None,
+                    "reason": "Projet remplacé par la nouvelle convention",
+                },
+            ],
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
     def test_partner_administration_uses_typed_it_only_contract(
         self, call: MagicMock
     ) -> None:

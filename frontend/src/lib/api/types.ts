@@ -118,8 +118,12 @@ export type ResearchProjectSummary = {
   lead: Person | null;
   date_start: string | null;
   date_end: string | null;
+  access_scope: "owned" | "team" | "supervised" | "governance";
+  archived: boolean;
   capabilities: {
     edit: boolean;
+    supervise: boolean;
+    archive: boolean;
     approve: boolean;
     reject: boolean;
     close: boolean;
@@ -130,6 +134,9 @@ export type ProjectSection = {
   id: number;
   code: string;
   label: string;
+  sequence: number;
+  required: boolean;
+  unlocked: boolean;
   state: string;
   revision: number;
   correction_reason: string;
@@ -157,6 +164,7 @@ export type ResearchProjectDetail = ResearchProjectSummary & {
   donor: Partner | null;
   partners: Partner[];
   sections: ProjectSection[];
+  recap_unlocked: boolean;
   action_plan: Array<{
     id: number;
     name: string;

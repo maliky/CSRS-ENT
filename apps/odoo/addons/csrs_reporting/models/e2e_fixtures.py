@@ -456,6 +456,7 @@ class CsrsE2EFixture(models.AbstractModel):
                         "csrs.agenda.draft",
                         "csrs.task.proposal",
                         "csrs.process.case",
+                        "project.project",
                     }:
                         models.Model.unlink(record.sudo())
                     else:

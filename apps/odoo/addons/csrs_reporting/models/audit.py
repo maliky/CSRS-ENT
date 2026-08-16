@@ -15,6 +15,7 @@ class CsrsAuditEvent(models.Model):
             ("user_delete", "Suppression de compte"),
             ("organization_change", "Modification d'organigramme"),
             ("partner_change", "Modification d'organisation partenaire"),
+            ("project_archive", "Archivage de projet"),
         ],
         required=True,
         readonly=True,

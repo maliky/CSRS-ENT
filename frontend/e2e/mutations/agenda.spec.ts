@@ -64,7 +64,7 @@ test("l'organigramme ouvre le formulaire de l'unité sélectionnée", async ({
   await expect(page.getByLabel("Code")).toBeFocused();
 });
 
-test("un projet de recette expose ses neuf sections dans l'application", async ({
+test("un projet de recette expose le parcours numéroté et ses étapes verrouillées", async ({
   page,
 }) => {
   test.skip(
@@ -81,6 +81,15 @@ test("un projet de recette expose ses neuf sections dans l'application", async (
   const card = project.locator("xpath=..");
   await card.getByRole("link", { name: "Ouvrir le projet" }).click();
 
-  const cycle = page.getByRole("region", { name: "Cycle des neuf onglets" });
-  await expect(cycle.getByRole("heading", { level: 3 })).toHaveCount(9);
+  const journey = page.getByRole("navigation", { name: "Parcours du projet" });
+  await expect(journey.getByRole("button")).toHaveCount(10);
+  await expect(
+    journey.getByRole("button", { name: /1\. Projet/ }),
+  ).toHaveAttribute("aria-current", "step");
+  await expect(
+    journey.getByRole("button", { name: /2\. Plan d’action/ }),
+  ).toBeEnabled();
+  await expect(
+    journey.getByRole("button", { name: /3\. Résultats/ }),
+  ).toBeDisabled();
 });

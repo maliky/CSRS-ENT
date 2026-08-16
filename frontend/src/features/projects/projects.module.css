@@ -1,0 +1,63 @@
+.journey {
+  overflow-x: auto;
+}
+
+.steps {
+  display: flex;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  min-width: max-content;
+  padding: 0 0 0.5rem;
+}
+
+.step {
+  align-items: flex-start;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d8dee4);
+  border-radius: 0.75rem;
+  color: inherit;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 5.5rem;
+  padding: 0.75rem;
+  text-align: left;
+  width: 10rem;
+}
+
+.step[aria-current="step"] {
+  border-color: var(--accent, #23664b);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--accent, #23664b) 20%, transparent);
+}
+
+.step:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.stepNumber {
+  font-weight: 700;
+}
+
+.stepMeta {
+  color: var(--muted, #5f6b65);
+  font-size: 0.78rem;
+}
+
+.stageActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.recapGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.recapValue {
+  font-size: 1.35rem;
+  font-weight: 700;
+}

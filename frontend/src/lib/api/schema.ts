@@ -1235,9 +1235,11 @@ export interface components {
      * @description * `approve` - approve
      *     * `reject` - reject
      *     * `close` - close
+     *     * `archive` - archive
      * @enum {string}
      */
-    ResearchProjectTransitionActionEnum: "approve" | "reject" | "close";
+    ResearchProjectTransitionActionEnum:
+      "approve" | "reject" | "close" | "archive";
     Revision: {
       revision: number;
     };
@@ -2270,7 +2272,13 @@ export interface operations {
   };
   research_projects_list: {
     parameters: {
-      query?: never;
+      query?: {
+        /**
+         * @description * `active` - active
+         *     * `archived` - archived
+         */
+        status?: "active" | "archived";
+      };
       header?: never;
       path?: never;
       cookie?: never;

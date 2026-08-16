@@ -141,6 +141,34 @@ class CsrsReportingLine(models.Model):
                     _("Une personne ne peut avoir qu'un responsable principal actif.")
                 )
 
+    def _csrs_refresh_project_supervisors(self):
+        projects = (
+            self.env["project.project"]
+            .sudo()
+            .with_context(active_test=False)
+            .search([("csrs_research_project", "=", True)])
+        )
+        projects._csrs_refresh_supervisor_access()
+
+    @api.model_create_multi
+    def create(self, values_list):
+        records = super().create(values_list)
+        records._csrs_refresh_project_supervisors()
+        return records
+
+    def write(self, values):
+        result = super().write(values)
+        hierarchy_fields = {
+            "employee_id",
+            "supervisor_id",
+            "is_primary",
+            "active",
+            "end_date",
+        }
+        if hierarchy_fields.intersection(values):
+            self._csrs_refresh_project_supervisors()
+        return result
+
 
 class CsrsRoleGrant(models.Model):
     _name = "csrs.role.grant"

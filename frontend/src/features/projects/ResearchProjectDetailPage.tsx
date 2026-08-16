@@ -1,4 +1,10 @@
-import { CheckCircle2, RotateCcw, ShieldCheck } from "lucide-react";
+import {
+  Archive,
+  CheckCircle2,
+  LockKeyhole,
+  RotateCcw,
+  ShieldCheck,
+} from "lucide-react";
 import { useState, type FormEvent } from "react";
 import {
   Button,
@@ -17,8 +23,16 @@ import type {
   ResearchProjectDetail,
 } from "../../lib/api/types";
 import { useApi } from "../../lib/useApi";
-import { useParams } from "../../lib/router";
+import { useParams, useSearchParams } from "../../lib/router";
 import { ProjectItemForm, type ProjectResource } from "./ProjectItemForm";
+import {
+  projectRecap,
+  projectStageCodes,
+  resolveProjectStage,
+  stageIsUnlocked,
+  type ProjectStageCode,
+} from "./projectJourney";
+import styles from "./projects.module.css";
 
 function confirmationPhrase() {
   return `VALIDÉ LE ${new Intl.DateTimeFormat("fr-FR").format(new Date())}`;
@@ -26,6 +40,7 @@ function confirmationPhrase() {
 
 export function ResearchProjectDetailPage() {
   const { projectId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const project = useApi<ResearchProjectDetail>(
     `/api/v1/research-projects/${projectId}/`,
     Boolean(projectId),
@@ -110,6 +125,35 @@ export function ResearchProjectDetailPage() {
     }
   }
 
+  async function archiveProject() {
+    if (!project.data) return;
+    const reason = window.prompt("Motif de l’archivage :")?.trim() ?? "";
+    if (!reason) return;
+    if (
+      !window.confirm("Archiver ce projet et le retirer des projets actifs ?")
+    )
+      return;
+    setMutationError("");
+    try {
+      await apiFetch(
+        `/api/v1/research-projects/${project.data.id}/transition/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "archive",
+            revision: project.data.revision,
+            reason,
+          }),
+        },
+      );
+      await project.reload();
+    } catch (caught) {
+      setMutationError(
+        caught instanceof Error ? caught.message : "Archivage impossible.",
+      );
+    }
+  }
+
   async function sectionTransition(section: ProjectSection, action: string) {
     if (!project.data) return;
     let reason = "";
@@ -155,11 +199,63 @@ export function ResearchProjectDetailPage() {
       />
     );
   const data = project.data;
+  const requestedStage = searchParams.get("etape");
+  const activeStage = resolveProjectStage(
+    requestedStage,
+    data.sections,
+    data.recap_unlocked,
+  );
+  const lockedRequest =
+    requestedStage !== null && requestedStage !== activeStage;
+  const recap = projectRecap(data);
 
-  function openDraft(code: string) {
-    document
-      .getElementById(`project-section-${code}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function goToStage(code: ProjectStageCode) {
+    if (!stageIsUnlocked(code, data.sections, data.recap_unlocked)) return;
+    setSearchParams({ etape: code });
+  }
+
+  function sectionControls(section: ProjectSection) {
+    return (
+      <div className="stack">
+        <div className="cluster">
+          <StatusBadge status={section.state}>{section.state}</StatusBadge>
+          <span className="muted">{section.readiness_message}</span>
+        </div>
+        {section.correction_reason && (
+          <p className="error-banner">{section.correction_reason}</p>
+        )}
+        <div className="cluster">
+          {section.capabilities.submit && (
+            <Button onClick={() => void sectionTransition(section, "submit")}>
+              Soumettre au {section.recipient_label}
+            </Button>
+          )}
+          {section.capabilities.verify && (
+            <Button onClick={() => void sectionTransition(section, "verify")}>
+              <CheckCircle2 size={17} /> Vérifier
+            </Button>
+          )}
+          {section.capabilities.correct && (
+            <Button
+              variant="secondary"
+              onClick={() => void sectionTransition(section, "correct")}
+            >
+              <RotateCcw size={17} /> Demander correction
+            </Button>
+          )}
+          {section.capabilities.validate && (
+            <Button onClick={() => void sectionTransition(section, "validate")}>
+              Valider électroniquement
+            </Button>
+          )}
+          {section.capabilities.close && (
+            <Button onClick={() => void sectionTransition(section, "close")}>
+              Clôturer l’onglet
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -170,46 +266,114 @@ export function ResearchProjectDetailPage() {
           <h1>{data.name}</h1>
           <p>{data.objectives}</p>
         </div>
-        <ButtonLink variant="quiet" to="/projets">
-          Retour aux projets
-        </ButtonLink>
+        <div className="cluster">
+          {data.archived && (
+            <StatusBadge status="archived">Archivé</StatusBadge>
+          )}
+          {data.capabilities.archive && (
+            <Button variant="danger" onClick={() => void archiveProject()}>
+              <Archive size={18} /> Archiver
+            </Button>
+          )}
+          <ButtonLink variant="quiet" to="/projets">
+            Retour aux projets
+          </ButtonLink>
+        </div>
       </header>
       {mutationError && (
         <p className="error-banner" role="alert">
           {mutationError}
         </p>
       )}
-      <Card id="project-section-project">
-        <div className="cluster">
-          {data.capabilities.edit && !editForm && (
-            <Button variant="secondary" onClick={beginEdit}>
-              Modifier la fiche projet
-            </Button>
+      {lockedRequest && (
+        <p className="error-banner" role="alert">
+          Terminez les étapes obligatoires précédentes avant d’ouvrir cet écran.
+        </p>
+      )}
+      <nav className={styles.journey} aria-label="Parcours du projet">
+        <ol className={styles.steps}>
+          {data.sections.map((section) => (
+            <li key={section.code}>
+              <button
+                type="button"
+                className={styles.step}
+                disabled={!section.unlocked}
+                aria-current={activeStage === section.code ? "step" : undefined}
+                onClick={() => goToStage(section.code as ProjectStageCode)}
+              >
+                <span className={styles.stepNumber}>
+                  {section.sequence}. {section.label}
+                </span>
+                <span className={styles.stepMeta}>
+                  {section.required ? "Obligatoire" : "Facultatif"} ·{" "}
+                  {section.state}
+                </span>
+                {!section.unlocked && (
+                  <span className={styles.stepMeta}>
+                    <LockKeyhole size={13} aria-hidden="true" /> Verrouillé
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+          <li>
+            <button
+              type="button"
+              className={styles.step}
+              disabled={!data.recap_unlocked}
+              aria-current={activeStage === "recap" ? "step" : undefined}
+              onClick={() => goToStage("recap")}
+            >
+              <span className={styles.stepNumber}>10. Récapitulatif</span>
+              <span className={styles.stepMeta}>Obligatoire · synthèse</span>
+              {!data.recap_unlocked && (
+                <span className={styles.stepMeta}>
+                  <LockKeyhole size={13} aria-hidden="true" /> Verrouillé
+                </span>
+              )}
+            </button>
+          </li>
+        </ol>
+      </nav>
+      {activeStage === "project" && (
+        <Card id="project-section-project">
+          <div className="cluster">
+            {data.capabilities.edit && !editForm && (
+              <Button variant="secondary" onClick={beginEdit}>
+                Modifier la fiche projet
+              </Button>
+            )}
+            <StatusBadge status={data.state}>{data.state_label}</StatusBadge>
+            <span>Proposé par {data.proposer.name}</span>
+            {data.lead && <span>Chef de projet : {data.lead.name}</span>}
+          </div>
+          {data.institutional_commitments && (
+            <p>{data.institutional_commitments}</p>
           )}
-          <StatusBadge status={data.state}>{data.state_label}</StatusBadge>
-          <span>Proposé par {data.proposer.name}</span>
-          {data.lead && <span>Chef de projet : {data.lead.name}</span>}
-        </div>
-        {data.institutional_commitments && (
-          <p>{data.institutional_commitments}</p>
-        )}
-        <div className="cluster">
-          {data.capabilities.approve && (
-            <Button onClick={() => void transition("approve")}>
-              <ShieldCheck size={18} /> Autoriser et nommer le proposant
-            </Button>
+          <div className="cluster">
+            {data.capabilities.approve && (
+              <Button onClick={() => void transition("approve")}>
+                <ShieldCheck size={18} /> Autoriser et nommer le proposant
+              </Button>
+            )}
+            {data.capabilities.reject && (
+              <Button
+                variant="danger"
+                onClick={() => void transition("reject")}
+              >
+                Rejeter
+              </Button>
+            )}
+            {data.capabilities.close && (
+              <Button onClick={() => void transition("close")}>Clôturer</Button>
+            )}
+          </div>
+          {sectionControls(
+            data.sections.find((item) => item.code === "project")!,
           )}
-          {data.capabilities.reject && (
-            <Button variant="danger" onClick={() => void transition("reject")}>
-              Rejeter
-            </Button>
-          )}
-          {data.capabilities.close && (
-            <Button onClick={() => void transition("close")}>Clôturer</Button>
-          )}
-        </div>
-      </Card>
-      {editForm && (
+        </Card>
+      )}
+      {activeStage === "project" && editForm && (
         <Card>
           <form
             className="stack"
@@ -358,64 +522,6 @@ export function ResearchProjectDetailPage() {
           </form>
         </Card>
       )}
-      <section className="stack" aria-labelledby="project-tabs-title">
-        <h2 id="project-tabs-title">Cycle des neuf onglets</h2>
-        <div className="grid">
-          {data.sections.map((section) => (
-            <Card key={section.id}>
-              <p className="eyebrow">{section.code}</p>
-              <h3>{section.label}</h3>
-              <StatusBadge status={section.state}>{section.state}</StatusBadge>
-              {section.correction_reason && <p>{section.correction_reason}</p>}
-              <p className="muted">{section.readiness_message}</p>
-              <div className="cluster">
-                <Button
-                  variant="secondary"
-                  onClick={() => openDraft(section.code)}
-                >
-                  Ouvrir le brouillon
-                </Button>
-                {section.capabilities.submit && (
-                  <Button
-                    onClick={() => void sectionTransition(section, "submit")}
-                  >
-                    Soumettre au {section.recipient_label}
-                  </Button>
-                )}
-                {section.capabilities.verify && (
-                  <Button
-                    onClick={() => void sectionTransition(section, "verify")}
-                  >
-                    <CheckCircle2 size={17} /> Vérifier
-                  </Button>
-                )}
-                {section.capabilities.correct && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => void sectionTransition(section, "correct")}
-                  >
-                    <RotateCcw size={17} /> Demander correction
-                  </Button>
-                )}
-                {section.capabilities.validate && (
-                  <Button
-                    onClick={() => void sectionTransition(section, "validate")}
-                  >
-                    Valider électroniquement
-                  </Button>
-                )}
-                {section.capabilities.close && (
-                  <Button
-                    onClick={() => void sectionTransition(section, "close")}
-                  >
-                    Clôturer l’onglet
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      </section>
       <div className="grid">
         {(
           [
@@ -500,72 +606,161 @@ export function ResearchProjectDetailPage() {
               values: ProjectItemValues;
             }>;
           }>
-        ).map(({ resource, title, items }) => {
-          const section = data.sections.find((item) => item.code === resource);
-          const editable = Boolean(
-            data.capabilities.edit &&
-            section &&
-            !["validated", "closed"].includes(section.state),
-          );
-          const canAdd =
-            editable && !(resource === "closure" && data.closure.length);
-          const users = options.data?.users ?? data.team;
-          const formUsers =
-            resource === "action_plan"
-              ? Array.from(
-                  new Map(
-                    [
-                      ...data.team,
-                      data.proposer,
-                      ...(data.lead ? [data.lead] : []),
-                    ].map((user) => [user.id, user]),
-                  ).values(),
-                )
-              : users;
-          return (
-            <Card key={resource} id={`project-section-${resource}`}>
-              <div className="cluster">
-                <h2>{title}</h2>
-                {section && (
-                  <StatusBadge status={section.state}>
-                    {section.state}
-                  </StatusBadge>
+        )
+          .filter(({ resource }) => resource === activeStage)
+          .map(({ resource, title, items }) => {
+            const section = data.sections.find(
+              (item) => item.code === resource,
+            );
+            const editable = Boolean(
+              data.capabilities.edit &&
+              section &&
+              ["draft", "correction"].includes(section.state),
+            );
+            const canAdd =
+              editable && !(resource === "closure" && data.closure.length);
+            const users = options.data?.users ?? data.team;
+            const formUsers =
+              resource === "action_plan"
+                ? Array.from(
+                    new Map(
+                      [
+                        ...data.team,
+                        data.proposer,
+                        ...(data.lead ? [data.lead] : []),
+                      ].map((user) => [user.id, user]),
+                    ).values(),
+                  )
+                : users;
+            return (
+              <Card key={resource} id={`project-section-${resource}`}>
+                <div className="cluster">
+                  <h2>{title}</h2>
+                  {section && (
+                    <StatusBadge status={section.state}>
+                      {section.state}
+                    </StatusBadge>
+                  )}
+                </div>
+                {!items.length ? (
+                  <p className="muted">Aucun élément.</p>
+                ) : (
+                  <ul>
+                    {items.map((item) => (
+                      <li key={item.id}>
+                        {item.label}
+                        {editable && (
+                          <ProjectItemForm
+                            project={data}
+                            resource={resource}
+                            users={formUsers}
+                            itemId={item.id}
+                            initial={item.values}
+                            onSaved={project.reload}
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-              {section && <p className="muted">{section.readiness_message}</p>}
-              {!items.length ? (
-                <p className="muted">Aucun élément.</p>
-              ) : (
-                <ul>
-                  {items.map((item) => (
-                    <li key={item.id}>
-                      {item.label}
-                      {editable && (
-                        <ProjectItemForm
-                          project={data}
-                          resource={resource}
-                          users={formUsers}
-                          itemId={item.id}
-                          initial={item.values}
-                          onSaved={project.reload}
-                        />
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {canAdd && (
-                <ProjectItemForm
-                  project={data}
-                  resource={resource}
-                  users={formUsers}
-                  onSaved={project.reload}
-                  openLabel="Ouvrir le brouillon"
-                />
-              )}
-            </Card>
-          );
-        })}
+                {canAdd && (
+                  <ProjectItemForm
+                    project={data}
+                    resource={resource}
+                    users={formUsers}
+                    onSaved={project.reload}
+                    openLabel="Ouvrir le brouillon"
+                  />
+                )}
+                {section && sectionControls(section)}
+              </Card>
+            );
+          })}
+      </div>
+      {activeStage === "recap" && (
+        <Card>
+          <p className="eyebrow">Étape 10</p>
+          <h2>Récapitulatif du projet</h2>
+          <div className={styles.recapGrid}>
+            <div>
+              <span className="muted">Activités réalisées</span>
+              <p className={styles.recapValue}>
+                {recap.completedActivities} / {recap.activities}
+              </p>
+            </div>
+            <div>
+              <span className="muted">Budget planifié</span>
+              <p className={styles.recapValue}>
+                {recap.planned.toLocaleString("fr-FR")}
+              </p>
+            </div>
+            <div>
+              <span className="muted">Fonds engagés</span>
+              <p className={styles.recapValue}>
+                {recap.committed.toLocaleString("fr-FR")}
+              </p>
+            </div>
+            <div>
+              <span className="muted">Dépenses</span>
+              <p className={styles.recapValue}>
+                {recap.actual.toLocaleString("fr-FR")}
+              </p>
+            </div>
+            <div>
+              <span className="muted">Fonds disponibles</span>
+              <p className={styles.recapValue}>
+                {recap.available.toLocaleString("fr-FR")}
+              </p>
+            </div>
+          </div>
+          <h3>Gouvernance</h3>
+          <p>
+            Porteur : {data.lead?.name ?? data.proposer.name} · Bailleur :{" "}
+            {data.donor?.name ?? "Non renseigné"}
+          </p>
+          <ul>
+            {data.sections.map((section) => (
+              <li key={section.code}>
+                {section.sequence}. {section.label} — {section.state}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      <div className={styles.stageActions}>
+        {projectStageCodes.indexOf(activeStage) > 0 ? (
+          <Button
+            variant="secondary"
+            onClick={() =>
+              goToStage(
+                projectStageCodes[projectStageCodes.indexOf(activeStage) - 1]!,
+              )
+            }
+          >
+            Étape précédente
+          </Button>
+        ) : (
+          <span />
+        )}
+        {projectStageCodes.indexOf(activeStage) <
+          projectStageCodes.length - 1 && (
+          <Button
+            disabled={
+              !stageIsUnlocked(
+                projectStageCodes[projectStageCodes.indexOf(activeStage) + 1]!,
+                data.sections,
+                data.recap_unlocked,
+              )
+            }
+            onClick={() =>
+              goToStage(
+                projectStageCodes[projectStageCodes.indexOf(activeStage) + 1]!,
+              )
+            }
+          >
+            Étape suivante
+          </Button>
+        )}
       </div>
     </>
   );
