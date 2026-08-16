@@ -71,13 +71,14 @@ export function TaskManagementPage() {
     extendRange: boolean,
   ) {
     const items = data?.items ?? [];
+    const previousId = lastSelected.current;
     const currentIndex = items.findIndex(
       (candidate) => candidate.id === item.id,
     );
     setSelected((current) => {
       const next = new Set(current);
       const previousIndex = items.findIndex(
-        (candidate) => candidate.id === lastSelected.current,
+        (candidate) => candidate.id === previousId,
       );
       const candidates =
         extendRange && previousIndex >= 0
@@ -272,13 +273,13 @@ export function TaskManagementPage() {
                         aria-label={`Sélectionner ${item.code}`}
                         checked={selected.has(item.id)}
                         readOnly
-                        onClick={(event) =>
+                        onClick={(event) => {
                           toggleSelection(
                             item,
                             !selected.has(item.id),
                             event.shiftKey,
-                          )
-                        }
+                          );
+                        }}
                       />
                     </td>
                     <td data-label="Tâche">

@@ -29,8 +29,11 @@ test.describe("routes fonctionnelles autorisées", () => {
 });
 
 test("tous les boutons visibles ont un nom accessible", async ({ page }) => {
-  for (const [path] of routes) {
+  for (const [path, heading] of routes) {
     await page.goto(path);
+    await expect(
+      page.getByRole("heading", { level: 1, name: heading }),
+    ).toBeVisible();
     const buttons = page.getByRole("button");
     for (let index = 0; index < (await buttons.count()); index += 1) {
       const button = buttons.nth(index);
@@ -47,8 +50,9 @@ test("chaque saisie de date française propose aussi un calendrier", async ({
   for (const path of ["/app/absences", "/app/propositions/nouvelle"]) {
     await page.goto(path);
     const dates = page.locator('input[placeholder="jj/mm/aaaa"]:visible');
-    expect(await dates.count()).toBeGreaterThan(0);
-    for (let index = 0; index < (await dates.count()); index += 1) {
+    await expect(dates.first()).toBeVisible();
+    const dateCount = await dates.count();
+    for (let index = 0; index < dateCount; index += 1) {
       await expect(
         dates.nth(index).locator("xpath=..").locator('input[type="date"]'),
       ).toHaveCount(1);
@@ -87,7 +91,9 @@ test("les listes administratives permettent de sélectionner toute la page", asy
       await selectAll.uncheck();
       const rows = page.locator('tbody input[type="checkbox"]:enabled');
       if ((await rows.count()) > 1) {
+        await expect(rows.first()).not.toBeChecked();
         await rows.first().click();
+        await expect(rows.first()).toBeChecked();
         await rows.last().click({ modifiers: ["Shift"] });
         await expect(rows.nth(1)).toBeChecked();
       }

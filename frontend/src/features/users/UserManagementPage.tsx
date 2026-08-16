@@ -65,13 +65,14 @@ export function UserManagementPage() {
     extendRange: boolean,
   ) {
     const items = users.data?.items ?? [];
+    const previousId = lastSelected.current;
     const currentIndex = items.findIndex(
       (candidate) => candidate.id === item.id,
     );
     setSelected((current) => {
       const next = new Set(current);
       const previousIndex = items.findIndex(
-        (candidate) => candidate.id === lastSelected.current,
+        (candidate) => candidate.id === previousId,
       );
       const candidates =
         extendRange && previousIndex >= 0

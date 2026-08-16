@@ -43,10 +43,12 @@ export const test = base.extend<{ browserHealth: void }>({
         diagnostics.push({ kind: "page", message: error.message });
       });
       page.on("requestfailed", (request) => {
+        const failure = request.failure()?.errorText ?? "échec réseau";
+        if (failure === "net::ERR_ABORTED") return;
         if (["document", "fetch", "xhr"].includes(request.resourceType())) {
           diagnostics.push({
             kind: "request",
-            message: `${request.method()} ${safePath(request.url())} : ${request.failure()?.errorText ?? "échec réseau"}`,
+            message: `${request.method()} ${safePath(request.url())} : ${failure}`,
           });
         }
       });

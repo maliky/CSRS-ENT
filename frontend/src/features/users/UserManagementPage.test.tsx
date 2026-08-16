@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "../../mocks/server";
@@ -72,6 +72,29 @@ test("sélectionne toute la page depuis la case d’en-tête", async () => {
   await screen.findByText("Alpha");
 
   await user.click(screen.getByRole("checkbox", { name: "Tout sélectionner" }));
+  expect(screen.getByText(/3 sélectionné/)).toBeInTheDocument();
+
+  expect(
+    screen.getByRole("checkbox", { name: "Sélectionner Bravo" }),
+  ).toBeChecked();
+});
+
+test("étend la sélection entre deux comptes avec Maj clic", async () => {
+  const user = userEvent.setup();
+  renderPage();
+  await screen.findByText("Alpha");
+
+  await user.click(
+    screen.getByRole("checkbox", { name: "Sélectionner Alpha" }),
+  );
+  expect(
+    screen.getByRole("checkbox", { name: "Sélectionner Alpha" }),
+  ).toBeChecked();
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "Sélectionner Charlie" }),
+    { shiftKey: true },
+  );
+
   expect(screen.getByText(/3 sélectionné/)).toBeInTheDocument();
 
   expect(
