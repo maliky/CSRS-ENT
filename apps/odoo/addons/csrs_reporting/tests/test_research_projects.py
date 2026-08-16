@@ -295,6 +295,30 @@ class CsrsResearchProjectTests(TransactionCase):
             )
 
         facade = self.env["csrs.api"].with_user(self.it)
+        company_partner = self.env.company.partner_id
+        listed_ids = {
+            item["id"] for item in facade.api_partners(state="")["items"]
+        }
+        self.assertNotIn(company_partner.id, listed_ids)
+        with self.assertRaises(UserError):
+            facade.api_partner_update(
+                company_partner.id,
+                {
+                    "name": company_partner.name,
+                    "email": company_partner.email or "",
+                    "phone": company_partner.phone or "",
+                    "active": True,
+                    "state_token": facade._partner_state_token(company_partner),
+                },
+            )
+        with self.assertRaises(ValidationError):
+            self.env["csrs.api"].with_user(self.agent).api_research_project_create(
+                {
+                    "name": "Projet société Odoo",
+                    "objectives": "Refuser le partenaire système.",
+                    "donor_id": company_partner.id,
+                }
+            )
         partner = facade.api_partner_create(
             {"name": "Organisation de recherche", "email": "contact@example.test"}
         )

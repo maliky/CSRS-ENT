@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from odoo.tests.common import TransactionCase, tagged
 
 from ..models.processes import PROCESS_TYPES
@@ -30,9 +32,40 @@ class CsrsE2EFixtureTests(TransactionCase):
             .mapped("process_type")
         )
         self.assertEqual(process_types, set(dict(PROCESS_TYPES)))
+        draft = self.env.ref("csrs_reporting_e2e.e2e_transaction__agenda_draft")
+        secretariat = self.env.ref(
+            "csrs_reporting_e2e.e2e_transaction__user_secretariat"
+        )
+        self.env["csrs.api"].with_user(secretariat).api_agenda_generate(
+            {
+                "period_start": draft.period_start.isoformat(),
+                "period_end": draft.period_end.isoformat(),
+                "agenda_direction": "research",
+            }
+        )
+        generated_status = fixture._execute("status", dataset)
+        self.assertEqual(generated_status["counts"]["csrs.agenda.version"], 1)
+        self.assertEqual(generated_status["counts"]["ir.attachment"], 1)
 
         cleaned = fixture._execute("clean", dataset)
 
         self.assertGreater(cleaned["deleted_total"], 0)
         self.assertEqual(fixture._execute("status", dataset)["total"], 0)
         self.assertTrue(unrelated.exists())
+
+    def test_fixture_period_moves_to_the_next_free_week_on_hash_collision(self):
+        fixture = self.env["csrs.e2e.fixture"]
+        first_start, first_end = fixture._fixture_period("e2e-23")
+        self.env["csrs.agenda.draft"].sudo().create(
+            {
+                "period_start": first_start,
+                "period_end": first_end,
+                "major_events": "Période déjà attribuée.",
+                "updated_by_id": self.env.user.id,
+            }
+        )
+
+        second_start, second_end = fixture._fixture_period("e2e-24")
+
+        self.assertNotEqual((second_start, second_end), (first_start, first_end))
+        self.assertEqual(second_start, first_start + timedelta(days=7))

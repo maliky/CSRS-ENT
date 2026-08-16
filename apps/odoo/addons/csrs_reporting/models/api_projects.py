@@ -515,7 +515,12 @@ class CsrsApiProjects(models.AbstractModel):
             .search([("active", "=", True), ("share", "=", False)], order="name, id")
         )
         partners = self.env["res.partner"].sudo().search(
-            [("active", "=", True), ("is_company", "=", True)], order="name, id"
+            [
+                ("active", "=", True),
+                ("is_company", "=", True),
+                ("id", "not in", self._company_partner_ids()),
+            ],
+            order="name, id",
         )
         return {
             "users": [self._person(user) for user in users],
@@ -546,8 +551,11 @@ class CsrsApiProjects(models.AbstractModel):
             .exists()
         )
         existing_ids = set((existing_partners or self.env["res.partner"]).ids)
+        company_partner_ids = set(self._company_partner_ids())
         if len(partners) != len(normalized) or any(
-            not item.is_company or (not item.active and item.id not in existing_ids)
+            not item.is_company
+            or item.id in company_partner_ids
+            or (not item.active and item.id not in existing_ids)
             for item in partners
         ):
             raise ValidationError(_("Organisation active invalide."))

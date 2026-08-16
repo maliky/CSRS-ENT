@@ -31,6 +31,7 @@ ROLE_GROUPS = (
 DELETE_MODEL_ORDER = (
     "hr.leave",
     "csrs.agenda.version",
+    "ir.attachment",
     "csrs.agenda.draft",
     "csrs.task.proposal",
     "project.task",
@@ -135,16 +136,53 @@ class CsrsE2EFixture(models.AbstractModel):
         return reference, record
 
     def _track(self, dataset, key, record):
-        self.env["ir.model.data"].sudo().create(
+        return self._track_name(_external_name(dataset, key), record)
+
+    def _track_name(self, name, record):
+        ModelData = self.env["ir.model.data"].sudo()
+        existing = ModelData.search(
+            [("module", "=", EXTERNAL_ID_MODULE), ("name", "=", name)], limit=1
+        )
+        if existing:
+            if existing.model != record._name or existing.res_id != record.id:
+                raise ValidationError(_("Référence E2E incohérente."))
+            return record
+        ModelData.create(
             {
                 "module": EXTERNAL_ID_MODULE,
-                "name": _external_name(dataset, key),
+                "name": name,
                 "model": record._name,
                 "res_id": record.id,
                 "noupdate": True,
             }
         )
         return record
+
+    def _track_agenda_version(self, draft, version):
+        suffix = "__agenda_draft"
+        draft_reference = (
+            self.env["ir.model.data"]
+            .sudo()
+            .search(
+                [
+                    ("module", "=", EXTERNAL_ID_MODULE),
+                    ("model", "=", draft._name),
+                    ("res_id", "=", draft.id),
+                    ("name", "like", f"%{suffix}"),
+                ],
+                limit=1,
+            )
+        )
+        if not draft_reference or not draft_reference.name.endswith(suffix):
+            return version
+        prefix = draft_reference.name[: -len(suffix)]
+        self._track_name(f"{prefix}__agenda_version_{version.id}", version.sudo())
+        if version.pdf_attachment_id:
+            self._track_name(
+                f"{prefix}__agenda_attachment_{version.pdf_attachment_id.id}",
+                version.pdf_attachment_id.sudo(),
+            )
+        return version
 
     def _ensure(self, dataset, key, model_name, values, created, user=None):
         _reference, record = self._find(dataset, key)
@@ -160,10 +198,21 @@ class CsrsE2EFixture(models.AbstractModel):
         return record.sudo()
 
     def _fixture_period(self, dataset):
+        _reference, draft = self._find(dataset, "agenda_draft")
+        if draft:
+            return draft.period_start, draft.period_end
         offset = int.from_bytes(sha256(dataset.encode()).digest()[:2], "big") % 2500
         start = date(2090, 1, 2) + timedelta(days=offset)
         start -= timedelta(days=start.weekday())
-        return start, start + timedelta(days=6)
+        Draft = self.env["csrs.agenda.draft"].sudo()
+        for _attempt in range(5200):
+            end = start + timedelta(days=6)
+            if not Draft.search_count(
+                [("period_start", "=", start), ("period_end", "=", end)], limit=1
+            ):
+                return start, end
+            start += timedelta(days=7)
+        raise ValidationError(_("Aucune période E2E libre n'est disponible."))
 
     def _seed(self, dataset, password):
         if not isinstance(password, str) or len(password) < 16:

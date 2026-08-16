@@ -1344,6 +1344,15 @@ class CsrsApi(models.AbstractModel):
             "state_token": self._partner_state_token(partner),
         }
 
+    def _company_partner_ids(self):
+        return (
+            self.env["res.company"]
+            .sudo()
+            .with_context(active_test=False)
+            .search([])
+            .partner_id.ids
+        )
+
     def _partner_record(self, partner_id):
         partner = (
             self.env["res.partner"]
@@ -1352,7 +1361,11 @@ class CsrsApi(models.AbstractModel):
             .browse(int(partner_id))
             .exists()
         )
-        if not partner or not partner.is_company:
+        if (
+            not partner
+            or not partner.is_company
+            or partner.id in self._company_partner_ids()
+        ):
             raise UserError(_("Organisation introuvable."))
         return partner
 
@@ -1379,8 +1392,17 @@ class CsrsApi(models.AbstractModel):
         self._require_group("csrs_reporting.group_csrs_it")
         if state not in {"", "active", "inactive"}:
             raise ValidationError(_("État d'organisation invalide."))
-        partners = self.env["res.partner"].sudo().with_context(active_test=False).search(
-            [("is_company", "=", True)], order="active desc, name, id"
+        partners = (
+            self.env["res.partner"]
+            .sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("is_company", "=", True),
+                    ("id", "not in", self._company_partner_ids()),
+                ],
+                order="active desc, name, id",
+            )
         )
         normalized = str(query or "").strip().casefold()
         if normalized:
@@ -2111,6 +2133,7 @@ class CsrsApi(models.AbstractModel):
         version = self.env["csrs.agenda.version"].create_from_snapshot(
             draft, payload["agenda_direction"], snapshot
         )
+        self.env["csrs.e2e.fixture"]._track_agenda_version(draft, version)
         return self._version_payload(version)
 
     @api.model
