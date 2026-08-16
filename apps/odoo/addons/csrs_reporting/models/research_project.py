@@ -41,6 +41,18 @@ SECTION_CONTROLLER_ROLES = {
     "closure": "PROJECT_CONTROLLER",
 }
 
+SECTION_CONTROLLER_LABELS = {
+    "project": "contrôle du projet",
+    "action_plan": "contrôle du projet",
+    "results": "contrôle du projet",
+    "deliverables": "contrôle du projet",
+    "finance": "contrôle financier",
+    "compliance": "contrôle conformité",
+    "risks": "contrôle du projet",
+    "reports": "contrôle du projet",
+    "closure": "contrôle du projet",
+}
+
 
 class ProjectProject(models.Model):
     _inherit = "project.project"
@@ -316,6 +328,29 @@ class CsrsProjectSection(models.Model):
         if expected_revision is not None and self.revision != int(expected_revision):
             raise UserError(_("L'onglet a changé. Rechargez-le avant de continuer."))
 
+    def _readiness(self):
+        self.ensure_one()
+        if self.code == "action_plan" and not self.env["project.task"].sudo().search_count(
+            [("project_id", "=", self.project_id.id), ("csrs_managed", "=", True)]
+        ):
+            return False, _("Ajoutez au moins une activité avant de soumettre.")
+        if self.code == "finance" and not self.project_id.csrs_budget_line_ids:
+            return False, _("Ajoutez au moins une ligne budgétaire avant de soumettre.")
+        return True, _("Brouillon prêt à être soumis.")
+
+    def _next_step_label(self):
+        self.ensure_one()
+        if self.state in {"draft", "correction"}:
+            _ready, message = self._readiness()
+            return message
+        if self.state == "submitted":
+            return _("En attente de %s.") % SECTION_CONTROLLER_LABELS[self.code]
+        if self.state == "verified":
+            return _("En attente de validation DG.")
+        if self.state == "validated":
+            return _("Validé : le DG peut clôturer l'onglet.")
+        return _("Onglet clôturé.")
+
     def _can_control(self):
         self.ensure_one()
         role = SECTION_CONTROLLER_ROLES[self.code]
@@ -338,6 +373,9 @@ class CsrsProjectSection(models.Model):
             raise AccessError(_("Seul le chef de projet peut soumettre cet onglet."))
         if self.state not in {"draft", "correction"}:
             raise UserError(_("Cet onglet ne peut pas être soumis dans cet état."))
+        ready, message = self._readiness()
+        if not ready:
+            raise ValidationError(message)
         return self._transition(
             {
                 "state": "submitted",

@@ -60,3 +60,32 @@ test("un agent ne peut pas contourner le menu pour administrer les comptes", asy
     ).toHaveCount(0);
   });
 });
+
+test("un agent sélectionne l'organisation de recette sans la créer", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.CSRS_E2E_MUTATIONS !== "true",
+    "Le scénario attend un jeu de données E2E préparé.",
+  );
+  const dataset = process.env.CSRS_E2E_DATASET ?? "";
+  const donor = `[E2E:${dataset}] Fondation partenaire`;
+
+  await test.step("Given une organisation créée par l'administration IT", async () => {
+    await authenticateFixtureRole(page, "agent");
+  });
+
+  await test.step("When l'agent ouvre la proposition de projet", async () => {
+    await page.goto("/app/projets");
+    await page.getByRole("link", { name: "Ouvrir le projet" }).click();
+    await page
+      .getByRole("button", { name: "Modifier la fiche projet" })
+      .click();
+  });
+
+  await test.step("Then il choisit le bailleur existant sans saisie libre", async () => {
+    const field = page.getByLabel("Bailleur");
+    await expect(field.locator("option", { hasText: donor })).toHaveCount(1);
+    await expect(field).toHaveValue(/\d+/);
+  });
+});

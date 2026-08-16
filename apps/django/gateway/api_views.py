@@ -55,6 +55,9 @@ from .serializers import (
     UserWriteSerializer,
     OrganizationUnitSerializer,
     OrganizationUnitUpdateSerializer,
+    PartnerQuerySerializer,
+    PartnerUpdateSerializer,
+    PartnerWriteSerializer,
     RevokeGrantSerializer,
     ResearchProjectCreateSerializer,
     ResearchProjectItemSerializer,
@@ -368,6 +371,26 @@ class OrganizationUnitDetailView(OdooAPIView):
     def patch(self, request: Request, pk: int) -> Response:
         payload = _payload(OrganizationUnitUpdateSerializer, request.data)
         return Response(self.rpc(request, "api_organization_unit_update", [pk, payload]))
+
+
+class PartnerListCreateView(OdooAPIView):
+    @extend_schema(operation_id="partner_list", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        payload = _payload(PartnerQuerySerializer, request.query_params)
+        response = self.rpc(request, "api_partners", [payload["q"], payload["state"]])
+        return Response(response)
+
+    @extend_schema(request=PartnerWriteSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(PartnerWriteSerializer, request.data)
+        return Response(self.rpc(request, "api_partner_create", [payload]), status=201)
+
+
+class PartnerDetailView(OdooAPIView):
+    @extend_schema(request=PartnerUpdateSerializer, responses=OpenApiTypes.OBJECT)
+    def patch(self, request: Request, pk: int) -> Response:
+        payload = _payload(PartnerUpdateSerializer, request.data)
+        return Response(self.rpc(request, "api_partner_update", [pk, payload]))
 
 
 class RoleGrantCreateView(OdooAPIView):

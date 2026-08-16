@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   Network,
+  Building2,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -265,7 +266,8 @@ export function AppShell() {
             </div>
           </details>
           {(session.capabilities.manage_users ||
-            session.capabilities.manage_organization) && (
+            session.capabilities.manage_organization ||
+            session.capabilities.manage_partners) && (
             <details className={styles.navGroup} open>
               <summary
                 className={styles.navGroupSummary}
@@ -298,6 +300,16 @@ export function AppShell() {
                   >
                     <Network size={iconSize} aria-hidden="true" />
                     <span className={styles.navLabel}>Organigramme</span>
+                  </NavLink>
+                )}
+                {session.capabilities.manage_partners && (
+                  <NavLink
+                    to="/administration/organisations"
+                    className={navClass}
+                    title="Organisations partenaires"
+                  >
+                    <Building2 size={iconSize} aria-hidden="true" />
+                    <span className={styles.navLabel}>Organisations</span>
                   </NavLink>
                 )}
               </div>

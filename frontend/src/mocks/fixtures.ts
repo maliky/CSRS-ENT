@@ -29,6 +29,7 @@ export const sessionFixture: Session = {
     delete_tasks: false,
     manage_users: false,
     manage_organization: false,
+    manage_partners: false,
     manage_research_projects: true,
     manage_processes: true,
     password_change_required: false,

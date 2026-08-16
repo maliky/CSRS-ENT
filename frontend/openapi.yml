@@ -492,6 +492,76 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ""
+  /api/v1/partners/:
+    get:
+      operationId: partner_list
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - partners
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+    post:
+      operationId: partners_create
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      tags:
+        - partners
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerWrite"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/PartnerWrite"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PartnerWrite"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/partners/{id}/:
+    patch:
+      operationId: partners_partial_update
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - partners
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedPartnerUpdate"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/PatchedPartnerUpdate"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PatchedPartnerUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
   /api/v1/planning/options/:
     get:
       operationId: planning_options_retrieve
@@ -1776,6 +1846,27 @@ components:
         - code
         - long_name
         - short_name
+    PartnerWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        email:
+          oneOf:
+            - type: string
+              format: email
+              maxLength: 254
+            - type: string
+              maxLength: 0
+        phone:
+          type: string
+          maxLength: 32
+        active:
+          type: boolean
+          default: true
+      required:
+        - name
     Password:
       type: object
       properties:
@@ -1852,6 +1943,27 @@ components:
               minLength: 3
             - type: string
               maxLength: 0
+    PatchedPartnerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        email:
+          oneOf:
+            - type: string
+              format: email
+              maxLength: 254
+            - type: string
+              maxLength: 0
+        phone:
+          type: string
+          maxLength: 32
+        active:
+          type: boolean
+          default: true
+        state_token:
+          type: string
     PatchedProposalUpdate:
       type: object
       properties:
@@ -1908,14 +2020,15 @@ components:
           type: string
           format: date
           nullable: true
-        donor_name:
-          type: string
-          maxLength: 200
-        partner_names:
+        donor_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        partner_ids:
           type: array
           items:
-            type: string
-            maxLength: 200
+            type: integer
+            minimum: 1
         team_user_ids:
           type: array
           items:
@@ -2228,14 +2341,15 @@ components:
           type: string
           format: date
           nullable: true
-        donor_name:
-          type: string
-          maxLength: 200
-        partner_names:
+        donor_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        partner_ids:
           type: array
           items:
-            type: string
-            maxLength: 200
+            type: integer
+            minimum: 1
         team_user_ids:
           type: array
           items:

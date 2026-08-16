@@ -7,7 +7,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command
 
 from .processes import CORRECTABLE_STATES, PROCESS_TYPES, TRANSITIONS
-from .research_project import SECTION_CODES
+from .research_project import SECTION_CODES, SECTION_CONTROLLER_LABELS
 
 
 PROJECT_STATE_LABELS = {
@@ -276,6 +276,7 @@ class CsrsApiProjects(models.AbstractModel):
         labels = dict(SECTION_CODES)
         for section in project.csrs_section_ids.sorted("id"):
             current_section = section.with_user(self.env.user)
+            ready, _readiness_message = current_section._readiness()
             sections.append(
                 {
                     "id": section.id,
@@ -284,8 +285,16 @@ class CsrsApiProjects(models.AbstractModel):
                     "state": section.state,
                     "revision": section.revision,
                     "correction_reason": section.correction_reason or "",
+                    "ready": ready,
+                    "readiness_message": current_section._next_step_label(),
+                    "recipient_label": SECTION_CONTROLLER_LABELS[section.code]
+                    if section.state in {"draft", "correction", "submitted"}
+                    else "Direction générale"
+                    if section.state == "verified"
+                    else "",
                     "capabilities": {
-                        "submit": self._project_can_edit(project)
+                        "submit": ready
+                        and self._project_can_edit(project)
                         and section.state in {"draft", "correction"},
                         "verify": current_section._can_control()
                         and section.state == "submitted",
@@ -476,7 +485,15 @@ class CsrsApiProjects(models.AbstractModel):
             .sudo()
             .search([("active", "=", True), ("share", "=", False)], order="name, id")
         )
-        return {"users": [self._person(user) for user in users]}
+        partners = self.env["res.partner"].sudo().search(
+            [("active", "=", True), ("is_company", "=", True)], order="name, id"
+        )
+        return {
+            "users": [self._person(user) for user in users],
+            "partners": [
+                {"id": partner.id, "name": partner.name} for partner in partners
+            ],
+        }
 
     def _project_users(self, user_ids):
         normalized = tuple(sorted({int(user_id) for user_id in (user_ids or [])}))
@@ -487,18 +504,31 @@ class CsrsApiProjects(models.AbstractModel):
             raise ValidationError(_("Un membre de l'équipe est invalide."))
         return users
 
-    def _project_partner(self, name):
-        normalized = str(name or "").strip()
-        if not normalized:
-            return self.env["res.partner"]
-        partner = (
+    def _project_partners(self, partner_ids, existing_partners=None):
+        try:
+            normalized = tuple(sorted({int(partner_id) for partner_id in partner_ids or []}))
+        except (TypeError, ValueError):
+            raise ValidationError(_("Organisation invalide."))
+        partners = (
             self.env["res.partner"]
             .sudo()
-            .search([("name", "=ilike", normalized), ("is_company", "=", True)], limit=1)
+            .with_context(active_test=False)
+            .browse(normalized)
+            .exists()
         )
-        return partner or self.env["res.partner"].sudo().create(
-            {"name": normalized, "is_company": True}
-        )
+        existing_ids = set((existing_partners or self.env["res.partner"]).ids)
+        if len(partners) != len(normalized) or any(
+            not item.is_company or (not item.active and item.id not in existing_ids)
+            for item in partners
+        ):
+            raise ValidationError(_("Organisation active invalide."))
+        return partners
+
+    def _project_donor(self, donor_id, existing_donor=None):
+        if not donor_id:
+            return self.env["res.partner"]
+        donors = self._project_partners([donor_id], existing_donor)
+        return donors
 
     @api.model
     def api_research_project_create(self, payload):
@@ -509,10 +539,8 @@ class CsrsApiProjects(models.AbstractModel):
         if not name or not objectives:
             raise ValidationError(_("Le nom et les objectifs sont obligatoires."))
         team = self._project_users(payload.get("team_user_ids"))
-        donor = self._project_partner(payload.get("donor_name"))
-        partners = self.env["res.partner"]
-        for partner_name in payload.get("partner_names") or []:
-            partners |= self._project_partner(partner_name)
+        donor = self._project_donor(payload.get("donor_id"))
+        partners = self._project_partners(payload.get("partner_ids"))
         project = self.env["project.project"].create(
             {
                 "name": name,
@@ -547,15 +575,12 @@ class CsrsApiProjects(models.AbstractModel):
         team = self._project_users(
             payload.get("team_user_ids", project.csrs_team_user_ids.ids)
         )
-        donor = self._project_partner(
-            payload.get("donor_name", project.csrs_donor_id.name)
+        donor = self._project_donor(
+            payload.get("donor_id", project.csrs_donor_id.id), project.csrs_donor_id
         )
-        partners = self.env["res.partner"]
-        partner_names = payload.get(
-            "partner_names", project.csrs_partner_ids.mapped("name")
+        partners = self._project_partners(
+            payload.get("partner_ids", project.csrs_partner_ids.ids), project.csrs_partner_ids
         )
-        for partner_name in partner_names or []:
-            partners |= self._project_partner(partner_name)
         values = {
             "name": str(payload.get("name") or "").strip(),
             "csrs_objectives": str(payload.get("objectives") or "").strip(),
@@ -630,8 +655,8 @@ class CsrsApiProjects(models.AbstractModel):
         if not isinstance(item_values, dict):
             raise ValidationError(_("Élément de projet invalide."))
         section = project.csrs_section_ids.filtered(lambda item: item.code == resource)
-        if section and section.state in {"validated", "closed"}:
-            raise UserError(_("Cet onglet validé est désormais immuable."))
+        if section and section.state not in {"draft", "correction"}:
+            raise UserError(_("Cet onglet n'est plus modifiable hors brouillon."))
         model_name, allowed = PROJECT_ITEM_MODELS[resource]
         unknown = set(item_values) - allowed
         if unknown:

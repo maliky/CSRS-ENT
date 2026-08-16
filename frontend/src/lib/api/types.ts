@@ -100,6 +100,7 @@ export type Session = {
     delete_tasks: boolean;
     manage_users: boolean;
     manage_organization: boolean;
+    manage_partners: boolean;
     manage_research_projects: boolean;
     manage_processes: boolean;
     password_change_required: boolean;
@@ -132,6 +133,9 @@ export type ProjectSection = {
   state: string;
   revision: number;
   correction_reason: string;
+  ready: boolean;
+  readiness_message: string;
+  recipient_label: string;
   capabilities: {
     submit: boolean;
     verify: boolean;
@@ -150,8 +154,8 @@ export type ResearchProjectDetail = ResearchProjectSummary & {
   objectives: string;
   institutional_commitments: string;
   team: Person[];
-  donor: { id: number; name: string } | null;
-  partners: Array<{ id: number; name: string }>;
+  donor: Partner | null;
+  partners: Partner[];
   sections: ProjectSection[];
   action_plan: Array<{
     id: number;
@@ -401,6 +405,22 @@ export type OrganizationAdministration = {
   grants: OrganizationGrant[];
   role_codes: Array<{ value: string; label: string }>;
   users: Person[];
+};
+
+export type Partner = {
+  id: number;
+  name: string;
+};
+
+export type ManagedPartner = Partner & {
+  email: string;
+  phone: string;
+  active: boolean;
+  state_token: string;
+};
+
+export type PartnerAdministration = {
+  items: ManagedPartner[];
 };
 
 export type AgendaPerson = Pick<Person, "id" | "name" | "position">;

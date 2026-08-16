@@ -47,7 +47,7 @@ DELETE_MODEL_ORDER = (
 EXPECTED_COUNTS = {
     "hr.department": 2,
     "res.users": len(ROLE_GROUPS),
-    "res.partner": len(ROLE_GROUPS),
+    "res.partner": len(ROLE_GROUPS) + 1,
     "hr.employee": len(ROLE_GROUPS),
     "csrs.strategic.plan": 1,
     "csrs.action.plan": 1,
@@ -227,6 +227,18 @@ class CsrsE2EFixture(models.AbstractModel):
                 dataset, role, user.partner_id, created
             )
 
+        organization = self._ensure(
+            dataset,
+            "project_partner",
+            "res.partner",
+            {
+                "name": f"{marker} Fondation partenaire",
+                "company_type": "company",
+                "email": "fondation@example.invalid",
+            },
+            created,
+        )
+
         employees = {}
         manager_employee = self._ensure(
             dataset,
@@ -353,6 +365,7 @@ class CsrsE2EFixture(models.AbstractModel):
                 "csrs_institutional_commitments": "Jeu de données jetable.",
                 "date_start": "2095-01-01",
                 "date": "2095-12-31",
+                "csrs_donor_id": organization.id,
                 "csrs_team_user_ids": [Command.set(users["agent"].ids)],
             },
             created,

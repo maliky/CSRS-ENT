@@ -11,6 +11,7 @@ import {
 } from "../../components/ui";
 import { apiFetch } from "../../lib/api/client";
 import type {
+  Partner,
   ProjectItemValues,
   ProjectSection,
   ResearchProjectDetail,
@@ -29,9 +30,10 @@ export function ResearchProjectDetailPage() {
     `/api/v1/research-projects/${projectId}/`,
     Boolean(projectId),
   );
-  const options = useApi<{ users: ResearchProjectDetail["team"] }>(
-    "/api/v1/research-projects/options/",
-  );
+  const options = useApi<{
+    users: ResearchProjectDetail["team"];
+    partners: Partner[];
+  }>("/api/v1/research-projects/options/");
   const [mutationError, setMutationError] = useState("");
   const [editForm, setEditForm] = useState<null | {
     name: string;
@@ -39,8 +41,8 @@ export function ResearchProjectDetailPage() {
     institutional_commitments: string;
     date_start: string;
     date_end: string;
-    donor_name: string;
-    partner_names: string;
+    donor_id: string;
+    partner_ids: number[];
     team_user_ids: number[];
   }>(null);
 
@@ -52,10 +54,8 @@ export function ResearchProjectDetailPage() {
       institutional_commitments: project.data.institutional_commitments,
       date_start: project.data.date_start ?? "",
       date_end: project.data.date_end ?? "",
-      donor_name: project.data.donor?.name ?? "",
-      partner_names: project.data.partners
-        .map((partner) => partner.name)
-        .join(", "),
+      donor_id: project.data.donor ? String(project.data.donor.id) : "",
+      partner_ids: project.data.partners.map((partner) => partner.id),
       team_user_ids: project.data.team.map((user) => user.id),
     });
   }
@@ -72,10 +72,7 @@ export function ResearchProjectDetailPage() {
           revision: project.data.revision,
           date_start: editForm.date_start || null,
           date_end: editForm.date_end || null,
-          partner_names: editForm.partner_names
-            .split(",")
-            .map((name) => name.trim())
-            .filter(Boolean),
+          donor_id: editForm.donor_id ? Number(editForm.donor_id) : null,
         }),
       });
       setEditForm(null);
@@ -159,6 +156,12 @@ export function ResearchProjectDetailPage() {
     );
   const data = project.data;
 
+  function openDraft(code: string) {
+    document
+      .getElementById(`project-section-${code}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <>
       <header className="page-heading">
@@ -176,7 +179,7 @@ export function ResearchProjectDetailPage() {
           {mutationError}
         </p>
       )}
-      <Card>
+      <Card id="project-section-project">
         <div className="cluster">
           {data.capabilities.edit && !editForm && (
             <Button variant="secondary" onClick={beginEdit}>
@@ -250,31 +253,53 @@ export function ResearchProjectDetailPage() {
                     })
                   }
                 />
+                <small className="muted">
+                  Ex. : CSRS met le laboratoire et le personnel à disposition ;
+                  l’université partenaire facilite l’accès au terrain.
+                </small>
               </div>
               <div className="form-field">
                 <label htmlFor="edit-project-donor">Bailleur</label>
-                <input
+                <select
                   id="edit-project-donor"
-                  value={editForm.donor_name}
+                  value={editForm.donor_id}
                   onChange={(event) =>
-                    setEditForm({ ...editForm, donor_name: event.target.value })
+                    setEditForm({ ...editForm, donor_id: event.target.value })
                   }
-                />
+                >
+                  <option value="">Aucun bailleur</option>
+                  {(options.data?.partners ?? []).map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="muted">
+                  Les organisations sont créées par l’administration IT.
+                </small>
               </div>
               <div className="form-field">
-                <label htmlFor="edit-project-partners">
-                  Partenaires (séparés par des virgules)
-                </label>
-                <input
+                <label htmlFor="edit-project-partners">Partenaires</label>
+                <select
                   id="edit-project-partners"
-                  value={editForm.partner_names}
+                  multiple
+                  value={editForm.partner_ids.map(String)}
                   onChange={(event) =>
                     setEditForm({
                       ...editForm,
-                      partner_names: event.target.value,
+                      partner_ids: Array.from(
+                        event.currentTarget.selectedOptions,
+                        (option) => Number(option.value),
+                      ),
                     })
                   }
-                />
+                >
+                  {(options.data?.partners ?? []).map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-field">
                 <label htmlFor="edit-project-start">Début</label>
@@ -342,12 +367,19 @@ export function ResearchProjectDetailPage() {
               <h3>{section.label}</h3>
               <StatusBadge status={section.state}>{section.state}</StatusBadge>
               {section.correction_reason && <p>{section.correction_reason}</p>}
+              <p className="muted">{section.readiness_message}</p>
               <div className="cluster">
+                <Button
+                  variant="secondary"
+                  onClick={() => openDraft(section.code)}
+                >
+                  Ouvrir le brouillon
+                </Button>
                 {section.capabilities.submit && (
                   <Button
                     onClick={() => void sectionTransition(section, "submit")}
                   >
-                    Soumettre
+                    Soumettre au {section.recipient_label}
                   </Button>
                 )}
                 {section.capabilities.verify && (
@@ -491,8 +523,16 @@ export function ResearchProjectDetailPage() {
                 )
               : users;
           return (
-            <Card key={resource}>
-              <h2>{title}</h2>
+            <Card key={resource} id={`project-section-${resource}`}>
+              <div className="cluster">
+                <h2>{title}</h2>
+                {section && (
+                  <StatusBadge status={section.state}>
+                    {section.state}
+                  </StatusBadge>
+                )}
+              </div>
+              {section && <p className="muted">{section.readiness_message}</p>}
               {!items.length ? (
                 <p className="muted">Aucun élément.</p>
               ) : (
@@ -520,6 +560,7 @@ export function ResearchProjectDetailPage() {
                   resource={resource}
                   users={formUsers}
                   onSaved={project.reload}
+                  openLabel="Ouvrir le brouillon"
                 />
               )}
             </Card>

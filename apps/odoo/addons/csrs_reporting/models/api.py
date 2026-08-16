@@ -328,6 +328,7 @@ class CsrsApi(models.AbstractModel):
                 "delete_tasks": is_it,
                 "manage_users": is_it,
                 "manage_organization": is_it,
+                "manage_partners": is_it,
                 "manage_research_projects": True,
                 "manage_processes": True,
                 "password_change_required": bool(
@@ -1328,6 +1329,105 @@ class CsrsApi(models.AbstractModel):
             "parent_id": parent_id,
             "active": bool(payload.get("active", True)),
         }
+
+    def _partner_state_token(self, partner):
+        payload = [partner.id, _iso(partner.write_date), bool(partner.active)]
+        return sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
+
+    def _partner_payload(self, partner):
+        return {
+            "id": partner.id,
+            "name": partner.name,
+            "email": partner.email or "",
+            "phone": partner.phone or "",
+            "active": bool(partner.active),
+            "state_token": self._partner_state_token(partner),
+        }
+
+    def _partner_record(self, partner_id):
+        partner = (
+            self.env["res.partner"]
+            .sudo()
+            .with_context(active_test=False)
+            .browse(int(partner_id))
+            .exists()
+        )
+        if not partner or not partner.is_company:
+            raise UserError(_("Organisation introuvable."))
+        return partner
+
+    def _partner_values(self, payload, partner=None):
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise ValidationError(_("Le nom de l'organisation est obligatoire."))
+        Partner = self.env["res.partner"].sudo().with_context(active_test=False)
+        collision = Partner.search(
+            [("name", "=ilike", name), ("is_company", "=", True)], limit=1
+        )
+        if collision and collision != partner:
+            raise ValidationError(_("Cette organisation existe déjà."))
+        return {
+            "name": name,
+            "email": str(payload.get("email") or "").strip() or False,
+            "phone": str(payload.get("phone") or "").strip() or False,
+            "active": bool(payload.get("active", True)),
+            "company_type": "company",
+        }
+
+    @api.model
+    def api_partners(self, query="", state="active"):
+        self._require_group("csrs_reporting.group_csrs_it")
+        if state not in {"", "active", "inactive"}:
+            raise ValidationError(_("État d'organisation invalide."))
+        partners = self.env["res.partner"].sudo().with_context(active_test=False).search(
+            [("is_company", "=", True)], order="active desc, name, id"
+        )
+        normalized = str(query or "").strip().casefold()
+        if normalized:
+            partners = partners.filtered(
+                lambda item: normalized
+                in " ".join([item.name or "", item.email or "", item.phone or ""]).casefold()
+            )
+        if state == "active":
+            partners = partners.filtered("active")
+        elif state == "inactive":
+            partners = partners.filtered(lambda item: not item.active)
+        return {"items": [self._partner_payload(item) for item in partners]}
+
+    @api.model
+    def api_partner_create(self, payload):
+        self._require_group("csrs_reporting.group_csrs_it")
+        if not isinstance(payload, dict):
+            raise ValidationError(_("Organisation invalide."))
+        partner = self.env["res.partner"].sudo().create(self._partner_values(payload))
+        self.env["csrs.audit.event"].sudo().create(
+            {
+                "event_type": "partner_change",
+                "actor_id": self.env.user.id,
+                "reason": _("Création d'une organisation partenaire."),
+                "snapshot": {"partner_id": partner.id, "active": bool(partner.active)},
+            }
+        )
+        return self._partner_payload(partner)
+
+    @api.model
+    def api_partner_update(self, partner_id, payload):
+        self._require_group("csrs_reporting.group_csrs_it")
+        if not isinstance(payload, dict):
+            raise ValidationError(_("Organisation invalide."))
+        partner = self._partner_record(partner_id)
+        if self._partner_state_token(partner) != payload.get("state_token"):
+            raise UserError(_("Cette organisation a changé. Rechargez la liste."))
+        partner.write(self._partner_values(payload, partner))
+        self.env["csrs.audit.event"].sudo().create(
+            {
+                "event_type": "partner_change",
+                "actor_id": self.env.user.id,
+                "reason": _("Mise à jour d'une organisation partenaire."),
+                "snapshot": {"partner_id": partner.id, "active": bool(partner.active)},
+            }
+        )
+        return self._partner_payload(partner)
 
     def _grant_payload(self, grant):
         return {

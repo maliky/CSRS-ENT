@@ -218,6 +218,24 @@ class OrganizationUnitUpdateSerializer(OrganizationUnitSerializer):
     state_token = serializers.CharField(allow_blank=False)
 
 
+class PartnerQuerySerializer(serializers.Serializer[dict[str, object]]):
+    q = serializers.CharField(required=False, allow_blank=True, default="")
+    state = serializers.ChoiceField(
+        choices=("active", "inactive"), required=False, allow_blank=True, default="active"
+    )
+
+
+class PartnerWriteSerializer(serializers.Serializer[dict[str, object]]):
+    name = serializers.CharField(max_length=200)
+    email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
+    active = serializers.BooleanField(required=False, default=True)
+
+
+class PartnerUpdateSerializer(PartnerWriteSerializer):
+    state_token = serializers.CharField(allow_blank=False)
+
+
 class RoleGrantSerializer(serializers.Serializer[dict[str, object]]):
     user_id = serializers.IntegerField(min_value=1)
     department_id = serializers.IntegerField(min_value=1)
@@ -351,9 +369,9 @@ class ResearchProjectCreateSerializer(serializers.Serializer[dict[str, object]])
     )
     date_start = serializers.DateField(required=False, allow_null=True)
     date_end = serializers.DateField(required=False, allow_null=True)
-    donor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    partner_names = serializers.ListField(
-        child=serializers.CharField(max_length=200), required=False
+    donor_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    partner_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, default=list
     )
     team_user_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1), required=False

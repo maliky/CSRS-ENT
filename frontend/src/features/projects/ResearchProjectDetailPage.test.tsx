@@ -48,6 +48,9 @@ function projectFixture(): ResearchProjectDetail {
       state: "draft",
       revision: 1,
       correction_reason: "",
+      ready: true,
+      readiness_message: "Brouillon prêt à être soumis.",
+      recipient_label: "contrôle du projet",
       capabilities: {
         submit: true,
         verify: false,
@@ -96,6 +99,51 @@ test("affiche les neuf sections de contrôle depuis la même interface", async (
   expect(
     within(cycle as HTMLElement).getAllByRole("heading", { level: 3 }),
   ).toHaveLength(9);
+});
+
+test("explique qu'une finance vide ne peut pas être soumise", async () => {
+  const project = projectFixture();
+  project.sections = project.sections.map((section) =>
+    section.code === "finance"
+      ? {
+          ...section,
+          ready: false,
+          readiness_message:
+            "Ajoutez au moins une ligne budgétaire avant de soumettre.",
+          recipient_label: "contrôle financier",
+          capabilities: { ...section.capabilities, submit: false },
+        }
+      : section,
+  );
+  server.use(
+    http.get("/api/v1/research-projects/71/", () => HttpResponse.json(project)),
+    http.get("/api/v1/research-projects/options/", () =>
+      HttpResponse.json({ users: [person], partners: [] }),
+    ),
+  );
+  render(
+    <MemoryRouter initialEntries={["/projets/71"]}>
+      <Routes>
+        <Route
+          path="/projets/:projectId"
+          element={<ResearchProjectDetailPage />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  const finance = (
+    await screen.findByRole("heading", { name: "finance" })
+  ).closest("section");
+  expect(finance).not.toBeNull();
+  expect(
+    within(finance as HTMLElement).getByText(
+      "Ajoutez au moins une ligne budgétaire avant de soumettre.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    within(finance as HTMLElement).queryByRole("button", { name: /Soumettre/ }),
+  ).not.toBeInTheDocument();
 });
 
 test("ajoute un résultat avec la révision courante du projet", async () => {
@@ -153,7 +201,9 @@ test("ajoute un résultat avec la révision courante du projet", async () => {
     .closest("section");
   expect(results).not.toBeNull();
   await user.click(
-    within(results as HTMLElement).getByRole("button", { name: "Ajouter" }),
+    within(results as HTMLElement).getByRole("button", {
+      name: "Ouvrir le brouillon",
+    }),
   );
   await user.type(
     within(results as HTMLElement).getByLabelText("Résultat"),

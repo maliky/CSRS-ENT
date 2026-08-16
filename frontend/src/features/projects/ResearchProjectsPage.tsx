@@ -12,6 +12,7 @@ import {
 } from "../../components/ui";
 import { apiFetch } from "../../lib/api/client";
 import type {
+  Partner,
   Person,
   ResearchProjectDetail,
   ResearchProjectSummary,
@@ -19,12 +20,11 @@ import type {
 import { useApi } from "../../lib/useApi";
 
 type ProjectList = { items: ResearchProjectSummary[] };
+type ProjectOptions = { users: Person[]; partners: Partner[] };
 
 export function ResearchProjectsPage() {
   const projects = useApi<ProjectList>("/api/v1/research-projects/");
-  const options = useApi<{ users: Person[] }>(
-    "/api/v1/research-projects/options/",
-  );
+  const options = useApi<ProjectOptions>("/api/v1/research-projects/options/");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -32,8 +32,8 @@ export function ResearchProjectsPage() {
     institutional_commitments: "",
     date_start: "",
     date_end: "",
-    donor_name: "",
-    partner_names: "",
+    donor_id: "",
+    partner_ids: [] as number[],
     team_user_ids: [] as number[],
   });
   const [mutationError, setMutationError] = useState("");
@@ -48,10 +48,7 @@ export function ResearchProjectsPage() {
           ...form,
           date_start: form.date_start || null,
           date_end: form.date_end || null,
-          partner_names: form.partner_names
-            .split(",")
-            .map((name) => name.trim())
-            .filter(Boolean),
+          donor_id: form.donor_id ? Number(form.donor_id) : null,
         }),
       });
       setForm({
@@ -60,8 +57,8 @@ export function ResearchProjectsPage() {
         institutional_commitments: "",
         date_start: "",
         date_end: "",
-        donor_name: "",
-        partner_names: "",
+        donor_id: "",
+        partner_ids: [],
         team_user_ids: [],
       });
       setShowForm(false);
@@ -146,28 +143,53 @@ export function ResearchProjectsPage() {
                     })
                   }
                 />
+                <small className="muted">
+                  Ex. : CSRS met le laboratoire et le personnel à disposition ;
+                  l’université partenaire facilite l’accès au terrain.
+                </small>
               </div>
               <div className="form-field">
                 <label htmlFor="project-donor">Bailleur</label>
-                <input
+                <select
                   id="project-donor"
-                  value={form.donor_name}
+                  value={form.donor_id}
                   onChange={(event) =>
-                    setForm({ ...form, donor_name: event.target.value })
+                    setForm({ ...form, donor_id: event.target.value })
                   }
-                />
+                >
+                  <option value="">Aucun bailleur</option>
+                  {(options.data?.partners ?? []).map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="muted">
+                  Les organisations sont créées par l’administration IT.
+                </small>
               </div>
               <div className="form-field">
-                <label htmlFor="project-partners">
-                  Partenaires (séparés par des virgules)
-                </label>
-                <input
+                <label htmlFor="project-partners">Partenaires</label>
+                <select
                   id="project-partners"
-                  value={form.partner_names}
+                  multiple
+                  value={form.partner_ids.map(String)}
                   onChange={(event) =>
-                    setForm({ ...form, partner_names: event.target.value })
+                    setForm({
+                      ...form,
+                      partner_ids: Array.from(
+                        event.currentTarget.selectedOptions,
+                        (option) => Number(option.value),
+                      ),
+                    })
                   }
-                />
+                >
+                  {(options.data?.partners ?? []).map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-field wide">
                 <label htmlFor="project-team">Équipe</label>

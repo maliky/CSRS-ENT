@@ -15,6 +15,7 @@ import { TaskManagementPage } from "../features/tasks/TaskManagementPage";
 import { UserFormPage } from "../features/users/UserFormPage";
 import { UserManagementPage } from "../features/users/UserManagementPage";
 import { OrganizationPage } from "../features/organization/OrganizationPage";
+import { PartnerManagementPage } from "../features/organization/PartnerManagementPage";
 import { ResearchProjectsPage } from "../features/projects/ResearchProjectsPage";
 import { ResearchProjectDetailPage } from "../features/projects/ResearchProjectDetailPage";
 import { ProcessesPage } from "../features/processes/ProcessesPage";
@@ -78,6 +79,10 @@ export function AppRouter() {
           <Route
             path="administration/organigramme"
             element={<OrganizationPage />}
+          />
+          <Route
+            path="administration/organisations"
+            element={<PartnerManagementPage />}
           />
         </Route>
         <Route

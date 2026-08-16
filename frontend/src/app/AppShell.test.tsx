@@ -133,6 +133,7 @@ test("affiche les outils d'administration uniquement avec les droits Odoo", asyn
           delete_tasks: true,
           manage_users: true,
           manage_organization: true,
+          manage_partners: true,
         },
       }),
     ),
@@ -160,5 +161,9 @@ test("affiche les outils d'administration uniquement avec les droits Odoo", asyn
   expect(screen.getByRole("link", { name: "Organigramme" })).toHaveAttribute(
     "href",
     "/administration/organigramme",
+  );
+  expect(screen.getByRole("link", { name: "Organisations" })).toHaveAttribute(
+    "href",
+    "/administration/organisations",
   );
 });

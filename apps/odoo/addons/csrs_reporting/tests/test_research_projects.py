@@ -215,3 +215,144 @@ class CsrsResearchProjectTests(TransactionCase):
         can_delete = self.env["csrs.api"].sudo()._user_can_be_deleted(self.agent)
 
         self.assertFalse(can_delete)
+
+    def test_project_selects_existing_company_partners_without_creating_them(self):
+        donor = self.env["res.partner"].sudo().create(
+            {"name": "Fondation santé", "company_type": "company"}
+        )
+        partner = self.env["res.partner"].sudo().create(
+            {"name": "Université partenaire", "company_type": "company"}
+        )
+        before = self.env["res.partner"].sudo().search_count([])
+
+        detail = self.env["csrs.api"].with_user(self.agent).api_research_project_create(
+            {
+                "name": "Projet partenaires existants",
+                "objectives": "Vérifier les liens Odoo.",
+                "donor_id": donor.id,
+                "partner_ids": [partner.id],
+                "team_user_ids": [self.agent.id],
+            }
+        )
+
+        self.assertEqual(detail["donor"]["id"], donor.id)
+        self.assertEqual(detail["partners"][0]["id"], partner.id)
+        self.assertEqual(self.env["res.partner"].sudo().search_count([]), before)
+        with self.assertRaises(ValidationError):
+            self.env["csrs.api"].with_user(self.agent).api_research_project_create(
+                {
+                    "name": "Projet partenaire invalide",
+                    "objectives": "Refuser un contact individuel.",
+                    "donor_id": self.agent.partner_id.id,
+                }
+            )
+
+        donor.active = False
+        updated = self.env["csrs.api"].with_user(self.agent).api_research_project_update(
+            detail["id"],
+            {
+                "name": detail["name"],
+                "objectives": detail["objectives"],
+                "revision": detail["revision"],
+                "donor_id": donor.id,
+                "partner_ids": [partner.id],
+            },
+        )
+        self.assertEqual(updated["donor"]["id"], donor.id)
+
+    def test_only_it_can_manage_company_partners(self):
+        with self.assertRaises(AccessError):
+            self.env["csrs.api"].with_user(self.agent).api_partner_create(
+                {"name": "Organisation interdite"}
+            )
+
+        facade = self.env["csrs.api"].with_user(self.it)
+        partner = facade.api_partner_create(
+            {"name": "Organisation de recherche", "email": "contact@example.test"}
+        )
+        self.assertTrue(partner["active"])
+        with self.assertRaises(ValidationError):
+            facade.api_partner_create({"name": "organisation de recherche"})
+
+        archived = facade.api_partner_update(
+            partner["id"],
+            {
+                "name": partner["name"],
+                "email": partner["email"],
+                "phone": partner["phone"],
+                "active": False,
+                "state_token": partner["state_token"],
+            },
+        )
+        self.assertFalse(archived["active"])
+
+    def test_plan_and_finance_require_drafts_and_lock_after_submission(self):
+        project = self._project()
+        project.with_user(self.dg).action_csrs_approve(self.agent.id, 1)
+        action_plan = project.csrs_section_ids.filtered(
+            lambda item: item.code == "action_plan"
+        )
+        finance = project.csrs_section_ids.filtered(lambda item: item.code == "finance")
+
+        with self.assertRaises(ValidationError):
+            action_plan.with_user(self.agent).action_submit(1)
+        with self.assertRaises(ValidationError):
+            finance.with_user(self.agent).action_submit(1)
+
+        api = self.env["csrs.api"].with_user(self.agent)
+        api.api_research_project_item_save(
+            project.id,
+            "action_plan",
+            {
+                "revision": project.csrs_revision,
+                "values": {
+                    "name": "Collecte terrain",
+                    "description": "Préparer les enquêtes.",
+                    "user_ids": [self.agent.id],
+                    "csrs_start_date": "2026-09-01",
+                    "date_deadline": "2026-09-02",
+                    "csrs_estimated_work_days": 1,
+                },
+            },
+        )
+        action_plan.with_user(self.agent).action_submit(1)
+        api.api_research_project_item_save(
+            project.id,
+            "finance",
+            {
+                "revision": project.csrs_revision,
+                "values": {
+                    "code": "FIELD",
+                    "name": "Terrain",
+                    "planned_amount": 500000,
+                },
+            },
+        )
+        finance.with_user(self.agent).action_submit(1)
+
+        with self.assertRaises(UserError):
+            api.api_research_project_item_save(
+                project.id,
+                "finance",
+                {
+                    "revision": project.csrs_revision,
+                    "values": {
+                        "code": "TRAVEL",
+                        "name": "Déplacements",
+                        "planned_amount": 100000,
+                    },
+                },
+            )
+        finance.with_user(self.dg).action_request_correction("Préciser le budget.", 2)
+        api.api_research_project_item_save(
+            project.id,
+            "finance",
+            {
+                "revision": project.csrs_revision,
+                "values": {
+                    "code": "TRAVEL",
+                    "name": "Déplacements",
+                    "planned_amount": 100000,
+                },
+            },
+        )

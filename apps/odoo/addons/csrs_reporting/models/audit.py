@@ -14,6 +14,7 @@ class CsrsAuditEvent(models.Model):
             ("task_bulk_delete", "Suppression de tâches"),
             ("user_delete", "Suppression de compte"),
             ("organization_change", "Modification d'organigramme"),
+            ("partner_change", "Modification d'organisation partenaire"),
         ],
         required=True,
         readonly=True,

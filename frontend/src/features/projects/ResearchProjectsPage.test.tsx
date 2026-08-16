@@ -8,15 +8,23 @@ import { ResearchProjectsPage } from "./ResearchProjectsPage";
 test("enregistre une proposition puis l’affiche dans la liste", async () => {
   const user = userEvent.setup();
   let project: Record<string, unknown> | null = null;
+  let submitted: Record<string, unknown> | null = null;
   server.use(
     http.get("/api/v1/research-projects/", () =>
       HttpResponse.json({ items: project ? [project] : [] }),
     ),
     http.get("/api/v1/research-projects/options/", () =>
-      HttpResponse.json({ users: [] }),
+      HttpResponse.json({
+        users: [],
+        partners: [
+          { id: 31, name: "Fondation santé" },
+          { id: 32, name: "Université partenaire" },
+        ],
+      }),
     ),
     http.post("/api/v1/research-projects/", async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;
+      submitted = body;
       project = {
         id: 71,
         reference: "CSRS-PRJ-2026-0071",
@@ -50,6 +58,8 @@ test("enregistre une proposition puis l’affiche dans la liste", async () => {
     screen.getByLabelText("Objectifs"),
     "Tester le parcours complet",
   );
+  await user.selectOptions(screen.getByLabelText("Bailleur"), "31");
+  await user.selectOptions(screen.getByLabelText("Partenaires"), "32");
   await user.click(
     screen.getByRole("button", { name: "Enregistrer la proposition" }),
   );
@@ -58,4 +68,5 @@ test("enregistre une proposition puis l’affiche dans la liste", async () => {
   expect(
     screen.getByRole("link", { name: "Ouvrir le projet" }),
   ).toHaveAttribute("href", "/projets/71");
+  expect(submitted).toMatchObject({ donor_id: 31, partner_ids: [32] });
 });

@@ -37,13 +37,15 @@ Chaque génération crée une version immuable avec son PDF archivé. Une nouvel
 
 * Projets de recherche
 
-La rubrique =Projets= permet à tout agent de proposer un projet avec ses objectifs, dates, bailleur, partenaires et équipe. Après autorisation du DG et désignation du chef de projet, le dossier couvre neuf onglets : fiche projet, plan d'action, résultats, livrables, finances, conformité, risques, rapports et clôture. Le porteur ou le chef de projet ajoute et modifie les éléments tant que l'onglet n'est pas validé; les activités du plan d'action deviennent des tâches Odoo suivies avec leur charge et leur progression.
+La rubrique =Projets= permet à tout agent de proposer un projet avec ses objectifs, dates, bailleur, partenaires et équipe. Le bailleur et les partenaires sont des organisations déjà enregistrées par l'administration IT : ils se choisissent dans une liste et ne créent jamais un compte utilisateur. Le champ =Engagements institutionnels= décrit ce que chaque institution apporte au projet, par exemple : « CSRS met le laboratoire et le personnel à disposition ; l'université partenaire facilite l'accès au terrain. »
 
-Chaque onglet suit le cycle =Brouillon → Soumis → Vérifié → Validé → Clôturé=. Le contrôleur peut demander une correction motivée. La validation finale appartient au DG, exige la phrase de confirmation affichée et crée une preuve électronique immuable. Une révision devenue ancienne est refusée.
+Après autorisation du DG et désignation du chef de projet, le dossier couvre neuf onglets : fiche projet, plan d'action, résultats, livrables, finances, conformité, risques, rapports et clôture. Le bouton =Ouvrir le brouillon= mène directement à l'onglet concerné. Le porteur ou le chef de projet ajoute et modifie les éléments tant que l'onglet est en brouillon ou en correction; les activités du plan d'action deviennent des tâches Odoo suivies avec leur charge et leur progression.
+
+Chaque onglet suit le cycle =Brouillon → Soumis → Vérifié → Validé → Clôturé=. Le bouton de soumission précise son destinataire : contrôle du projet, contrôle financier ou conformité, puis le DG après vérification. Les onglets =Plan d'action= et =Finances= exigent respectivement au moins une activité et une ligne budgétaire avant la soumission. Une fois soumis, un onglet est en lecture seule jusqu'à une correction motivée du contrôleur. La validation finale appartient au DG, exige la phrase de confirmation affichée et crée une preuve électronique immuable. Une révision devenue ancienne est refusée.
 
 * Procédures métier
 
-La rubrique =Procédures= centralise les bons de sortie de fonds, demandes d'achat, absences, ordres de mission, notifications de paiement, visas et dossiers de gestion des données. Le formulaire adapte les champs au type choisi et accepte les justificatifs PDF, JPEG ou PNG. Le dossier indique l'étape courante, les actions autorisées et son journal d'événements.
+La rubrique =Procédures= centralise les bons de sortie de fonds, demandes d'achat, absences, ordres de mission, notifications de paiement, visas et dossiers de gestion des données. Choisir un type affiche les champs correspondants; le formulaire accepte les justificatifs PDF, JPEG ou PNG. Le dossier indique l'étape courante, le destinataire du contrôle, les actions autorisées et son journal d'événements.
 
 Les visas, contrôles et corrections suivent le circuit défini dans Odoo. Les étapes sensibles sont limitées au rôle concerné; la validation DG exige une confirmation électronique. Un bon de sortie approuvé réserve le montant sur la ligne budgétaire du projet, et les achats utilisent les objets Odoo d'achat plutôt qu'une comptabilité parallèle.
 
@@ -56,6 +58,8 @@ L'administrateur IT dispose de =Gérer les tâches=, =Utilisateurs= et =Organigr
 =Utilisateurs= permet de créer ou modifier un compte, son unité principale, ses autres rattachements, son responsable et son classement dans les agendas. Une désactivation conserve l'historique. La suppression est limitée à un compte natif déjà inactif et sans historique métier. Le mot de passe temporaire n'est affiché qu'une fois et impose son remplacement à la connexion suivante.
 
 =Organigramme= permet de créer, renommer, déplacer ou désactiver une unité, puis d'attribuer et révoquer les délégations datées. Une modification de responsable clôt l'ancienne ligne hiérarchique, ouvre la nouvelle et transfère les tâches actives avec une nouvelle révision. Odoo refuse les cycles et les mises à jour fondées sur une version ancienne.
+
+=Organisations= permet de créer, modifier, rechercher ou archiver les bailleurs et partenaires utilisés dans les projets. L'archivage retire une organisation des nouvelles sélections sans effacer les projets historiques qui la mentionnent.
 
 * Déconnexion et assistance
 
