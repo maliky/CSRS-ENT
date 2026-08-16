@@ -323,6 +323,12 @@ class CsrsMigrationTests(TransactionCase):
             ),
             {},
         )
+
+        identical = importer.import_payload(self.payload_v3(), apply=True)
+
+        self.assertEqual(
+            identical["unchanged"].get("task_progress_source_conflicts", 0), 0
+        )
         task.with_context(csrs_authorized_mutation=True).write(
             {
                 "csrs_status": "planned",
