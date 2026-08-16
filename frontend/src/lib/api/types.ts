@@ -489,7 +489,7 @@ export type AgendaPreview = {
   snapshot: AgendaSnapshot;
 };
 
-export type AgendaDirection = "programs" | "administration";
+export type AgendaDirection = "programs" | "administration" | "research";
 
 export type AgendaVersion = {
   id: number;

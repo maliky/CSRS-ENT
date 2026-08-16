@@ -877,9 +877,10 @@ export interface components {
     /**
      * @description * `programs` - programs
      *     * `administration` - administration
+     *     * `research` - research
      * @enum {string}
      */
-    AgendaDirectionEnum: "programs" | "administration";
+    AgendaDirectionEnum: "programs" | "administration" | "research";
     AgendaDraft: {
       /** Format: date */
       period_start: string;

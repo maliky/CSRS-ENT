@@ -305,7 +305,7 @@ class BusinessApiTests(SimpleTestCase):
             "last_name": "Doe",
             "position": "Analyste",
             "phone": "",
-            "agenda_direction": "programs",
+            "agenda_direction": "research",
             "include_in_direction_agendas": True,
             "unit_ids": [3],
             "primary_unit_id": 3,
@@ -319,6 +319,28 @@ class BusinessApiTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 201)
         call.assert_called_once_with("opaque-session", "api_user_create", [payload])
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_research_agenda_generation_is_validated_then_delegated(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"id": 51, "agenda_direction": "research"}
+        payload = {
+            "period_start": "2026-08-17",
+            "period_end": "2026-08-23",
+            "agenda_direction": "research",
+        }
+
+        response = self.client.post(
+            "/api/v1/agenda/versions/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        call.assert_called_once_with(
+            "opaque-session", "api_agenda_generate", [payload]
+        )
 
     @patch("gateway.api_views.OdooClient.call")
     def test_temporary_password_response_is_never_cacheable(

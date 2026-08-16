@@ -38,6 +38,12 @@ import { useApi } from "../../lib/useApi";
 import { formatDate, formatDateTime } from "../../lib/format";
 import styles from "./agenda.module.css";
 
+const agendaDirectionLabels: Record<AgendaDirection, string> = {
+  programs: "Direction des programmes",
+  administration: "Direction administrative",
+  research: "Direction de la recherche",
+};
+
 function localIsoDate(value: Date): string {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 }
@@ -380,7 +386,7 @@ function SecretaryAgenda() {
     try {
       await saveDraft();
       await periodData.reload();
-      setMessage("Le brouillon partagé par les deux agendas est enregistré.");
+      setMessage("Le brouillon partagé par les agendas est enregistré.");
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -413,10 +419,7 @@ function SecretaryAgenda() {
         }),
       });
       await periodData.reload();
-      const label =
-        direction === "programs"
-          ? "Direction des programmes"
-          : "Direction administrative";
+      const label = agendaDirectionLabels[direction];
       setMessage(
         `La nouvelle version PDF « ${label} » est archivée et prête à imprimer.`,
       );
@@ -461,8 +464,8 @@ function SecretaryAgenda() {
           <p className="eyebrow">Rapport de direction</p>
           <h1>Agendas de direction</h1>
           <p>
-            Choisissez une période, contrôlez chaque synthèse puis générez les
-            deux PDF indépendamment.
+            Choisissez une période, contrôlez chaque synthèse puis générez
+            chaque PDF indépendamment.
           </p>
         </div>
         <AgendaRangePicker
@@ -542,6 +545,7 @@ function SecretaryAgenda() {
                   <option value="administration">
                     Direction administrative
                   </option>
+                  <option value="research">Direction de la recherche</option>
                 </select>
               </div>
               <Button
@@ -577,7 +581,7 @@ function SecretaryAgenda() {
             {snapshot.unclassified_users
               .map((person) => person.name)
               .join(", ")}
-            . Leurs tâches sont incluses dans les deux agendas.
+            . Leurs tâches sont incluses dans tous les agendas.
           </div>
         )}
         <div className={styles.summaryGrid}>

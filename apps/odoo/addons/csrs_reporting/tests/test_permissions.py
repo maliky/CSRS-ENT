@@ -184,6 +184,14 @@ class CsrsPermissionTests(TransactionCase):
             )["snapshot"]["agenda_direction"],
             "administration",
         )
+        self.assertEqual(
+            delegated.api_agenda_preview(
+                today.isoformat(),
+                (today + timedelta(days=6)).isoformat(),
+                "research",
+            )["snapshot"]["agenda_direction"],
+            "research",
+        )
 
     def test_it_bulk_delete_is_revision_checked_and_audited(self):
         task_id = self.task.id
@@ -302,7 +310,7 @@ class CsrsPermissionTests(TransactionCase):
             "last_name": "Agent",
             "position": "Analyste",
             "phone": "",
-            "agenda_direction": "programs",
+            "agenda_direction": "research",
             "include_in_direction_agendas": True,
             "unit_ids": [department.id],
             "primary_unit_id": department.id,
@@ -317,7 +325,7 @@ class CsrsPermissionTests(TransactionCase):
             [("user_id", "=", user.id)]
         )
         self.assertEqual(employee.parent_id, self.manager_employee)
-        self.assertEqual(employee.csrs_agenda_direction, "programs")
+        self.assertEqual(employee.csrs_agenda_direction, "research")
         self.assertEqual(
             self.env["csrs.organization.membership"].sudo().search_count(
                 [
@@ -489,8 +497,8 @@ class CsrsPermissionTests(TransactionCase):
             "schema_version": 1,
             "period_start": "2026-08-17",
             "period_end": "2026-08-23",
-            "agenda_direction": "administration",
-            "agenda_direction_label": "Direction administrative",
+            "agenda_direction": "research",
+            "agenda_direction_label": "Direction de la recherche",
             "major_events": "Réunion de coordination",
             "unclassified_users": [],
             "arrivals": [],
@@ -506,7 +514,7 @@ class CsrsPermissionTests(TransactionCase):
 
         version = self.env["csrs.agenda.version"].with_user(
             self.secretariat
-        ).create_from_snapshot(draft, "administration", snapshot)
+        ).create_from_snapshot(draft, "research", snapshot)
 
         self.assertTrue(version.pdf_attachment_id)
         self.assertGreater(version.pdf_size, 0)

@@ -12,6 +12,7 @@ from odoo.exceptions import UserError, ValidationError
 AGENDA_DIRECTIONS = [
     ("programs", "Direction des programmes"),
     ("administration", "Direction administrative"),
+    ("research", "Direction de la recherche"),
 ]
 
 
