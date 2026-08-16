@@ -9,12 +9,33 @@ async function authenticateFixtureSecretariat(
   expect(password, "Le mot de passe du jeu E2E est requis").toBeTruthy();
 
   await page.goto("/app/");
-  await page.getByRole("button", { name: "Déconnexion" }).click();
-  await page
-    .getByLabel(/identifiant/i)
-    .fill(`${dataset}-secretariat@example.invalid`);
-  await page.getByLabel("Mot de passe").fill(password!);
-  await page.getByRole("button", { name: "Se connecter" }).click();
+  const status = await page.evaluate(
+    async ({ login, fixturePassword }) => {
+      const csrf =
+        document.cookie
+          .split(";")
+          .map((item) => item.trim())
+          .find((item) => item.startsWith("csrftoken="))
+          ?.split("=", 2)[1] ?? "";
+      const response = await fetch("/api/v1/session/login/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-CSRFToken": decodeURIComponent(csrf),
+        },
+        body: JSON.stringify({ login, password: fixturePassword }),
+      });
+      return response.status;
+    },
+    {
+      login: `${dataset}-secretariat@example.invalid`,
+      fixturePassword: password!,
+    },
+  );
+  expect(status).toBe(200);
+  await page.goto("/app/");
   await expect(page.locator("#navigation-principale")).toBeVisible();
 }
 
