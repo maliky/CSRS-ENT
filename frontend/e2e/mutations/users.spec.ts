@@ -22,7 +22,7 @@ test("un compte désactivé apparaît dans les inactifs puis peut être réactiv
 
   await expect(page.getByLabel("État")).toHaveValue("inactive");
   await expect(page.getByRole("link", { name: accountName })).toBeVisible();
-  await expect(page.getByText("Inactif")).toBeVisible();
+  await expect(page.getByText("Inactif", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: accountName }).click();
   await page.getByRole("button", { name: "Réactiver" }).click();
