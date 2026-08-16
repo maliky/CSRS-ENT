@@ -1,5 +1,5 @@
 import { Building2, Save, ShieldCheck, XCircle } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Button,
   Card,
@@ -56,6 +56,12 @@ export function OrganizationPage() {
   });
   const [message, setMessage] = useState("");
   const [mutationError, setMutationError] = useState("");
+  useEffect(() => {
+    if (!unit.id) return;
+    const code = document.getElementById("unit-code");
+    code?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    code?.focus();
+  }, [unit.id]);
   if (organization.loading)
     return <Skeleton label="Chargement de l’organigramme" />;
   if (organization.error || !organization.data)

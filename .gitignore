@@ -3,12 +3,14 @@
 .env
 .env.*
 !.env.example
+!frontend/.env.e2e.example
 *.pem
 *.key
 *.p12
 *.pfx
 *.crt
 .*ignore*
+!frontend/.prettierignore
 .secret*
 secrets/
 
@@ -29,6 +31,9 @@ staticfiles/
 apps/django/gateway/static/react/
 frontend/node_modules/
 frontend/.vite/
+frontend/.playwright/
+frontend/playwright-report/
+frontend/test-results/
 *.tsbuildinfo
 media/
 *.sqlite3

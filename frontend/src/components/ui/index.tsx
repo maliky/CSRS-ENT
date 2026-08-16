@@ -3,6 +3,7 @@ import { Link, type LinkProps } from "../../lib/router";
 import styles from "./ui.module.css";
 
 export { FrenchDateInput } from "./FrenchDateInput";
+export { WorkloadInput } from "./WorkloadInput";
 
 type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
 

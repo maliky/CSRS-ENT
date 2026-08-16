@@ -81,6 +81,10 @@ if not admin.csrs_source_id:
         "email": os.environ["ODOO_ADMIN_LOGIN"],
         "password": os.environ["ODOO_ADMIN_PASSWORD"],
     })
+projects = env["project.project"].sudo().with_context(active_test=False).search([
+    ("csrs_research_project", "=", True),
+])
+projects._csrs_refresh_supervisor_access()
 env.cr.commit()
 PYTHON
 

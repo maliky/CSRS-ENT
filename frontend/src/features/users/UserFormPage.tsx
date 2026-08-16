@@ -34,8 +34,14 @@ type FormState = {
   organization_effective_date: string;
 };
 
+type SavedFeedback = Readonly<{
+  userId: string | undefined;
+  message: string;
+}>;
+
 export function UserFormPage({ mode }: { mode: "create" | "edit" }) {
   const { userId } = useParams();
+  const [feedback, setFeedback] = useState<SavedFeedback | null>(null);
   const options = useApi<UserManagementOptions>("/api/v1/users/options/");
   const user = useApi<ManagedUserDetail>(
     `/api/v1/users/${userId}/`,
@@ -64,7 +70,11 @@ export function UserFormPage({ mode }: { mode: "create" | "edit" }) {
       mode={mode}
       options={options.data}
       user={user.data}
-      onSaved={user.setData}
+      message={feedback?.userId === userId ? feedback.message : ""}
+      onSaved={(value, message) => {
+        setFeedback(message ? { userId, message } : null);
+        user.setData(value);
+      }}
     />
   );
 }
@@ -73,12 +83,14 @@ function UserForm({
   mode,
   options,
   user,
+  message,
   onSaved,
 }: {
   mode: "create" | "edit";
   options: UserManagementOptions;
   user: ManagedUserDetail | null;
-  onSaved: (value: ManagedUserDetail) => void;
+  message: string;
+  onSaved: (value: ManagedUserDetail, message?: string) => void;
 }) {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>(() => ({
@@ -97,7 +109,6 @@ function UserForm({
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [temporaryPassword, setTemporaryPassword] = useState("");
 
   async function submit(event: FormEvent) {
@@ -118,10 +129,7 @@ function UserForm({
       );
       if (mode === "create")
         navigate(`/administration/utilisateurs/${saved.id}`);
-      else {
-        onSaved(saved);
-        setMessage("Compte enregistré.");
-      }
+      else onSaved(saved, "Compte enregistré.");
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Enregistrement impossible.",
@@ -164,8 +172,8 @@ function UserForm({
           body: JSON.stringify({ state_token: user.state_token }),
         },
       );
-      onSaved(saved);
-      setMessage(
+      onSaved(
+        saved,
         kind === "deactivate" ? "Compte désactivé." : "Compte réactivé.",
       );
     } catch (caught) {
@@ -242,7 +250,7 @@ function UserForm({
                 <label htmlFor="alias">Identifiant court</label>
                 <input
                   id="alias"
-                  pattern="[a-z][a-z0-9_-]*"
+                  pattern={"[a-z][a-z0-9_\\-]*"}
                   value={form.login_alias}
                   onChange={(event) =>
                     setForm({

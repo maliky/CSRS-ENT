@@ -249,6 +249,41 @@ export interface paths {
     patch: operations["organization_units_partial_update"];
     trace?: never;
   };
+  "/api/v1/partners/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["partner_list"];
+    put?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    post: operations["partners_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners/{id}/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    patch: operations["partners_partial_update"];
+    trace?: never;
+  };
   "/api/v1/planning/options/": {
     parameters: {
       query?: never;
@@ -957,6 +992,13 @@ export interface components {
       state_token?: string;
       reason?: string;
     };
+    PartnerWrite: {
+      name: string;
+      email?: string;
+      phone?: string;
+      /** @default true */
+      active: boolean;
+    };
     Password: {
       current_password: string;
       new_password: string;
@@ -987,6 +1029,14 @@ export interface components {
       state_token?: string;
       reason?: string;
     };
+    PatchedPartnerUpdate: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      /** @default true */
+      active: boolean;
+      state_token?: string;
+    };
     PatchedProposalUpdate: {
       /** Format: date */
       start_date?: string;
@@ -1015,8 +1065,8 @@ export interface components {
       date_start?: string | null;
       /** Format: date */
       date_end?: string | null;
-      donor_name?: string;
-      partner_names?: string[];
+      donor_id?: number | null;
+      partner_ids?: number[];
       team_user_ids?: number[];
       revision?: number;
     };
@@ -1164,8 +1214,8 @@ export interface components {
       date_start?: string | null;
       /** Format: date */
       date_end?: string | null;
-      donor_name?: string;
-      partner_names?: string[];
+      donor_id?: number | null;
+      partner_ids?: number[];
       team_user_ids?: number[];
     };
     ResearchProjectItem: {
@@ -1185,9 +1235,11 @@ export interface components {
      * @description * `approve` - approve
      *     * `reject` - reject
      *     * `close` - close
+     *     * `archive` - archive
      * @enum {string}
      */
-    ResearchProjectTransitionActionEnum: "approve" | "reject" | "close";
+    ResearchProjectTransitionActionEnum:
+      "approve" | "reject" | "close" | "archive";
     Revision: {
       revision: number;
     };
@@ -1814,6 +1866,83 @@ export interface operations {
       };
     };
   };
+  partner_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  partners_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PartnerWrite"];
+        "application/x-www-form-urlencoded": components["schemas"]["PartnerWrite"];
+        "multipart/form-data": components["schemas"]["PartnerWrite"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  partners_partial_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedPartnerUpdate"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedPartnerUpdate"];
+        "multipart/form-data": components["schemas"]["PatchedPartnerUpdate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
   planning_options_retrieve: {
     parameters: {
       query?: never;
@@ -2143,7 +2272,13 @@ export interface operations {
   };
   research_projects_list: {
     parameters: {
-      query?: never;
+      query?: {
+        /**
+         * @description * `active` - active
+         *     * `archived` - archived
+         */
+        status?: "active" | "archived";
+      };
       header?: never;
       path?: never;
       cookie?: never;

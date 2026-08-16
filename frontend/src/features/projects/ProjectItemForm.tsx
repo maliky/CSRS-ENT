@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button } from "../../components/ui";
+import { Button, FrenchDateInput } from "../../components/ui";
 import { apiFetch } from "../../lib/api/client";
 import type {
   Person,
@@ -223,6 +223,7 @@ export function ProjectItemForm({
   itemId,
   initial,
   onSaved,
+  openLabel = "Ajouter",
 }: {
   project: ResearchProjectDetail;
   resource: ProjectResource;
@@ -230,6 +231,7 @@ export function ProjectItemForm({
   itemId?: number;
   initial?: ProjectItemValues;
   onSaved: () => Promise<void>;
+  openLabel?: string;
 }) {
   const fields = RESOURCE_FIELDS[resource];
   const [open, setOpen] = useState(false);
@@ -273,7 +275,7 @@ export function ProjectItemForm({
   if (!open)
     return (
       <Button variant="secondary" onClick={() => setOpen(true)}>
-        {itemId ? "Modifier" : "Ajouter"}
+        {itemId ? "Modifier" : openLabel}
       </Button>
     );
 
@@ -331,6 +333,15 @@ export function ProjectItemForm({
                 checked={Boolean(values[field.name])}
                 onChange={(event) =>
                   setValues({ ...values, [field.name]: event.target.checked })
+                }
+              />
+            ) : field.kind === "date" ? (
+              <FrenchDateInput
+                id={`${resource}-${field.name}`}
+                required={field.required}
+                value={String(values[field.name] ?? "")}
+                onValueChange={(value) =>
+                  setValues({ ...values, [field.name]: value })
                 }
               />
             ) : (

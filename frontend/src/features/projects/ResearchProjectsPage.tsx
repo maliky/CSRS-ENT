@@ -6,11 +6,13 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  FrenchDateInput,
   Skeleton,
   StatusBadge,
 } from "../../components/ui";
 import { apiFetch } from "../../lib/api/client";
 import type {
+  Partner,
   Person,
   ResearchProjectDetail,
   ResearchProjectSummary,
@@ -18,12 +20,14 @@ import type {
 import { useApi } from "../../lib/useApi";
 
 type ProjectList = { items: ResearchProjectSummary[] };
+type ProjectOptions = { users: Person[]; partners: Partner[] };
 
 export function ResearchProjectsPage() {
-  const projects = useApi<ProjectList>("/api/v1/research-projects/");
-  const options = useApi<{ users: Person[] }>(
-    "/api/v1/research-projects/options/",
+  const [view, setView] = useState<"mine" | "supervised" | "archived">("mine");
+  const projects = useApi<ProjectList>(
+    `/api/v1/research-projects/?status=${view === "archived" ? "archived" : "active"}`,
   );
+  const options = useApi<ProjectOptions>("/api/v1/research-projects/options/");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -31,8 +35,8 @@ export function ResearchProjectsPage() {
     institutional_commitments: "",
     date_start: "",
     date_end: "",
-    donor_name: "",
-    partner_names: "",
+    donor_id: "",
+    partner_ids: [] as number[],
     team_user_ids: [] as number[],
   });
   const [mutationError, setMutationError] = useState("");
@@ -47,10 +51,7 @@ export function ResearchProjectsPage() {
           ...form,
           date_start: form.date_start || null,
           date_end: form.date_end || null,
-          partner_names: form.partner_names
-            .split(",")
-            .map((name) => name.trim())
-            .filter(Boolean),
+          donor_id: form.donor_id ? Number(form.donor_id) : null,
         }),
       });
       setForm({
@@ -59,8 +60,8 @@ export function ResearchProjectsPage() {
         institutional_commitments: "",
         date_start: "",
         date_end: "",
-        donor_name: "",
-        partner_names: "",
+        donor_id: "",
+        partner_ids: [],
         team_user_ids: [],
       });
       setShowForm(false);
@@ -80,6 +81,16 @@ export function ResearchProjectsPage() {
         retry={() => void projects.reload()}
       />
     );
+  const visibleProjects = projects.data.items.filter((project) => {
+    if (view === "archived") return project.archived;
+    if (!project.access_scope) return view === "mine";
+    if (view === "supervised")
+      return (
+        project.access_scope === "supervised" ||
+        project.access_scope === "governance"
+      );
+    return project.access_scope === "owned" || project.access_scope === "team";
+  });
 
   return (
     <>
@@ -88,14 +99,34 @@ export function ResearchProjectsPage() {
           <p className="eyebrow">Recherche</p>
           <h1>Projets de recherche</h1>
           <p>
-            Le dossier, ses neuf onglets de contrôle et ses validations sont
-            conservés dans Odoo.
+            Proposez un projet puis suivez son plan d’action, ses résultats,
+            livrables, finances, risques, rapports et validations.
           </p>
         </div>
         <Button onClick={() => setShowForm((current) => !current)}>
           <Plus size={18} aria-hidden="true" /> Nouvelle proposition
         </Button>
       </header>
+      <div className="cluster" role="group" aria-label="Vue des projets">
+        <Button
+          variant={view === "mine" ? "primary" : "secondary"}
+          onClick={() => setView("mine")}
+        >
+          Mes projets
+        </Button>
+        <Button
+          variant={view === "supervised" ? "primary" : "secondary"}
+          onClick={() => setView("supervised")}
+        >
+          À superviser
+        </Button>
+        <Button
+          variant={view === "archived" ? "primary" : "secondary"}
+          onClick={() => setView("archived")}
+        >
+          Archivés
+        </Button>
+      </div>
       {showForm && (
         <Card>
           <form
@@ -145,28 +176,53 @@ export function ResearchProjectsPage() {
                     })
                   }
                 />
+                <small className="muted">
+                  Ex. : CSRS met le laboratoire et le personnel à disposition ;
+                  l’université partenaire facilite l’accès au terrain.
+                </small>
               </div>
               <div className="form-field">
                 <label htmlFor="project-donor">Bailleur</label>
-                <input
+                <select
                   id="project-donor"
-                  value={form.donor_name}
+                  value={form.donor_id}
                   onChange={(event) =>
-                    setForm({ ...form, donor_name: event.target.value })
+                    setForm({ ...form, donor_id: event.target.value })
                   }
-                />
+                >
+                  <option value="">Aucun bailleur</option>
+                  {(options.data?.partners ?? []).map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="muted">
+                  Les organisations sont créées par l’administration IT.
+                </small>
               </div>
               <div className="form-field">
-                <label htmlFor="project-partners">
-                  Partenaires (séparés par des virgules)
-                </label>
-                <input
+                <label htmlFor="project-partners">Partenaires</label>
+                <select
                   id="project-partners"
-                  value={form.partner_names}
+                  multiple
+                  value={form.partner_ids.map(String)}
                   onChange={(event) =>
-                    setForm({ ...form, partner_names: event.target.value })
+                    setForm({
+                      ...form,
+                      partner_ids: Array.from(
+                        event.currentTarget.selectedOptions,
+                        (option) => Number(option.value),
+                      ),
+                    })
                   }
-                />
+                >
+                  {(options.data?.partners ?? []).map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-field wide">
                 <label htmlFor="project-team">Équipe</label>
@@ -193,23 +249,21 @@ export function ResearchProjectsPage() {
               </div>
               <div className="form-field">
                 <label htmlFor="project-start">Début prévisionnel</label>
-                <input
+                <FrenchDateInput
                   id="project-start"
-                  type="date"
                   value={form.date_start}
-                  onChange={(event) =>
-                    setForm({ ...form, date_start: event.target.value })
+                  onValueChange={(dateStart) =>
+                    setForm({ ...form, date_start: dateStart })
                   }
                 />
               </div>
               <div className="form-field">
                 <label htmlFor="project-end">Fin prévisionnelle</label>
-                <input
+                <FrenchDateInput
                   id="project-end"
-                  type="date"
                   value={form.date_end}
-                  onChange={(event) =>
-                    setForm({ ...form, date_end: event.target.value })
+                  onValueChange={(dateEnd) =>
+                    setForm({ ...form, date_end: dateEnd })
                   }
                 />
               </div>
@@ -227,18 +281,18 @@ export function ResearchProjectsPage() {
           </form>
         </Card>
       )}
-      {!projects.data.items.length ? (
+      {!visibleProjects.length ? (
         <EmptyState title="Aucun projet">
-          Proposez le premier projet de recherche depuis ce registre.
+          Aucun projet ne correspond à cette vue.
         </EmptyState>
       ) : (
         <div className="grid">
-          {projects.data.items.map((project) => (
+          {visibleProjects.map((project) => (
             <Card key={project.id}>
               <div className="cluster">
                 <FolderKanban aria-hidden="true" />
                 <StatusBadge status={project.state}>
-                  {project.state_label}
+                  {project.archived ? "Archivé" : project.state_label}
                 </StatusBadge>
               </div>
               <p className="eyebrow">{project.reference}</p>
@@ -248,7 +302,7 @@ export function ResearchProjectsPage() {
                 {project.lead ? ` · Chef : ${project.lead.name}` : ""}
               </p>
               <ButtonLink variant="secondary" to={`/projets/${project.id}`}>
-                Ouvrir les neuf onglets
+                Ouvrir le projet
               </ButtonLink>
             </Card>
           ))}

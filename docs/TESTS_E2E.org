@@ -1,0 +1,80 @@
+#+title: Recette navigateur et données de test
+#+startup: overview
+
+* Objectif
+
+La recette Playwright contrôle les parcours publics de CSRS ENT par fonctionnalité. Le mode par défaut est en lecture seule : il visite les routes autorisées, vérifie les titres, les noms accessibles des boutons, l'affichage mobile, les erreurs JavaScript et les réponses HTTP 5xx. Les traces, captures et vidéos ne sont conservées qu'en cas d'échec.
+
+Les scénarios avec écriture sont séparés et ne s'exécutent que lorsque =CSRS_E2E_MUTATIONS=true=. Ils doivent utiliser un jeu Odoo réservé dont le nom commence par =e2e-=.
+
+* Convention BDD et traçabilité
+
+Les scénarios Playwright restent dans l'organisation existante et rendent les étapes métier visibles avec =test.step("Given …")=, =test.step("When …")= et =test.step("Then …")=. Cette convention évite d'ajouter un second moteur de tests ou une arborescence Gherkin parallèle sans bénéfice fonctionnel.
+
+=docs/logigrams.org= est la source maintenue pour les procédures. =besoin.org= et =MANUAL.org= précisent les comportements transverses et les écrans. Un comportement non confirmé par ces sources ou par le code existant reste un écart à instruire, pas une capacité supposée.
+
+| Source | Parcours | Couverture automatisée |
+|--------+----------+------------------------|
+| =secrets/DEV.org=, navigation | Groupes et sous-menus, petit écran, URL inconnue | Tests du composant =AppShell= et scénarios Playwright =mobile= et =read-only= |
+| =secrets/DEV.org=, comptes | Activation, désactivation, listes active et inactive | Tests React et Odoo existants, scénario Playwright avec données réservées |
+| =docs/logigrams.org=, procédures | Création, champs documentés, transitions, correction, révision et audit | Tests React de liste et de détail, matrice transactionnelle Odoo des sept procédures, scénario Playwright agent |
+| =besoin.org=, autorisations | Visibilité par rôle et refus d'accès direct | Tests Odoo des rôles et scénario Playwright de contournement d'URL |
+| =MANUAL.org=, agenda | Annulation et erreur de concurrence | Test React de conservation de l'état après refus et scénarios agenda existants |
+
+Les scénarios de génération documentaire, de notification et les variantes métier non encore exprimées par un écran ou un contrat stable doivent être ajoutés séparément lorsqu'ils deviennent implémentables. La recette ne les marque pas implicitement comme terminés.
+
+* Préparer les données Odoo
+
+La commande accepte =status=, =seed=, =clean= et =reseed= :
+
+#+begin_src sh
+./scripts/e2e_fixtures.sh status e2e-preprod .env
+./scripts/e2e_fixtures.sh seed e2e-preprod .env
+./scripts/e2e_fixtures.sh clean e2e-preprod .env
+./scripts/e2e_fixtures.sh reseed e2e-preprod .env
+#+end_src
+
+Sans =CSRS_E2E_APPLY=true=, =seed=, =clean= et =reseed= restent en simulation. Une écriture exige aussi la confirmation exacte du nom de base :
+
+#+begin_src sh
+CSRS_E2E_APPLY=true CSRS_E2E_CONFIRM_DATABASE=nom_exact_de_la_base ./scripts/e2e_fixtures.sh reseed e2e-preprod .env
+#+end_src
+
+Le peuplement crée des comptes pour les rôles réels, deux unités, des tâches, une proposition, une absence, un brouillon d'agenda, un projet standard, un projet de recherche avec neuf sections et un dossier de chaque procédure. Les enregistrements sont suivis par identifiants externes propres au jeu. Le nettoyage supprime uniquement ces enregistrements, dans leur ordre de dépendance, et ne touche pas aux données reprises.
+
+Le mot de passe aléatoire du jeu est conservé sous =secrets/e2e/= avec le mode =0600=. Ce répertoire est ignoré par Git. Aucun mot de passe ni détail personnel n'est écrit dans le rapport agrégé.
+
+Sur un déploiement immuable, définir =CSRS_E2E_SECRET_DIR= vers un répertoire persistant protégé, par exemple =/srv/apps/csrs-ent-preprod/config/e2e=.
+
+* Exécuter Playwright
+
+Installer une fois le navigateur correspondant à la version verrouillée :
+
+#+begin_src sh
+PATH=/home/jil/.nvm/versions/node/v24.11.0/bin:/usr/local/bin:/usr/bin:/bin npx --prefix frontend playwright install chromium
+#+end_src
+
+La commande suivante lit le mot de passe de =.secrets= seulement si le fichier est en mode =0600=, sans l'afficher :
+
+#+begin_src sh
+./scripts/test_preprod_e2e.sh --project=chromium-readonly
+#+end_src
+
+Pour une cible locale, définir =CSRS_E2E_BASE_URL=. Seuls =preprod.ent.koba.sarl=, =localhost= et =127.0.0.1= sont acceptés. Un exemple sans secret est fourni dans =frontend/.env.e2e.example=.
+
+Après un =reseed= validé, les scénarios avec écriture s'exécutent explicitement :
+
+#+begin_src sh
+CSRS_E2E_MUTATIONS=true CSRS_E2E_DATASET=e2e-preprod ./scripts/test_preprod_e2e.sh --project=chromium-mutations
+#+end_src
+
+Le lanceur lit alors aussi le mot de passe du jeu depuis =secrets/e2e/e2e-preprod.password=, toujours sans l'afficher. Définir =CSRS_E2E_SECRET_DIR= lorsqu'il réside dans le répertoire protégé d'un déploiement immuable. Le scénario d'agenda se reconnecte avec le compte =secretariat= du jeu; il ne réutilise pas la session =dev= pour affirmer une autorisation de rôle. Le scénario des utilisateurs désactive un compte réservé, vérifie sa présence parmi les inactifs puis le réactive avant de terminer.
+
+* Organisation des scénarios
+
+- =frontend/e2e/read-only/= : routes, accessibilité et contrôles non destructifs ;
+- =frontend/e2e/mobile/= : navigation sur petit écran ;
+- =frontend/e2e/mutations/= : enregistrements, transitions et PDF sur données réservées ;
+- =frontend/e2e/support/= : diagnostic commun des erreurs navigateur et serveur.
+
+Une nouvelle fonctionnalité ajoute d'abord un scénario dans le dossier correspondant. Une correction conserve aussi un test au niveau le plus bas pertinent : fonction pure, composant React, contrat Django ou transaction Odoo.

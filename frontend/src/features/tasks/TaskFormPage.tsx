@@ -10,6 +10,7 @@ import {
   ErrorState,
   FrenchDateInput,
   Skeleton,
+  WorkloadInput,
 } from "../../components/ui";
 
 export function TaskFormPage({ mode }: { mode: "create" | "edit" }) {
@@ -53,6 +54,9 @@ function TaskForm({
   const navigate = useNavigate();
   const initial = task ?? options.defaults;
   const calendarId = task?.calendar.id ?? options.defaults.calendar_id;
+  const hoursPerDay =
+    options.calendars.find((calendar) => calendar.id === calendarId)
+      ?.hours_per_day ?? 8;
   const [schedule, setSchedule] = useState({
     start_date: initial.start_date,
     due_date: initial.due_date,
@@ -227,19 +231,16 @@ function TaskForm({
             />
           </div>
           <div className="form-field">
-            <label htmlFor="workload">Charge estimée (jours ouvrés)</label>
-            <input
+            <WorkloadInput
               id="workload"
-              type="number"
-              min="0.1"
-              step="0.1"
-              value={schedule.estimated_work_days}
+              valueDays={schedule.estimated_work_days}
+              hoursPerDay={hoursPerDay}
               onFocus={() => setSource("workload")}
-              onChange={(event) => {
+              onValueChange={(estimatedWorkDays) => {
                 setSource("workload");
                 setSchedule({
                   ...schedule,
-                  estimated_work_days: event.target.value,
+                  estimated_work_days: estimatedWorkDays,
                 });
               }}
             />

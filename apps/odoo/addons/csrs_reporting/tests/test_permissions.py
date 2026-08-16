@@ -67,6 +67,57 @@ class CsrsPermissionTests(TransactionCase):
     def test_new_task_uses_the_csrs_ent_sequence_prefix(self):
         self.assertTrue(self.task.csrs_code.startswith("CSRS-ENT-T-"))
 
+    def test_planning_preserves_a_fractional_hour_and_exposes_calendar_hours(self):
+        facade = self.env["csrs.api"].with_user(self.manager)
+        calendar = self.env.company.resource_calendar_id
+
+        options = facade.api_planning_options()
+        preview = facade.api_planning_preview(
+            {
+                "calendar_id": calendar.id,
+                "start_date": fields.Date.context_today(self).isoformat(),
+                "source": "workload",
+                "estimated_work_days": "0.1875",
+            }
+        )
+
+        option = next(item for item in options["calendars"] if item["id"] == calendar.id)
+        self.assertEqual(option["hours_per_day"], calendar.hours_per_day)
+        self.assertEqual(preview["estimated_work_days"], "0.1875")
+
+    def test_migrated_progress_activity_is_not_displayed_twice(self):
+        recorded_at = fields.Datetime.now()
+        note = "Point de direction confirmé."
+        self.env["csrs.progress.entry"].sudo().create(
+            {
+                "task_id": self.task.id,
+                "author_id": self.manager.id,
+                "recorded_at": recorded_at,
+                "previous_progress_percent": 35,
+                "progress_percent": 60,
+                "blocked": False,
+                "observation": note,
+                "revision": 1,
+            }
+        )
+        self.env["mail.message"].sudo().create(
+            {
+                "model": "project.task",
+                "res_id": self.task.id,
+                "message_type": "comment",
+                "body": note,
+                "author_id": self.manager.partner_id.id,
+                "date": recorded_at,
+                "message_id": "<legacy-task-activity-regression@csrs-ent.invalid>",
+            }
+        )
+
+        activities = self.env["csrs.api"].with_user(self.manager)._task_activities(
+            self.task
+        )
+
+        self.assertEqual([item["message"] for item in activities].count(note), 1)
+
     def test_secondary_manager_can_comment_but_cannot_edit_progress(self):
         task = self.task.with_user(self.secondary)
 
@@ -347,6 +398,57 @@ class CsrsPermissionTests(TransactionCase):
             ),
             1,
         )
+
+    def test_it_lists_and_reactivates_a_deactivated_account(self):
+        candidate = self.env["res.users"].with_context(
+            no_reset_password=True
+        ).create(
+            {
+                "name": "Compte à désactiver",
+                "login": "inactive-account@example.invalid",
+                "email": "inactive-account@example.invalid",
+                "group_ids": [
+                    Command.link(
+                        self.env.ref("csrs_reporting.group_csrs_agent").id
+                    )
+                ],
+            }
+        )
+        employee = self.env["hr.employee"].create(
+            {
+                "name": candidate.name,
+                "user_id": candidate.id,
+                "job_title": "Agent de recette",
+            }
+        )
+        facade = self.env["csrs.api"].with_user(self.it)
+
+        facade.api_user_bulk_action(
+            "deactivate",
+            [
+                {
+                    "id": candidate.id,
+                    "state_token": facade._user_state_token(candidate),
+                }
+            ],
+        )
+
+        self.assertFalse(candidate.active)
+        self.assertFalse(employee.active)
+        page = facade.api_users(state="inactive")
+        summaries = {item["id"]: item for item in page["items"]}
+        self.assertIn(candidate.id, summaries)
+        self.assertEqual(summaries[candidate.id]["position"], "Agent de recette")
+
+        reactivated = facade.api_user_set_active(
+            candidate.id,
+            summaries[candidate.id]["state_token"],
+            True,
+        )
+
+        self.assertTrue(reactivated["is_active"])
+        self.assertTrue(candidate.active)
+        self.assertTrue(employee.active)
 
     def test_manager_change_transfers_active_tasks_and_keeps_history(self):
         department = self.env["hr.department"].create(

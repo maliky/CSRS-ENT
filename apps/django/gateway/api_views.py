@@ -55,9 +55,13 @@ from .serializers import (
     UserWriteSerializer,
     OrganizationUnitSerializer,
     OrganizationUnitUpdateSerializer,
+    PartnerQuerySerializer,
+    PartnerUpdateSerializer,
+    PartnerWriteSerializer,
     RevokeGrantSerializer,
     ResearchProjectCreateSerializer,
     ResearchProjectItemSerializer,
+    ResearchProjectQuerySerializer,
     ResearchProjectTransitionSerializer,
     ResearchProjectUpdateSerializer,
     RoleGrantSerializer,
@@ -370,6 +374,26 @@ class OrganizationUnitDetailView(OdooAPIView):
         return Response(self.rpc(request, "api_organization_unit_update", [pk, payload]))
 
 
+class PartnerListCreateView(OdooAPIView):
+    @extend_schema(operation_id="partner_list", responses=OpenApiTypes.OBJECT)
+    def get(self, request: Request) -> Response:
+        payload = _payload(PartnerQuerySerializer, request.query_params)
+        response = self.rpc(request, "api_partners", [payload["q"], payload["state"]])
+        return Response(response)
+
+    @extend_schema(request=PartnerWriteSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(PartnerWriteSerializer, request.data)
+        return Response(self.rpc(request, "api_partner_create", [payload]), status=201)
+
+
+class PartnerDetailView(OdooAPIView):
+    @extend_schema(request=PartnerUpdateSerializer, responses=OpenApiTypes.OBJECT)
+    def patch(self, request: Request, pk: int) -> Response:
+        payload = _payload(PartnerUpdateSerializer, request.data)
+        return Response(self.rpc(request, "api_partner_update", [pk, payload]))
+
+
 class RoleGrantCreateView(OdooAPIView):
     @extend_schema(request=RoleGrantSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request: Request) -> Response:
@@ -578,9 +602,16 @@ class AgendaVersionPdfView(OdooAPIView):
 
 
 class ResearchProjectListCreateView(OdooAPIView):
-    @extend_schema(operation_id="research_projects_list", responses=OpenApiTypes.OBJECT)
+    @extend_schema(
+        operation_id="research_projects_list",
+        parameters=[ResearchProjectQuerySerializer],
+        responses=OpenApiTypes.OBJECT,
+    )
     def get(self, request: Request) -> Response:
-        return Response(self.rpc(request, "api_research_projects"))
+        payload = _payload(ResearchProjectQuerySerializer, request.query_params)
+        return Response(
+            self.rpc(request, "api_research_projects", [payload["status"]])
+        )
 
     @extend_schema(request=ResearchProjectCreateSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request: Request) -> Response:

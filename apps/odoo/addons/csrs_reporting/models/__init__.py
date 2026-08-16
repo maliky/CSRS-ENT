@@ -2,6 +2,7 @@ from . import agenda
 from . import api
 from . import api_projects
 from . import audit
+from . import e2e_fixtures
 from . import migration
 from . import organization
 from . import planning

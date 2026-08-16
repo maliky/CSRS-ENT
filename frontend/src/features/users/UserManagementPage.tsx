@@ -5,7 +5,7 @@ import {
   Trash2,
   UserRoundPlus,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Button,
   ButtonLink,
@@ -36,6 +36,7 @@ export function UserManagementPage() {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
   const [mutationError, setMutationError] = useState("");
+  const lastSelected = useRef<number | null>(null);
   const options = useApi<UserManagementOptions>("/api/v1/users/options/");
   const query = params.toString();
   const users = useApi<UserPage>(`/api/v1/users/${query ? `?${query}` : ""}`);
@@ -56,6 +57,38 @@ export function UserManagementPage() {
 
   function selectable(item: ManagedUserSummary) {
     return item.batch_capabilities.deactivate || item.batch_capabilities.delete;
+  }
+
+  function toggleSelection(
+    item: ManagedUserSummary,
+    checked: boolean,
+    extendRange: boolean,
+  ) {
+    const items = users.data?.items ?? [];
+    const previousId = lastSelected.current;
+    const currentIndex = items.findIndex(
+      (candidate) => candidate.id === item.id,
+    );
+    setSelected((current) => {
+      const next = new Set(current);
+      const previousIndex = items.findIndex(
+        (candidate) => candidate.id === previousId,
+      );
+      const candidates =
+        extendRange && previousIndex >= 0
+          ? items.slice(
+              Math.min(previousIndex, currentIndex),
+              Math.max(previousIndex, currentIndex) + 1,
+            )
+          : [item];
+      for (const candidate of candidates) {
+        if (!selectable(candidate)) continue;
+        if (checked) next.add(candidate.id);
+        else next.delete(candidate.id);
+      }
+      return next;
+    });
+    lastSelected.current = item.id;
   }
 
   async function applyAction(event: FormEvent) {
@@ -85,7 +118,15 @@ export function UserManagementPage() {
       setAction(null);
       setReason("");
       setConfirmation("");
-      await users.reload();
+      if (action === "deactivate") {
+        const next = new URLSearchParams(params);
+        next.set("state", "inactive");
+        next.delete("page");
+        setState("inactive");
+        setParams(next);
+      } else {
+        await users.reload();
+      }
     } catch (caught) {
       setMutationError(
         caught instanceof Error ? caught.message : "Action impossible.",
@@ -218,11 +259,42 @@ export function UserManagementPage() {
               </Button>
             </div>
           </div>
+          <p className={styles.selectionHint}>
+            Utilisez la case d’en-tête pour toute la page ou Maj clic pour une
+            plage.
+          </p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Sélection</th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="Tout sélectionner"
+                      disabled={!users.data.items.some(selectable)}
+                      checked={
+                        users.data.items.some(selectable) &&
+                        users.data.items
+                          .filter(selectable)
+                          .every((item) => selected.has(item.id))
+                      }
+                      onChange={(event) => {
+                        const checked = event.currentTarget.checked;
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          for (const item of users.data!.items.filter(
+                            selectable,
+                          )) {
+                            if (checked) next.add(item.id);
+                            else next.delete(item.id);
+                          }
+                          return next;
+                        });
+                        lastSelected.current = null;
+                      }}
+                    />
+                    <span className={styles.visuallyHidden}>Sélection</span>
+                  </th>
                   <th>Personne</th>
                   <th>Identifiant</th>
                   <th>Fonction</th>
@@ -241,15 +313,15 @@ export function UserManagementPage() {
                         type="checkbox"
                         disabled={!selectable(item)}
                         checked={selected.has(item.id)}
+                        readOnly
                         aria-label={`Sélectionner ${item.name}`}
-                        onChange={() =>
-                          setSelected((current) => {
-                            const next = new Set(current);
-                            if (next.has(item.id)) next.delete(item.id);
-                            else next.add(item.id);
-                            return next;
-                          })
-                        }
+                        onClick={(event) => {
+                          toggleSelection(
+                            item,
+                            !selected.has(item.id),
+                            event.shiftKey,
+                          );
+                        }}
                       />
                     </td>
                     <td data-label="Personne">

@@ -11,7 +11,7 @@ class ScheduleSerializer(serializers.Serializer[dict[str, object]]):
     start_date = serializers.DateField()
     due_date = serializers.DateField()
     estimated_work_days = serializers.DecimalField(
-        max_digits=7, decimal_places=1, min_value=Decimal("0.1")
+        max_digits=9, decimal_places=4, min_value=Decimal("0.0001")
     )
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
@@ -218,6 +218,24 @@ class OrganizationUnitUpdateSerializer(OrganizationUnitSerializer):
     state_token = serializers.CharField(allow_blank=False)
 
 
+class PartnerQuerySerializer(serializers.Serializer[dict[str, object]]):
+    q = serializers.CharField(required=False, allow_blank=True, default="")
+    state = serializers.ChoiceField(
+        choices=("active", "inactive"), required=False, allow_blank=True, default="active"
+    )
+
+
+class PartnerWriteSerializer(serializers.Serializer[dict[str, object]]):
+    name = serializers.CharField(max_length=200)
+    email = serializers.EmailField(max_length=254, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
+    active = serializers.BooleanField(required=False, default=True)
+
+
+class PartnerUpdateSerializer(PartnerWriteSerializer):
+    state_token = serializers.CharField(allow_blank=False)
+
+
 class RoleGrantSerializer(serializers.Serializer[dict[str, object]]):
     user_id = serializers.IntegerField(min_value=1)
     department_id = serializers.IntegerField(min_value=1)
@@ -259,7 +277,10 @@ class PlanningPreviewSerializer(serializers.Serializer[dict[str, object]]):
     source = cast(Any, serializers.ChoiceField(choices=("workload", "due")))
     due_date = serializers.DateField(required=False)
     estimated_work_days = serializers.DecimalField(
-        max_digits=7, decimal_places=1, min_value=Decimal("0.1"), required=False
+        max_digits=9,
+        decimal_places=4,
+        min_value=Decimal("0.0001"),
+        required=False,
     )
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
@@ -348,9 +369,9 @@ class ResearchProjectCreateSerializer(serializers.Serializer[dict[str, object]])
     )
     date_start = serializers.DateField(required=False, allow_null=True)
     date_end = serializers.DateField(required=False, allow_null=True)
-    donor_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    partner_names = serializers.ListField(
-        child=serializers.CharField(max_length=200), required=False
+    donor_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    partner_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, default=list
     )
     team_user_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1), required=False
@@ -366,12 +387,20 @@ class ResearchProjectCreateSerializer(serializers.Serializer[dict[str, object]])
         return attrs
 
 
+class ResearchProjectQuerySerializer(serializers.Serializer[dict[str, object]]):
+    status = serializers.ChoiceField(
+        choices=("active", "archived"), required=False, default="active"
+    )
+
+
 class ResearchProjectUpdateSerializer(ResearchProjectCreateSerializer):
     revision = serializers.IntegerField(min_value=1)
 
 
 class ResearchProjectTransitionSerializer(RevisionSerializer):
-    action = serializers.ChoiceField(choices=("approve", "reject", "close"))
+    action = serializers.ChoiceField(
+        choices=("approve", "reject", "close", "archive")
+    )
     lead_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
@@ -380,9 +409,11 @@ class ResearchProjectTransitionSerializer(RevisionSerializer):
             raise serializers.ValidationError(
                 {"lead_id": "Choisissez le chef de projet."}
             )
-        if attrs["action"] == "reject" and not str(attrs.get("reason") or "").strip():
+        if attrs["action"] in {"reject", "archive"} and not str(
+            attrs.get("reason") or ""
+        ).strip():
             raise serializers.ValidationError(
-                {"reason": "Le motif de rejet est obligatoire."}
+                {"reason": "Le motif est obligatoire."}
             )
         return attrs
 

@@ -20,6 +20,8 @@ SECTION_CODES = (
     ("closure", "Clôture"),
 )
 
+REQUIRED_SECTION_CODES = frozenset({"project", "action_plan", "finance", "closure"})
+
 SECTION_STATES = (
     ("draft", "Brouillon"),
     ("submitted", "Soumis"),
@@ -39,6 +41,18 @@ SECTION_CONTROLLER_ROLES = {
     "risks": "PROJECT_CONTROLLER",
     "reports": "PROJECT_CONTROLLER",
     "closure": "PROJECT_CONTROLLER",
+}
+
+SECTION_CONTROLLER_LABELS = {
+    "project": "contrôle du projet",
+    "action_plan": "contrôle du projet",
+    "results": "contrôle du projet",
+    "deliverables": "contrôle du projet",
+    "finance": "contrôle financier",
+    "compliance": "contrôle conformité",
+    "risks": "contrôle du projet",
+    "reports": "contrôle du projet",
+    "closure": "contrôle du projet",
 }
 
 
@@ -62,6 +76,15 @@ class ProjectProject(models.Model):
         "user_id",
         string="Équipe de recherche",
         tracking=True,
+        copy=False,
+    )
+    csrs_supervisor_user_ids = fields.Many2many(
+        "res.users",
+        "csrs_research_project_supervisor_rel",
+        "project_id",
+        "user_id",
+        string="Superviseurs hiérarchiques CSRS",
+        readonly=True,
         copy=False,
     )
     csrs_donor_id = fields.Many2one(
@@ -126,10 +149,55 @@ class ProjectProject(models.Model):
     def _csrs_is_it(self):
         return self.env.user.has_group("csrs_reporting.group_csrs_it")
 
+    def _csrs_owner(self):
+        self.ensure_one()
+        return self.csrs_lead_id or self.csrs_proposer_id
+
+    def _csrs_supervisor_chain(self):
+        self.ensure_one()
+        supervisors = self.env["res.users"]
+        current = self._csrs_owner()
+        seen = {current.id} if current else set()
+        ReportingLine = self.env["csrs.reporting.line"].sudo()
+        while current:
+            line = ReportingLine.search(
+                [
+                    ("employee_id", "=", current.id),
+                    ("is_primary", "=", True),
+                    ("active", "=", True),
+                    ("end_date", "=", False),
+                ],
+                order="start_date desc, id desc",
+                limit=1,
+            )
+            supervisor = line.supervisor_id
+            if not supervisor or supervisor.id in seen:
+                break
+            supervisors |= supervisor
+            seen.add(supervisor.id)
+            current = supervisor
+        return supervisors
+
+    def _csrs_refresh_supervisor_access(self):
+        for project in self.with_context(active_test=False):
+            supervisors = project._csrs_supervisor_chain()
+            project.sudo().with_context(csrs_authorized_mutation=True).write(
+                {"csrs_supervisor_user_ids": [Command.set(supervisors.ids)]}
+            )
+        return True
+
+    def _csrs_is_supervisor(self):
+        self.ensure_one()
+        return self.env.user in self.csrs_supervisor_user_ids
+
+    def _csrs_can_supervise(self):
+        self.ensure_one()
+        return self._csrs_is_dg() or self._csrs_is_it() or self._csrs_is_supervisor()
+
     def _csrs_can_view(self):
         self.ensure_one()
         user = self.env.user
-        if self._csrs_is_dg() or self._csrs_is_it():
+        if self._csrs_can_supervise():
             return True
         if user in (self.csrs_proposer_id | self.csrs_lead_id | self.csrs_team_user_ids):
             return True
@@ -146,10 +214,10 @@ class ProjectProject(models.Model):
 
     def _csrs_can_edit(self):
         self.ensure_one()
-        return (
+        return self.active and (
             self.env.user == self.csrs_lead_id
             or (self.csrs_state == "proposal" and self.env.user == self.csrs_proposer_id)
-            or self._csrs_is_dg()
+            or self._csrs_can_supervise()
         )
 
     def _csrs_check_revision(self, expected_revision):
@@ -192,6 +260,7 @@ class ProjectProject(models.Model):
             )
             if project.csrs_proposer_id.partner_id:
                 project.message_subscribe(project.csrs_proposer_id.partner_id.ids)
+            project._csrs_refresh_supervisor_access()
         return projects
 
     def action_csrs_approve(self, lead_id, expected_revision=None):
@@ -230,9 +299,41 @@ class ProjectProject(models.Model):
             }
         )
         self.sudo().message_subscribe(lead.partner_id.ids)
+        self._csrs_refresh_supervisor_access()
         self.sudo().message_post(
             body=_("Projet autorisé par la Direction générale."),
             author_id=self.env.user.partner_id.id,
+        )
+        return True
+
+    def action_csrs_archive(self, reason, expected_revision=None):
+        self.ensure_one()
+        if not self._csrs_can_supervise():
+            raise AccessError(_("Vous ne pouvez pas archiver ce projet."))
+        self._csrs_check_revision(expected_revision)
+        if not self.active:
+            raise UserError(_("Ce projet est déjà archivé."))
+        reason = str(reason or "").strip()
+        if not reason:
+            raise ValidationError(_("Le motif d'archivage est obligatoire."))
+        snapshot = {
+            "id": self.id,
+            "reference": self.csrs_reference,
+            "name": self.name,
+            "state": self.csrs_state,
+            "revision": self.csrs_revision,
+        }
+        self.env["csrs.audit.event"].sudo().create(
+            {
+                "event_type": "project_archive",
+                "actor_id": self.env.user.id,
+                "reason": reason,
+                "snapshot": snapshot,
+            }
+        )
+        self.sudo().message_post(body=reason, author_id=self.env.user.partner_id.id)
+        self.sudo().with_context(csrs_authorized_mutation=True).write(
+            {"active": False, "csrs_revision": self.csrs_revision + 1}
         )
         return True
 
@@ -266,9 +367,17 @@ class ProjectProject(models.Model):
         return True
 
     def write(self, values):
-        protected = {"csrs_state", "csrs_revision", "csrs_reference"}
-        if protected.intersection(values) and not self.env.context.get(
-            "csrs_authorized_mutation"
+        protected = {
+            "active",
+            "csrs_state",
+            "csrs_revision",
+            "csrs_reference",
+            "csrs_supervisor_user_ids",
+        }
+        if (
+            protected.intersection(values)
+            and self.filtered("csrs_research_project")
+            and not self.env.context.get("csrs_authorized_mutation")
         ):
             raise UserError(_("Utilisez une action métier du projet."))
         if not self.env.context.get("csrs_authorized_mutation"):
@@ -279,7 +388,15 @@ class ProjectProject(models.Model):
             for project in self.filtered("csrs_research_project"):
                 if not project._csrs_can_edit():
                     raise AccessError(_("Vous ne pouvez pas modifier ce projet."))
-        return super().write(values)
+        result = super().write(values)
+        if {"csrs_lead_id", "csrs_proposer_id"}.intersection(values):
+            self.filtered("csrs_research_project")._csrs_refresh_supervisor_access()
+        return result
+
+    def unlink(self):
+        if self.filtered("csrs_research_project"):
+            raise UserError(_("Un projet de recherche doit être archivé."))
+        return super().unlink()
 
 
 class CsrsProjectSection(models.Model):
@@ -316,12 +433,67 @@ class CsrsProjectSection(models.Model):
         if expected_revision is not None and self.revision != int(expected_revision):
             raise UserError(_("L'onglet a changé. Rechargez-le avant de continuer."))
 
+    def _readiness(self):
+        self.ensure_one()
+        if self.code == "project":
+            project = self.project_id
+            if not (
+                project.name
+                and project.csrs_objectives
+                and project.csrs_donor_id
+                and project.csrs_team_user_ids
+                and project.date_start
+                and project.date
+            ):
+                return False, _(
+                    "Complétez le bailleur, l'équipe et le chronogramme du projet."
+                )
+        if self.code == "action_plan" and not self.env["project.task"].sudo().search_count(
+            [("project_id", "=", self.project_id.id), ("csrs_managed", "=", True)]
+        ):
+            return False, _("Ajoutez au moins une activité avant de soumettre.")
+        if self.code == "finance" and not self.project_id.csrs_budget_line_ids:
+            return False, _("Ajoutez au moins une ligne budgétaire avant de soumettre.")
+        if self.code == "closure" and not self.project_id.csrs_closure_id:
+            return False, _("Complétez le dossier de clôture avant de soumettre.")
+        return True, _("Brouillon prêt à être soumis.")
+
+    def _is_unlocked(self):
+        self.ensure_one()
+        ordered_codes = [code for code, _label in SECTION_CODES]
+        current_index = ordered_codes.index(self.code)
+        sections = {section.code: section for section in self.project_id.csrs_section_ids}
+        for code in ordered_codes[:current_index]:
+            if code not in REQUIRED_SECTION_CODES:
+                continue
+            previous = sections.get(code)
+            if not previous or not previous._readiness()[0]:
+                return False
+        return True
+
+    def _next_step_label(self):
+        self.ensure_one()
+        if self.state in {"draft", "correction"}:
+            _ready, message = self._readiness()
+            return message
+        if self.state == "submitted":
+            return _("En attente de %s.") % SECTION_CONTROLLER_LABELS[self.code]
+        if self.state == "verified":
+            return _("En attente de validation DG.")
+        if self.state == "validated":
+            return _("Validé : le DG peut clôturer l'onglet.")
+        return _("Onglet clôturé.")
+
     def _can_control(self):
         self.ensure_one()
         role = SECTION_CONTROLLER_ROLES[self.code]
         return self.env.user.csrs_has_active_role_grant(role) or self.env.user.has_group(
             "csrs_reporting.group_csrs_dg"
         )
+
+    def _can_request_correction(self):
+        self.ensure_one()
+        return self._can_control() or self.project_id._csrs_can_supervise()
 
     def _transition(self, values, message):
         self.ensure_one()
@@ -338,6 +510,11 @@ class CsrsProjectSection(models.Model):
             raise AccessError(_("Seul le chef de projet peut soumettre cet onglet."))
         if self.state not in {"draft", "correction"}:
             raise UserError(_("Cet onglet ne peut pas être soumis dans cet état."))
+        if not self._is_unlocked():
+            raise UserError(_("Terminez les étapes obligatoires précédentes."))
+        ready, message = self._readiness()
+        if not ready:
+            raise ValidationError(message)
         return self._transition(
             {
                 "state": "submitted",
@@ -352,7 +529,7 @@ class CsrsProjectSection(models.Model):
         self.ensure_one()
         self._check_revision(expected_revision)
         reason = str(reason or "").strip()
-        if not self._can_control():
+        if not self._can_request_correction():
             raise AccessError(_("Vous ne pouvez pas demander cette correction."))
         if self.state not in {"submitted", "verified"}:
             raise UserError(_("Cet onglet ne peut pas être corrigé dans cet état."))

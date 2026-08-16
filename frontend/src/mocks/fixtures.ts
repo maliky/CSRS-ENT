@@ -29,6 +29,7 @@ export const sessionFixture: Session = {
     delete_tasks: false,
     manage_users: false,
     manage_organization: false,
+    manage_partners: false,
     manage_research_projects: true,
     manage_processes: true,
     password_change_required: false,
@@ -197,7 +198,7 @@ export const planningFixture: PlanningOptions = {
   actions: [
     { id: 4, label: "ACT-GOUV — Renforcer le pilotage institutionnel" },
   ],
-  calendars: [{ id: 1, label: "Côte d'Ivoire (2026.1)" }],
+  calendars: [{ id: 1, label: "Côte d'Ivoire (2026.1)", hours_per_day: 8 }],
   defaults: {
     calendar_id: 1,
     start_date: "2026-07-20",

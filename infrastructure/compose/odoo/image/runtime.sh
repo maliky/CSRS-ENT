@@ -49,6 +49,10 @@ case "$MODE" in
     export ODOO_RUNTIME_CONFIG="$RUNTIME_CONFIG"
     exec /usr/local/bin/csrs-ent-odoo-import
     ;;
+  fixtures)
+    export ODOO_RUNTIME_CONFIG="$RUNTIME_CONFIG"
+    exec /usr/local/bin/csrs-ent-odoo-fixtures
+    ;;
   test)
     exec odoo server \
       --config="$RUNTIME_CONFIG" \
@@ -64,7 +68,7 @@ case "$MODE" in
       --stop-after-init
     ;;
   *)
-    echo "Usage: csrs-ent-odoo-runtime bootstrap|server|import|test" >&2
+    echo "Usage: csrs-ent-odoo-runtime bootstrap|server|fixtures|import|test" >&2
     exit 2
     ;;
 esac

@@ -5,7 +5,9 @@ import {
   type ChangeEvent,
   type InputHTMLAttributes,
 } from "react";
+import { CalendarDays } from "lucide-react";
 import { formatDate, parseDateInput } from "../../lib/format";
+import styles from "./ui.module.css";
 
 type FrenchDateInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -72,33 +74,56 @@ export function FrenchDateInput({
     if (parsed || (empty && !props.required)) onValueChange?.(parsed ?? "");
   }
 
+  function chooseFromCalendar(event: ChangeEvent<HTMLInputElement>) {
+    const nextIso = event.currentTarget.value;
+    const formatted = nextIso ? formatDate(nextIso) : "";
+    setIsoValue(nextIso);
+    if (controlled) setDisplayValue(formatted);
+    else if (inputRef.current) inputRef.current.value = formatted;
+    inputRef.current?.setCustomValidity("");
+    onValueChange?.(nextIso);
+  }
+
   return (
     <>
-      <input
-        {...props}
-        ref={inputRef}
-        type="text"
-        lang="fr"
-        inputMode="numeric"
-        placeholder="jj/mm/aaaa"
-        maxLength={10}
-        pattern="[0-3][0-9]/[01][0-9]/[0-9]{4}"
-        title="Format attendu : jj/mm/aaaa"
-        disabled={disabled}
-        {...(controlled
-          ? { value: displayValue }
-          : { defaultValue: initial.current.display })}
-        onChange={change}
-        onBlur={(event) => {
-          const parsed = parseDateInput(event.currentTarget.value);
-          if (parsed) {
-            const formatted = formatDate(parsed);
-            if (controlled) setDisplayValue(formatted);
-            else event.currentTarget.value = formatted;
-          }
-          onBlur?.(event);
-        }}
-      />
+      <span className={styles.dateInput}>
+        <input
+          {...props}
+          ref={inputRef}
+          type="text"
+          lang="fr"
+          inputMode="numeric"
+          placeholder="jj/mm/aaaa"
+          maxLength={10}
+          pattern="[0-3][0-9]/[01][0-9]/[0-9]{4}"
+          title="Format attendu : jj/mm/aaaa"
+          disabled={disabled}
+          {...(controlled
+            ? { value: displayValue }
+            : { defaultValue: initial.current.display })}
+          onChange={change}
+          onBlur={(event) => {
+            const parsed = parseDateInput(event.currentTarget.value);
+            if (parsed) {
+              const formatted = formatDate(parsed);
+              if (controlled) setDisplayValue(formatted);
+              else event.currentTarget.value = formatted;
+            }
+            onBlur?.(event);
+          }}
+        />
+        <span className={styles.datePicker} title="Ouvrir le calendrier">
+          <CalendarDays size={18} aria-hidden="true" />
+          <input
+            className={styles.nativeDatePicker}
+            type="date"
+            aria-label="Ouvrir le calendrier"
+            value={isoValue}
+            disabled={disabled}
+            onChange={chooseFromCalendar}
+          />
+        </span>
+      </span>
       {name && (
         <input type="hidden" name={name} value={isoValue} disabled={disabled} />
       )}
