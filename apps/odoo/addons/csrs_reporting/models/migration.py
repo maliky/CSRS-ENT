@@ -514,13 +514,14 @@ class CsrsMigrationImporter(models.AbstractModel):
             source_id = row["source_id"]
             user = Users.search([("csrs_source_id", "=", source_id)], limit=1)
             by_login = Users.search([("login", "=ilike", row["email"])], limit=1)
+            by_email = Users.search([("email", "=ilike", row["email"])], limit=1)
             alias = (row.get("alias") or "").strip()
             by_alias = (
                 Users.search([("csrs_alias", "=ilike", alias)], limit=2)
                 if alias
                 else Users
             )
-            candidates = user | by_login | by_alias
+            candidates = user | by_login | by_email | by_alias
             if len(candidates) > 1:
                 raise ValidationError(
                     _("Collision entre identifiant source, email et alias.")
@@ -725,6 +726,7 @@ class CsrsMigrationImporter(models.AbstractModel):
         Users = self.env["res.users"].sudo().with_context(active_test=False)
         Employees = self.env["hr.employee"].sudo().with_context(active_test=False)
         administrator = self.env.ref("base.user_admin")
+        by_source_id = {row["source_id"]: row for row in rows}
         by_email = {
             str(row["email"]).strip().casefold(): row for row in rows
         }
@@ -738,6 +740,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             matches = {
                 row["source_id"]: row
                 for row in (
+                    by_source_id.get(user.csrs_source_id),
                     by_email.get((user.login or "").strip().casefold()),
                     by_email.get((user.email or "").strip().casefold()),
                     by_alias.get((user.csrs_alias or "").strip().casefold()),
@@ -746,7 +749,10 @@ class CsrsMigrationImporter(models.AbstractModel):
             }
             if len(matches) > 1:
                 raise ValidationError(
-                    _("Une identité de démonstration correspond à plusieurs comptes source.")
+                    _(
+                        "Une identité de démonstration correspond à plusieurs "
+                        "comptes source."
+                    )
                 )
             return next(iter(matches.values()), None)
 

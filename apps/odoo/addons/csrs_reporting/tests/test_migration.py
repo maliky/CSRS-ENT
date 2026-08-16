@@ -438,6 +438,79 @@ class CsrsMigrationTests(TransactionCase):
         self.assertEqual(preserved, imported)
         self.assertEqual(password_after, password_before)
 
+    def test_reconcile_preserves_source_identity_when_email_and_alias_change(self):
+        payload = self.payload()
+        payload["users"][0].update(
+            {
+                "email": "initial-source@demo.invalid",
+                "alias": "initial-source",
+            }
+        )
+        importer = self.env["csrs.migration.importer"]
+        importer.import_payload(payload, apply=True, reconcile=True)
+        imported = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        imported.with_context(no_reset_password=True).write(
+            {"password": "UpgradedSourcePassword123!"}
+        )
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [imported.id]
+        )
+        [password_before] = self.env.cr.fetchone()
+        payload["users"][0].update(
+            {
+                "email": "renamed-source@demo.invalid",
+                "alias": "renamed-source",
+            }
+        )
+
+        importer.import_payload(payload, apply=True, reconcile=True)
+
+        preserved = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        self.env.cr.execute(
+            "SELECT password FROM res_users WHERE id=%s", [preserved.id]
+        )
+        [password_after] = self.env.cr.fetchone()
+        self.assertEqual(preserved, imported)
+        self.assertEqual(preserved.login, "renamed-source@demo.invalid")
+        self.assertEqual(password_after, password_before)
+
+    def test_reconcile_adopts_demo_identity_matched_by_email(self):
+        existing = self.env["res.users"].with_context(no_reset_password=True).create(
+            {
+                "name": "Identité source existante",
+                "login": "legacy-login@demo.invalid",
+                "email": "source-email@demo.invalid",
+                "password": "ExistingSourcePassword123!",
+            }
+        )
+        employee = self.env["hr.employee"].create(
+            {"name": existing.name, "user_id": existing.id}
+        )
+        payload = self.payload()
+        payload["users"][0].update(
+            {"email": "source-email@demo.invalid", "alias": ""}
+        )
+
+        self.env["csrs.migration.importer"].import_payload(
+            payload, apply=True, reconcile=True
+        )
+
+        imported = self.env["res.users"].search(
+            [("csrs_source_id", "=", 9_000_101)]
+        )
+        self.assertEqual(imported, existing)
+        self.assertEqual(employee.csrs_source_id, 9_000_101)
+        self.assertEqual(
+            self.env["res.users"].search_count(
+                [("email", "=ilike", "source-email@demo.invalid")]
+            ),
+            1,
+        )
+
     def test_reconcile_rebinds_department_source_ids_by_stable_code(self):
         payload = self.payload()
         payload["departments"].append(
