@@ -33,6 +33,7 @@ PROPOSAL_LABELS = {
 AGENDA_LABELS = {
     "programs": "Direction des programmes",
     "administration": "Direction administrative",
+    "research": "Direction de la recherche",
 }
 ROLE_GROUPS = {
     "AGENDA_HR": "csrs_reporting.group_csrs_hr",

@@ -186,7 +186,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             self._required_string(row, "name")
             self._required_string(row, "password_hash")
             direction = row.get("agenda_direction") or ""
-            if direction not in ("", "programs", "administration"):
+            if direction not in ("", "programs", "administration", "research"):
                 raise ValidationError(_("Direction d'agenda invalide."))
         for row in snapshot["departments"]:
             self._required_string(row, "code")
