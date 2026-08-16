@@ -27,5 +27,25 @@ export PATH="$NODE_BIN:/usr/local/bin:/usr/bin:/bin"
 export CSRS_E2E_BASE_URL="${CSRS_E2E_BASE_URL:-https://preprod.ent.koba.sarl}"
 export CSRS_E2E_LOGIN="${CSRS_E2E_LOGIN:-dev}"
 
+if [[ "${CSRS_E2E_MUTATIONS:-false}" == true ]]; then
+  readonly DATASET="${CSRS_E2E_DATASET:-}"
+  if [[ ! "$DATASET" =~ ^e2e-[a-z0-9-]{1,40}$ ]]; then
+    echo "CSRS_E2E_DATASET doit respecter le format e2e-nom-en-minuscules." >&2
+    exit 2
+  fi
+  readonly FIXTURE_SECRET_DIR="${CSRS_E2E_SECRET_DIR:-${ROOT_DIR}/secrets/e2e}"
+  readonly FIXTURE_PASSWORD_FILE="${CSRS_E2E_FIXTURE_PASSWORD_FILE:-${FIXTURE_SECRET_DIR}/${DATASET}.password}"
+  if [[ ! -f "$FIXTURE_PASSWORD_FILE" || "$(stat -c '%a' "$FIXTURE_PASSWORD_FILE")" != 600 ]]; then
+    echo "Le mot de passe du jeu E2E doit exister avec le mode 0600." >&2
+    exit 2
+  fi
+  IFS= read -r CSRS_E2E_FIXTURE_PASSWORD <"$FIXTURE_PASSWORD_FILE"
+  if (( ${#CSRS_E2E_FIXTURE_PASSWORD} < 16 )); then
+    echo "Le mot de passe du jeu E2E est invalide." >&2
+    exit 2
+  fi
+  export CSRS_E2E_FIXTURE_PASSWORD
+fi
+
 cd "$ROOT_DIR/frontend"
 exec npm run test:e2e -- "$@"

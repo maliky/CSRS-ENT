@@ -1,5 +1,44 @@
 import { expect, test } from "../support/test";
 
+async function authenticateFixtureSecretariat(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  const dataset = process.env.CSRS_E2E_DATASET ?? "";
+  const password = process.env.CSRS_E2E_FIXTURE_PASSWORD;
+  expect(dataset).toMatch(/^e2e-[a-z0-9-]+$/);
+  expect(password, "Le mot de passe du jeu E2E est requis").toBeTruthy();
+
+  await page.goto("/app/");
+  await page.getByRole("button", { name: "Déconnexion" }).click();
+  await page
+    .getByLabel(/identifiant/i)
+    .fill(`${dataset}-secretariat@example.invalid`);
+  await page.getByLabel("Mot de passe").fill(password!);
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page.locator("#navigation-principale")).toBeVisible();
+}
+
+test("le compte secrétariat du jeu accède à la préparation des agendas", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.CSRS_E2E_MUTATIONS !== "true",
+    "Le scénario attend un jeu de données E2E préparé.",
+  );
+  await authenticateFixtureSecretariat(page);
+
+  await page.goto("/app/agenda");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Agendas de direction" }),
+  ).toBeVisible();
+  const direction = page.getByLabel("Direction de l’agenda");
+  await expect(direction).toContainText("Direction administrative");
+  await expect(direction).toContainText("Direction de la recherche");
+  await expect(
+    page.getByRole("button", { name: "Générer le PDF" }),
+  ).toBeEnabled();
+});
+
 test("le secrétariat génère les agendas administration et recherche", async ({
   page,
 }) => {
@@ -8,6 +47,7 @@ test("le secrétariat génère les agendas administration et recherche", async (
     "Les mutations nécessitent CSRS_E2E_MUTATIONS=true et un jeu de données E2E préparé.",
   );
   expect(process.env.CSRS_E2E_DATASET).toMatch(/^e2e-[a-z0-9-]+$/);
+  await authenticateFixtureSecretariat(page);
 
   await page.goto("/app/agenda");
   for (const direction of ["Administration", "Direction de la recherche"]) {

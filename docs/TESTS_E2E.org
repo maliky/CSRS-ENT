@@ -52,6 +52,8 @@ Après un =reseed= validé, les scénarios avec écriture s'exécutent explicite
 CSRS_E2E_MUTATIONS=true CSRS_E2E_DATASET=e2e-preprod ./scripts/test_preprod_e2e.sh --project=chromium-mutations
 #+end_src
 
+Le lanceur lit alors aussi le mot de passe du jeu depuis =secrets/e2e/e2e-preprod.password=, toujours sans l'afficher. Définir =CSRS_E2E_SECRET_DIR= lorsqu'il réside dans le répertoire protégé d'un déploiement immuable. Le scénario d'agenda se reconnecte avec le compte =secretariat= du jeu; il ne réutilise pas la session =dev= pour affirmer une autorisation de rôle.
+
 * Organisation des scénarios
 
 - =frontend/e2e/read-only/= : routes, accessibilité et contrôles non destructifs ;
