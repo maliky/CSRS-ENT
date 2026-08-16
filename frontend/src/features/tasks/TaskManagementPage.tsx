@@ -1,5 +1,5 @@
 import { Filter, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Button,
   EmptyState,
@@ -37,6 +37,7 @@ export function TaskManagementPage() {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
   const [mutationError, setMutationError] = useState("");
+  const lastSelected = useRef<number | null>(null);
   const query = params.toString();
   const { data, error, loading, reload } = useApi<TaskManagementResponse>(
     `/api/v1/task-management/${query ? `?${query}` : ""}`,
@@ -62,6 +63,36 @@ export function TaskManagementPage() {
     if (page > 1) next.set("page", String(page));
     else next.delete("page");
     setParams(next);
+  }
+
+  function toggleSelection(
+    item: TaskManagementItem,
+    checked: boolean,
+    extendRange: boolean,
+  ) {
+    const items = data?.items ?? [];
+    const currentIndex = items.findIndex(
+      (candidate) => candidate.id === item.id,
+    );
+    setSelected((current) => {
+      const next = new Set(current);
+      const previousIndex = items.findIndex(
+        (candidate) => candidate.id === lastSelected.current,
+      );
+      const candidates =
+        extendRange && previousIndex >= 0
+          ? items.slice(
+              Math.min(previousIndex, currentIndex),
+              Math.max(previousIndex, currentIndex) + 1,
+            )
+          : [item];
+      for (const candidate of candidates) {
+        if (checked) next.add(candidate.id);
+        else next.delete(candidate.id);
+      }
+      return next;
+    });
+    lastSelected.current = item.id;
   }
 
   async function deleteSelection(event: FormEvent) {
@@ -188,12 +219,39 @@ export function TaskManagementPage() {
       )}
       {data && data.items.length > 0 && (
         <>
-          <p className={styles.resultCount}>{data.total} tâche(s)</p>
+          <p className={styles.resultCount}>
+            {data.total} tâche(s) · {selectedItems.length} sélectionnée(s)
+          </p>
+          <p className={styles.selectionHint}>
+            Utilisez la case d’en-tête pour toute la page ou Maj clic pour une
+            plage.
+          </p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Sélection</th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="Tout sélectionner"
+                      checked={data.items.every((item) =>
+                        selected.has(item.id),
+                      )}
+                      onChange={(event) => {
+                        const checked = event.currentTarget.checked;
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          for (const item of data.items) {
+                            if (checked) next.add(item.id);
+                            else next.delete(item.id);
+                          }
+                          return next;
+                        });
+                        lastSelected.current = null;
+                      }}
+                    />
+                    <span className={styles.visuallyHidden}>Sélection</span>
+                  </th>
                   <th>Tâche</th>
                   <th>Collaborateur</th>
                   <th>Responsable</th>
@@ -213,13 +271,13 @@ export function TaskManagementPage() {
                         type="checkbox"
                         aria-label={`Sélectionner ${item.code}`}
                         checked={selected.has(item.id)}
-                        onChange={() =>
-                          setSelected((current) => {
-                            const next = new Set(current);
-                            if (next.has(item.id)) next.delete(item.id);
-                            else next.add(item.id);
-                            return next;
-                          })
+                        readOnly
+                        onClick={(event) =>
+                          toggleSelection(
+                            item,
+                            !selected.has(item.id),
+                            event.shiftKey,
+                          )
                         }
                       />
                     </td>

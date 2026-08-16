@@ -1,0 +1,62 @@
+#+title: Recette navigateur et données de test
+#+startup: overview
+
+* Objectif
+
+La recette Playwright contrôle les parcours publics de CSRS ENT par fonctionnalité. Le mode par défaut est en lecture seule : il visite les routes autorisées, vérifie les titres, les noms accessibles des boutons, l'affichage mobile, les erreurs JavaScript et les réponses HTTP 5xx. Les traces, captures et vidéos ne sont conservées qu'en cas d'échec.
+
+Les scénarios avec écriture sont séparés et ne s'exécutent que lorsque =CSRS_E2E_MUTATIONS=true=. Ils doivent utiliser un jeu Odoo réservé dont le nom commence par =e2e-=.
+
+* Préparer les données Odoo
+
+La commande accepte =status=, =seed=, =clean= et =reseed= :
+
+#+begin_src sh
+./scripts/e2e_fixtures.sh status e2e-preprod .env
+./scripts/e2e_fixtures.sh seed e2e-preprod .env
+./scripts/e2e_fixtures.sh clean e2e-preprod .env
+./scripts/e2e_fixtures.sh reseed e2e-preprod .env
+#+end_src
+
+Sans =CSRS_E2E_APPLY=true=, =seed=, =clean= et =reseed= restent en simulation. Une écriture exige aussi la confirmation exacte du nom de base :
+
+#+begin_src sh
+CSRS_E2E_APPLY=true CSRS_E2E_CONFIRM_DATABASE=nom_exact_de_la_base ./scripts/e2e_fixtures.sh reseed e2e-preprod .env
+#+end_src
+
+Le peuplement crée des comptes pour les rôles réels, deux unités, des tâches, une proposition, une absence, un brouillon d'agenda, un projet standard, un projet de recherche avec neuf sections et un dossier de chaque procédure. Les enregistrements sont suivis par identifiants externes propres au jeu. Le nettoyage supprime uniquement ces enregistrements, dans leur ordre de dépendance, et ne touche pas aux données reprises.
+
+Le mot de passe aléatoire du jeu est conservé sous =secrets/e2e/= avec le mode =0600=. Ce répertoire est ignoré par Git. Aucun mot de passe ni détail personnel n'est écrit dans le rapport agrégé.
+
+Sur un déploiement immuable, définir =CSRS_E2E_SECRET_DIR= vers un répertoire persistant protégé, par exemple =/srv/apps/csrs-ent-preprod/config/e2e=.
+
+* Exécuter Playwright
+
+Installer une fois le navigateur correspondant à la version verrouillée :
+
+#+begin_src sh
+PATH=/home/jil/.nvm/versions/node/v24.11.0/bin:/usr/local/bin:/usr/bin:/bin npx --prefix frontend playwright install chromium
+#+end_src
+
+La commande suivante lit le mot de passe de =.secrets= seulement si le fichier est en mode =0600=, sans l'afficher :
+
+#+begin_src sh
+./scripts/test_preprod_e2e.sh --project=chromium-readonly
+#+end_src
+
+Pour une cible locale, définir =CSRS_E2E_BASE_URL=. Seuls =preprod.ent.koba.sarl=, =localhost= et =127.0.0.1= sont acceptés. Un exemple sans secret est fourni dans =frontend/.env.e2e.example=.
+
+Après un =reseed= validé, les scénarios avec écriture s'exécutent explicitement :
+
+#+begin_src sh
+CSRS_E2E_MUTATIONS=true CSRS_E2E_DATASET=e2e-preprod ./scripts/test_preprod_e2e.sh --project=chromium-mutations
+#+end_src
+
+* Organisation des scénarios
+
+- =frontend/e2e/read-only/= : routes, accessibilité et contrôles non destructifs ;
+- =frontend/e2e/mobile/= : navigation sur petit écran ;
+- =frontend/e2e/mutations/= : enregistrements, transitions et PDF sur données réservées ;
+- =frontend/e2e/support/= : diagnostic commun des erreurs navigateur et serveur.
+
+Une nouvelle fonctionnalité ajoute d'abord un scénario dans le dossier correspondant. Une correction conserve aussi un test au niveau le plus bas pertinent : fonction pure, composant React, contrat Django ou transaction Odoo.

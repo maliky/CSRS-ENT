@@ -1864,7 +1864,7 @@ components:
         estimated_work_days:
           type: string
           format: decimal
-          pattern: ^-?\d{0,6}(?:\.\d{0,1})?$
+          pattern: ^-?\d{0,5}(?:\.\d{0,4})?$
         title:
           type: string
           maxLength: 180
@@ -1936,7 +1936,7 @@ components:
         estimated_work_days:
           type: string
           format: decimal
-          pattern: ^-?\d{0,6}(?:\.\d{0,1})?$
+          pattern: ^-?\d{0,5}(?:\.\d{0,4})?$
         revision:
           type: integer
           minimum: 1
@@ -2018,7 +2018,7 @@ components:
         estimated_work_days:
           type: string
           format: decimal
-          pattern: ^-?\d{0,6}(?:\.\d{0,1})?$
+          pattern: ^-?\d{0,5}(?:\.\d{0,4})?$
       required:
         - calendar_id
         - source
@@ -2175,7 +2175,7 @@ components:
         estimated_work_days:
           type: string
           format: decimal
-          pattern: ^-?\d{0,6}(?:\.\d{0,1})?$
+          pattern: ^-?\d{0,5}(?:\.\d{0,4})?$
         title:
           type: string
           maxLength: 180
@@ -2385,7 +2385,7 @@ components:
         estimated_work_days:
           type: string
           format: decimal
-          pattern: ^-?\d{0,6}(?:\.\d{0,1})?$
+          pattern: ^-?\d{0,5}(?:\.\d{0,4})?$
         title:
           type: string
           maxLength: 180

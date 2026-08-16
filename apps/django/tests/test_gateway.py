@@ -29,6 +29,12 @@ class GatewayViewTests(SimpleTestCase):
 
         self.assertRedirects(response, "/app/", fetch_redirect_response=False)
 
+    def test_nested_react_route_uses_the_application_shell(self) -> None:
+        response = self.client.get("/app/projets")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<div id="root"></div>', html=True)
+
     def test_health_does_not_depend_on_odoo(self) -> None:
         response = self.client.get("/healthz/")
 

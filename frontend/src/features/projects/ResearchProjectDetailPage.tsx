@@ -5,6 +5,7 @@ import {
   ButtonLink,
   Card,
   ErrorState,
+  FrenchDateInput,
   Skeleton,
   StatusBadge,
 } from "../../components/ui";
@@ -277,23 +278,21 @@ export function ResearchProjectDetailPage() {
               </div>
               <div className="form-field">
                 <label htmlFor="edit-project-start">Début</label>
-                <input
+                <FrenchDateInput
                   id="edit-project-start"
-                  type="date"
                   value={editForm.date_start}
-                  onChange={(event) =>
-                    setEditForm({ ...editForm, date_start: event.target.value })
+                  onValueChange={(dateStart) =>
+                    setEditForm({ ...editForm, date_start: dateStart })
                   }
                 />
               </div>
               <div className="form-field">
                 <label htmlFor="edit-project-end">Fin</label>
-                <input
+                <FrenchDateInput
                   id="edit-project-end"
-                  type="date"
                   value={editForm.date_end}
-                  onChange={(event) =>
-                    setEditForm({ ...editForm, date_end: event.target.value })
+                  onValueChange={(dateEnd) =>
+                    setEditForm({ ...editForm, date_end: dateEnd })
                   }
                 />
               </div>

@@ -7,10 +7,12 @@ COPY --chown=odoo:odoo apps/odoo/addons /mnt/extra-addons
 COPY infrastructure/compose/odoo/image/bootstrap.sh /usr/local/bin/csrs-ent-odoo-bootstrap
 COPY infrastructure/compose/odoo/image/runtime.sh /usr/local/bin/csrs-ent-odoo-runtime
 COPY infrastructure/compose/odoo/image/import.sh /usr/local/bin/csrs-ent-odoo-import
+COPY infrastructure/compose/odoo/image/fixtures.sh /usr/local/bin/csrs-ent-odoo-fixtures
 RUN chmod 0755 \
     /usr/local/bin/csrs-ent-odoo-bootstrap \
     /usr/local/bin/csrs-ent-odoo-runtime \
-    /usr/local/bin/csrs-ent-odoo-import
+    /usr/local/bin/csrs-ent-odoo-import \
+    /usr/local/bin/csrs-ent-odoo-fixtures
 
 USER odoo
 

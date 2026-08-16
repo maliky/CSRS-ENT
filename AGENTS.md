@@ -13,12 +13,13 @@ Ces directives s'appliquent à tout le dépôt CSRS ENT.
 
 ## Méthode
 
+- Utiliser l'anglais pour les échanges avec l'utilisateur, sauf demande explicite d'une autre langue; conserver les plans, comptes rendus, documents du dépôt, l'application et sa documentation utilisateur principalement en français.
 - Lire `DEV.org` et la décision d'architecture concernée avant une modification importante.
 - Vérifier l'état Git et les fichiers concernés avant d'éditer; traiter tout commentaire de décision destiné à l'agent comme une instruction active jusqu'à son intégration explicite.
 - Distinguer les besoins confirmés, les hypothèses et les questions ouvertes; ne pas marquer une capacité terminée sans code et vérification correspondants.
 - Commencer par le comportement observable, écrire le test qui l'exprime, implémenter le plus petit changement, puis refactoriser sous tests.
 - Préférer de petits changements vérifiables et réutiliser les fonctions, services et conventions existants avant d'ajouter une abstraction.
-- Garder l'application et sa documentation utilisateur principalement en français. Garder les identifiants de code cohérents avec les conventions Python, Odoo et TypeScript du dépôt.
+- Garder les identifiants de code cohérents avec les conventions Python, Odoo et TypeScript du dépôt.
 - Rester sobre dans les explications et ne pas allonger un texte sans justification fonctionnelle, factuelle ou technique.
 - Ne pas envelopper manuellement la prose dans les fichiers `.org` et `.md`.
 - Modifier les sources maintenues plutôt que leurs artefacts générés et garder les caches, données locales et sorties de déploiement hors Git.

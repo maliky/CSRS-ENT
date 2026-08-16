@@ -67,6 +67,37 @@ function projectFixture(): ResearchProjectDetail {
   };
 }
 
+test("affiche les neuf sections de contrôle depuis la même interface", async () => {
+  server.use(
+    http.get("/api/v1/research-projects/71/", () =>
+      HttpResponse.json(projectFixture()),
+    ),
+    http.get("/api/v1/research-projects/options/", () =>
+      HttpResponse.json({ users: [person] }),
+    ),
+  );
+  render(
+    <MemoryRouter initialEntries={["/projets/71"]}>
+      <Routes>
+        <Route
+          path="/projets/:projectId"
+          element={<ResearchProjectDetailPage />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  const cycle = (
+    await screen.findByRole("heading", {
+      name: "Cycle des neuf onglets",
+    })
+  ).closest("section");
+  expect(cycle).not.toBeNull();
+  expect(
+    within(cycle as HTMLElement).getAllByRole("heading", { level: 3 }),
+  ).toHaveLength(9);
+});
+
 test("ajoute un résultat avec la révision courante du projet", async () => {
   const user = userEvent.setup();
   let project = projectFixture();

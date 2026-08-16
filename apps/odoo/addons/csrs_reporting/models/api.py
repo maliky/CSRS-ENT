@@ -70,6 +70,13 @@ def _decimal(value):
     return str(Decimal(str(value or 0)).quantize(Decimal("0.1"), ROUND_HALF_UP))
 
 
+def _workload_decimal(value):
+    rendered = format(
+        Decimal(str(value or 0)).quantize(Decimal("0.0001"), ROUND_HALF_UP), "f"
+    ).rstrip("0").rstrip(".")
+    return rendered if "." in rendered else f"{rendered}.0"
+
+
 class CsrsApi(models.AbstractModel):
     _name = "csrs.api"
     _description = "Façade RPC métier CSRS ENT"
@@ -435,7 +442,14 @@ class CsrsApi(models.AbstractModel):
 
     def _task_activities(self, task):
         activities = []
+        progress_fingerprints = set()
         for entry in task.csrs_progress_entry_ids:
+            fingerprint = (
+                _iso(entry.recorded_at),
+                entry.author_id.id,
+                entry.observation or _("Progression mise à jour."),
+            )
+            progress_fingerprints.add(fingerprint)
             activities.append(
                 {
                     "id": entry.id * 2,
@@ -450,11 +464,18 @@ class CsrsApi(models.AbstractModel):
             )
         for message in task.message_ids.filtered(lambda item: item.message_type == "comment"):
             author = message.author_id.user_ids[:1] or task.csrs_manager_id
+            plain_message = _plain_html(message.body)
+            fingerprint = (_iso(message.date), author.id, plain_message)
+            if (
+                (message.message_id or "").startswith("<legacy-task-activity-")
+                and fingerprint in progress_fingerprints
+            ):
+                continue
             activities.append(
                 {
                     "id": message.id * 2 + 1,
                     "kind": "observation",
-                    "message": _plain_html(message.body),
+                    "message": plain_message,
                     "occurred_at": _iso(message.date),
                     "actor": self._person(author),
                     "actor_short_name": author.name,
@@ -477,7 +498,9 @@ class CsrsApi(models.AbstractModel):
         summary.update(
             {
                 "description": _plain_html(task.description),
-                "estimated_work_days": _decimal(task.csrs_estimated_work_days),
+                "estimated_work_days": _workload_decimal(
+                    task.csrs_estimated_work_days
+                ),
                 "calendar": {
                     "id": task.csrs_calendar_id.id,
                     "label": task.csrs_calendar_id.name,
@@ -528,7 +551,11 @@ class CsrsApi(models.AbstractModel):
                 )
             ],
             "calendars": [
-                {"id": item.id, "label": item.name}
+                {
+                    "id": item.id,
+                    "label": item.name,
+                    "hours_per_day": item.hours_per_day,
+                }
                 for item in self.env["resource.calendar"].search([], order="name")
             ],
             "defaults": {
@@ -572,7 +599,7 @@ class CsrsApi(models.AbstractModel):
         return {
             "start_date": start.isoformat(),
             "due_date": due.isoformat(),
-            "estimated_work_days": _decimal(workload),
+            "estimated_work_days": _workload_decimal(workload),
         }
 
     @api.model
@@ -1420,7 +1447,7 @@ class CsrsApi(models.AbstractModel):
             "status_label": PROPOSAL_LABELS[proposal.state],
             "start_date": _iso(proposal.start_date),
             "due_date": _iso(proposal.due_date),
-            "estimated_work_days": _decimal(proposal.estimated_work_days),
+            "estimated_work_days": _workload_decimal(proposal.estimated_work_days),
             "action": (
                 {
                     "id": proposal.institutional_action_id.id,

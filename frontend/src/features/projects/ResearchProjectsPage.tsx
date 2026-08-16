@@ -6,6 +6,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  FrenchDateInput,
   Skeleton,
   StatusBadge,
 } from "../../components/ui";
@@ -88,8 +89,8 @@ export function ResearchProjectsPage() {
           <p className="eyebrow">Recherche</p>
           <h1>Projets de recherche</h1>
           <p>
-            Le dossier, ses neuf onglets de contrôle et ses validations sont
-            conservés dans Odoo.
+            Proposez un projet puis suivez son plan d’action, ses résultats,
+            livrables, finances, risques, rapports et validations.
           </p>
         </div>
         <Button onClick={() => setShowForm((current) => !current)}>
@@ -193,23 +194,21 @@ export function ResearchProjectsPage() {
               </div>
               <div className="form-field">
                 <label htmlFor="project-start">Début prévisionnel</label>
-                <input
+                <FrenchDateInput
                   id="project-start"
-                  type="date"
                   value={form.date_start}
-                  onChange={(event) =>
-                    setForm({ ...form, date_start: event.target.value })
+                  onValueChange={(dateStart) =>
+                    setForm({ ...form, date_start: dateStart })
                   }
                 />
               </div>
               <div className="form-field">
                 <label htmlFor="project-end">Fin prévisionnelle</label>
-                <input
+                <FrenchDateInput
                   id="project-end"
-                  type="date"
                   value={form.date_end}
-                  onChange={(event) =>
-                    setForm({ ...form, date_end: event.target.value })
+                  onValueChange={(dateEnd) =>
+                    setForm({ ...form, date_end: dateEnd })
                   }
                 />
               </div>
@@ -248,7 +247,7 @@ export function ResearchProjectsPage() {
                 {project.lead ? ` · Chef : ${project.lead.name}` : ""}
               </p>
               <ButtonLink variant="secondary" to={`/projets/${project.id}`}>
-                Ouvrir les neuf onglets
+                Ouvrir le projet
               </ButtonLink>
             </Card>
           ))}

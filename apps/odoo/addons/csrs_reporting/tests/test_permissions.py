@@ -67,6 +67,57 @@ class CsrsPermissionTests(TransactionCase):
     def test_new_task_uses_the_csrs_ent_sequence_prefix(self):
         self.assertTrue(self.task.csrs_code.startswith("CSRS-ENT-T-"))
 
+    def test_planning_preserves_a_fractional_hour_and_exposes_calendar_hours(self):
+        facade = self.env["csrs.api"].with_user(self.manager)
+        calendar = self.env.company.resource_calendar_id
+
+        options = facade.api_planning_options()
+        preview = facade.api_planning_preview(
+            {
+                "calendar_id": calendar.id,
+                "start_date": fields.Date.context_today(self).isoformat(),
+                "source": "workload",
+                "estimated_work_days": "0.1875",
+            }
+        )
+
+        option = next(item for item in options["calendars"] if item["id"] == calendar.id)
+        self.assertEqual(option["hours_per_day"], calendar.hours_per_day)
+        self.assertEqual(preview["estimated_work_days"], "0.1875")
+
+    def test_migrated_progress_activity_is_not_displayed_twice(self):
+        recorded_at = fields.Datetime.now()
+        note = "Point de direction confirmé."
+        self.env["csrs.progress.entry"].sudo().create(
+            {
+                "task_id": self.task.id,
+                "author_id": self.manager.id,
+                "recorded_at": recorded_at,
+                "previous_progress_percent": 35,
+                "progress_percent": 60,
+                "blocked": False,
+                "observation": note,
+                "revision": 1,
+            }
+        )
+        self.env["mail.message"].sudo().create(
+            {
+                "model": "project.task",
+                "res_id": self.task.id,
+                "message_type": "comment",
+                "body": note,
+                "author_id": self.manager.partner_id.id,
+                "date": recorded_at,
+                "message_id": "<legacy-task-activity-regression@csrs-ent.invalid>",
+            }
+        )
+
+        activities = self.env["csrs.api"].with_user(self.manager)._task_activities(
+            self.task
+        )
+
+        self.assertEqual([item["message"] for item in activities].count(note), 1)
+
     def test_secondary_manager_can_comment_but_cannot_edit_progress(self):
         task = self.task.with_user(self.secondary)
 

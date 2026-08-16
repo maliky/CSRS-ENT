@@ -11,7 +11,7 @@ class ScheduleSerializer(serializers.Serializer[dict[str, object]]):
     start_date = serializers.DateField()
     due_date = serializers.DateField()
     estimated_work_days = serializers.DecimalField(
-        max_digits=7, decimal_places=1, min_value=Decimal("0.1")
+        max_digits=9, decimal_places=4, min_value=Decimal("0.0001")
     )
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
@@ -259,7 +259,10 @@ class PlanningPreviewSerializer(serializers.Serializer[dict[str, object]]):
     source = cast(Any, serializers.ChoiceField(choices=("workload", "due")))
     due_date = serializers.DateField(required=False)
     estimated_work_days = serializers.DecimalField(
-        max_digits=7, decimal_places=1, min_value=Decimal("0.1"), required=False
+        max_digits=9,
+        decimal_places=4,
+        min_value=Decimal("0.0001"),
+        required=False,
     )
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:

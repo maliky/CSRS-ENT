@@ -594,7 +594,7 @@ export type Dashboard = { period: Period; today: string; tasks: TaskSummary[] };
 export type PlanningOptions = {
   employees: Person[];
   actions: { id: number; label: string }[];
-  calendars: { id: number; label: string }[];
+  calendars: { id: number; label: string; hours_per_day: number }[];
   defaults: {
     calendar_id: number;
     start_date: string;

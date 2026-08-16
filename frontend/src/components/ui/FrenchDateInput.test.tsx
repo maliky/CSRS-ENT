@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { vi } from "vitest";
 import { FrenchDateInput } from "./FrenchDateInput";
 
 test("affiche une valeur ISO au format jj/mm/aaaa et conserve ISO pour le code", async () => {
@@ -55,4 +56,25 @@ test("soumet une date ISO et refuse une date française impossible", async () =>
   expect(input).toHaveValue("12/08/2026");
   expect(input).toBeValid();
   expect(new FormData(form).get("day")).toBe("2026-08-12");
+});
+
+test("propose toujours un calendrier natif sans interdire la saisie française", () => {
+  const onValueChange = vi.fn();
+  render(
+    <FrenchDateInput
+      value="2026-08-03"
+      onValueChange={onValueChange}
+      aria-label="Date de recette"
+    />,
+  );
+
+  const picker = screen.getByLabelText("Ouvrir le calendrier");
+  expect(picker).toHaveAttribute("type", "date");
+
+  fireEvent.change(picker, { target: { value: "2026-08-12" } });
+
+  expect(screen.getByRole("textbox", { name: "Date de recette" })).toHaveValue(
+    "12/08/2026",
+  );
+  expect(onValueChange).toHaveBeenCalledWith("2026-08-12");
 });

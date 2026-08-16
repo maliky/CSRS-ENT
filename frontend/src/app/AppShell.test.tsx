@@ -40,6 +40,29 @@ test("réduit la barre latérale et mémorise le choix", async () => {
   ).toBeInTheDocument();
 });
 
+test("regroupe les parcours liés dans des sections repliables", async () => {
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter>
+      <Routes>
+        <Route path="/" element={<AppShell />}>
+          <Route index element={<h1>Navigation groupée</h1>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await screen.findByText("Navigation groupée");
+  const workGroup = screen.getByText("Travail");
+  const team = screen.getByRole("link", { name: "Mon équipe" });
+  expect(team).toBeVisible();
+
+  await user.click(workGroup);
+
+  expect(team).not.toBeVisible();
+  expect(screen.getByText("Pilotage")).toBeInTheDocument();
+});
+
 test("ouvre et ferme le tiroir mobile avec des contrôles accessibles", async () => {
   window.localStorage.clear();
   render(
@@ -124,7 +147,9 @@ test("affiche les outils d'administration uniquement avec les droits Odoo", asyn
     </MemoryRouter>,
   );
 
-  expect(await screen.findByText("Administration")).toBeInTheDocument();
+  expect(
+    await screen.findByRole("heading", { name: "Administration" }),
+  ).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: "Gérer les tâches" }),
   ).toHaveAttribute("href", "/administration/taches");
