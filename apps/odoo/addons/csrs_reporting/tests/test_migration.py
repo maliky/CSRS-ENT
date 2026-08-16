@@ -20,7 +20,7 @@ class CsrsMigrationTests(TransactionCase):
                     "last_name": "Migration",
                     "phone": "",
                     "job_title": "Profil source",
-                    "agenda_direction": "programs",
+                    "agenda_direction": "research",
                     "include_in_direction_agendas": True,
                     "active": True,
                     "is_it_admin": False,
@@ -275,7 +275,7 @@ class CsrsMigrationTests(TransactionCase):
         )
         self.assertEqual(user.csrs_first_name, "Compte")
         self.assertEqual(user.csrs_last_name, "Migration")
-        self.assertEqual(employee.csrs_agenda_direction, "programs")
+        self.assertEqual(employee.csrs_agenda_direction, "research")
         self.assertTrue(employee.csrs_include_in_agenda)
         self.assertEqual(department.csrs_short_name, "Service test")
         self.assertEqual(department.csrs_kind, "unit")

@@ -1609,10 +1609,12 @@ components:
       enum:
         - programs
         - administration
+        - research
       type: string
       description: |-
         * `programs` - programs
         * `administration` - administration
+        * `research` - research
     AgendaDraft:
       type: object
       properties:
