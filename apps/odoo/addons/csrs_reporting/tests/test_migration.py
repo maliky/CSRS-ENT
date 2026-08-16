@@ -324,17 +324,30 @@ class CsrsMigrationTests(TransactionCase):
             {},
         )
         task.with_context(csrs_authorized_mutation=True).write(
-            {"csrs_status": "planned"}
+            {
+                "csrs_status": "planned",
+                "csrs_progress_percent": 77,
+                "csrs_blocked": True,
+                "csrs_revision": 99,
+                "user_ids": [(6, 0, [])],
+            }
         )
 
-        repaired = importer.import_payload(self.payload_v3(), apply=True)
+        preserved = importer.import_payload(self.payload_v3(), apply=True)
         third = importer.import_payload(self.payload_v3(), apply=True)
 
         self.assertEqual(first["created"]["tasks"], 1)
-        self.assertEqual(repaired["updated"]["tasks"], 1)
-        self.assertEqual(task.csrs_status, "active")
+        self.assertEqual(preserved["unchanged"]["tasks"], 1)
+        self.assertEqual(preserved["unchanged"]["task_source_conflicts"], 1)
+        self.assertEqual(
+            preserved["unchanged"]["task_progress_source_conflicts"], 1
+        )
         self.assertEqual(third["unchanged"]["tasks"], 1)
-        self.assertEqual(task.csrs_progress_percent, 30)
+        self.assertEqual(task.csrs_status, "planned")
+        self.assertEqual(task.csrs_progress_percent, 77)
+        self.assertTrue(task.csrs_blocked)
+        self.assertEqual(task.csrs_revision, 99)
+        self.assertFalse(task.user_ids)
         self.assertEqual(len(task.csrs_progress_entry_ids), 1)
         self.assertEqual(len(task.csrs_legacy_revision_ids), 3)
         proposal = self.env["csrs.task.proposal"].search(
