@@ -56,6 +56,7 @@ Cet hôte utilise =docker-compose= 1.29.2; =docker compose= peut remplacer la co
 
 ** Préproduction
 
-=./scripts/deploy_preprod.sh /srv/apps/csrs-ent-preprod/config/.env= valide Compose, reconstruit les images, met à niveau le module Odoo sans supprimer les volumes, puis démarre les services. =preprod.ent.koba.sarl= expose uniquement Django par Nginx; Odoo, Mailpit et PostgreSQL ne sont pas publiés sur Internet.
+=./scripts/deploy_preprod.sh /srv/apps/csrs-ent-preprod/config/.env= valide Compose, reconstruit les images, met à niveau le module Odoo sans supprimer les volumes, puis démarre les services.
+Par défaut, =preprod.ent.koba.sarl= continue d'exposer Django, et Odoo est maintenant publié sur =preprod.odoo.ent.koba.sarl= via Nginx avec =auth_basic= (fichier =/etc/nginx/.htpasswd=, sans allowlist).
 
 La préproduction de cet hôte utilise des versions immuables sous =/srv/apps/csrs-ent-preprod/releases/= et le lien =current= depuis la branche =preprod=. Sa cible publique est =https://preprod.ent.koba.sarl/=. Le fichier d'environnement reste hors des versions avec un mode d'accès restrictif.

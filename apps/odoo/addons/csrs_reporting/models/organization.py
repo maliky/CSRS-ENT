@@ -43,6 +43,18 @@ class HrEmployee(models.Model):
         string="Responsables secondaires CSRS",
         copy=False,
     )
+    csrs_terms_of_reference = fields.Text(
+        string="Cahier des charges CSRS",
+        tracking=True,
+        copy=False,
+    )
+    csrs_terms_of_reference_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Document du cahier des charges CSRS",
+        tracking=True,
+        copy=False,
+        ondelete="set null",
+    )
 
     _csrs_employee_source_unique = models.Constraint(
         "UNIQUE (csrs_source_id)",

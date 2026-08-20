@@ -86,6 +86,14 @@ urlpatterns = [
     ),
     path("api/v1/team/", api_views.TeamView.as_view()),
     path("api/v1/team/<int:pk>/", api_views.TeamEmployeeView.as_view()),
+    path(
+        "api/v1/team/<int:pk>/avatar/",
+        api_views.TeamEmployeeAvatarView.as_view(),
+    ),
+    path(
+        "api/v1/team/<int:pk>/tor-document/",
+        api_views.TeamEmployeeTorDocumentView.as_view(),
+    ),
     path("api/v1/visits/", api_views.VisitListCreateView.as_view()),
     path(
         "api/v1/visits/<int:pk>/departure/",

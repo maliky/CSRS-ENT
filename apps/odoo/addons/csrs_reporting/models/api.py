@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from base64 import b64decode
+from binascii import Error as Base64Error
 from calendar import monthrange
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
@@ -18,6 +20,15 @@ from odoo.fields import Command, Domain
 
 
 TAG_RE = re.compile(r"<[^>]+>")
+PROFILE_FILE_MAX_BYTES = 5 * 1024 * 1024
+PROFILE_IMAGE_MIMETYPES = frozenset({"image/jpeg", "image/png"})
+PROFILE_DOCUMENT_MIMETYPES = frozenset(
+    {
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+)
 STATUS_LABELS = {
     "planned": "Planifiée",
     "active": "En cours",
@@ -75,6 +86,50 @@ def _workload_decimal(value):
         Decimal(str(value or 0)).quantize(Decimal("0.0001"), ROUND_HALF_UP), "f"
     ).rstrip("0").rstrip(".")
     return rendered if "." in rendered else f"{rendered}.0"
+
+
+def _profile_file(
+    payload: object,
+    allowed_mimetypes: frozenset[str],
+) -> tuple[str, str, str, bytes]:
+    if not isinstance(payload, dict):
+        raise ValidationError(_("Fichier de profil invalide."))
+    name = (
+        str(payload.get("name") or "")
+        .strip()
+        .replace("\\", "/")
+        .rsplit("/", 1)[-1]
+    )
+    mimetype = str(payload.get("mimetype") or "").strip().lower()
+    content = str(payload.get("content_base64") or "").strip()
+    if not name or len(name) > 255 or mimetype not in allowed_mimetypes or not content:
+        raise ValidationError(_("Fichier de profil invalide."))
+    try:
+        raw = b64decode(content, validate=True)
+    except (Base64Error, ValueError):
+        raise ValidationError(_("Fichier de profil invalide.")) from None
+    if not raw or len(raw) > PROFILE_FILE_MAX_BYTES:
+        raise ValidationError(_("Le fichier de profil dépasse la limite de 5 Mo."))
+    signatures = {
+        "image/jpeg": (b"\xff\xd8\xff",),
+        "image/png": (b"\x89PNG\r\n\x1a\n",),
+        "application/pdf": (b"%PDF-",),
+        "application/msword": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
+            b"PK\x03\x04",
+        ),
+    }
+    if not any(raw.startswith(signature) for signature in signatures[mimetype]):
+        raise ValidationError(_("Le contenu du fichier ne correspond pas à son type."))
+    return name, mimetype, content, raw
+
+
+def _profile_image_mimetype(raw: bytes) -> str:
+    if raw.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if raw.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    raise ValidationError(_("Avatar invalide."))
 
 
 class CsrsApi(models.AbstractModel):
@@ -276,7 +331,7 @@ class CsrsApi(models.AbstractModel):
         user = self.env.user
         if user.has_group("csrs_reporting.group_csrs_it"):
             employees = self.env["hr.employee"].sudo().search([("user_id", "!=", False)])
-            return employees.user_id
+            return employees.user_id | user
         if user.has_group("csrs_reporting.group_csrs_dg"):
             employees = self.env["hr.employee"].sudo().search(
                 [("user_id", "!=", False)]
@@ -295,7 +350,7 @@ class CsrsApi(models.AbstractModel):
             delegated |= self.env["hr.employee"].sudo().search(
                 [("department_id", operator, grant.department_id.id)]
             ).user_id
-        return direct.user_id | delegated
+        return direct.user_id | delegated | user
 
     @api.model
     def api_session(self):
@@ -1686,6 +1741,42 @@ class CsrsApi(models.AbstractModel):
             "children": [self._team_node(child, period) for child in children],
         }
 
+    def _team_user(self, user_id):
+        user = self.env["res.users"].sudo().browse(int(user_id)).exists()
+        if not user or user not in self._managed_users():
+            raise AccessError(_("Ce collaborateur n'est pas dans votre périmètre."))
+        return user
+
+    def _employee_profile_state_token(self, employee):
+        attachment = employee.csrs_terms_of_reference_attachment_id
+        payload = [
+            employee.id,
+            _iso(employee.write_date),
+            attachment.id if attachment else None,
+            _iso(attachment.write_date) if attachment else None,
+        ]
+        return sha256(
+            json.dumps(payload, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    def _employee_profile(self, user):
+        employee = self._employee_for_user(user)
+        if not employee:
+            raise UserError(_("Fiche employé introuvable."))
+        attachment = employee.csrs_terms_of_reference_attachment_id
+        return {
+            "terms_of_reference": employee.csrs_terms_of_reference or "",
+            "has_avatar": bool(employee.image_128),
+            "document": {
+                "name": attachment.name,
+                "mimetype": attachment.mimetype or "application/octet-stream",
+            }
+            if attachment
+            else None,
+            "can_edit": user == self.env.user,
+            "state_token": self._employee_profile_state_token(employee),
+        }
+
     @api.model
     def api_team(self, week=None, month=None):
         period = self._period(week, month)
@@ -1701,9 +1792,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_team_employee(self, user_id, week=None, month=None):
-        user = self.env["res.users"].browse(int(user_id)).exists()
-        if not user or user not in self._managed_users():
-            raise AccessError(_("Ce collaborateur n'est pas dans votre périmètre."))
+        user = self._team_user(user_id)
         period = self._period(week, month)
         tasks = self.env["project.task"].search(
             self._task_domain_for_period(period) + [("user_ids", "in", [user.id])],
@@ -1712,7 +1801,89 @@ class CsrsApi(models.AbstractModel):
         return {
             "period": period,
             "employee": self._person(user),
+            "profile": self._employee_profile(user),
             "tasks": [self._task_summary(task, period) for task in tasks],
+        }
+
+    @api.model
+    def api_team_employee_profile_update(self, user_id, payload):
+        user = self._team_user(user_id)
+        if user != self.env.user:
+            raise AccessError(_("Chaque employé modifie uniquement sa propre fiche."))
+        if not isinstance(payload, dict):
+            raise ValidationError(_("Profil invalide."))
+        employee = self._employee_for_user(user)
+        if not employee:
+            raise UserError(_("Fiche employé introuvable."))
+        if payload.get("state_token") != self._employee_profile_state_token(employee):
+            raise UserError(_("Le profil a changé. Rechargez-le avant de continuer."))
+        if payload.get("avatar") and payload.get("remove_avatar"):
+            raise ValidationError(_("Choisissez un avatar ou sa suppression."))
+        if payload.get("document") and payload.get("remove_document"):
+            raise ValidationError(_("Choisissez un document ou sa suppression."))
+
+        values = {}
+        if "terms_of_reference" in payload:
+            text = str(payload.get("terms_of_reference") or "").strip()
+            if len(text) > 20_000:
+                raise ValidationError(_("Le cahier des charges est trop long."))
+            values["csrs_terms_of_reference"] = text
+        if payload.get("remove_avatar"):
+            values["image_1920"] = False
+        elif payload.get("avatar"):
+            _name, _mimetype, content, _raw = _profile_file(
+                payload["avatar"], PROFILE_IMAGE_MIMETYPES
+            )
+            values["image_1920"] = content
+
+        old_attachment = employee.csrs_terms_of_reference_attachment_id
+        if payload.get("remove_document"):
+            values["csrs_terms_of_reference_attachment_id"] = False
+        elif payload.get("document"):
+            name, mimetype, content, _raw = _profile_file(
+                payload["document"], PROFILE_DOCUMENT_MIMETYPES
+            )
+            attachment = self.env["ir.attachment"].sudo().create(
+                {
+                    "name": name,
+                    "mimetype": mimetype,
+                    "datas": content,
+                    "res_model": "hr.employee",
+                    "res_id": employee.id,
+                }
+            )
+            values["csrs_terms_of_reference_attachment_id"] = attachment.id
+        if values:
+            employee.sudo().write(values)
+        if old_attachment and old_attachment != employee.csrs_terms_of_reference_attachment_id:
+            old_attachment.sudo().unlink()
+        return self._employee_profile(user)
+
+    @api.model
+    def api_team_employee_avatar(self, user_id):
+        user = self._team_user(user_id)
+        employee = self._employee_for_user(user)
+        if not employee or not employee.image_1920:
+            raise UserError(_("Avatar introuvable."))
+        content = employee.image_1920.decode()
+        raw = b64decode(content, validate=True)
+        return {
+            "name": f"avatar-{user.id}",
+            "mimetype": _profile_image_mimetype(raw),
+            "content": content,
+        }
+
+    @api.model
+    def api_team_employee_tor_document(self, user_id):
+        user = self._team_user(user_id)
+        employee = self._employee_for_user(user)
+        attachment = employee.csrs_terms_of_reference_attachment_id
+        if not attachment or not attachment.datas:
+            raise UserError(_("Document du cahier des charges introuvable."))
+        return {
+            "name": attachment.name,
+            "mimetype": attachment.mimetype or "application/octet-stream",
+            "content": attachment.datas.decode(),
         }
 
     def _visit_payload(self, visit):

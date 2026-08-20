@@ -1,3 +1,4 @@
+from base64 import b64encode
 import json
 from unittest.mock import MagicMock, patch
 
@@ -256,6 +257,55 @@ class BusinessApiTests(SimpleTestCase):
         session = self.client.session
         session["odoo_session_id"] = "opaque-session"
         session.save()
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_employee_profile_update_validates_then_delegates(
+        self, call: MagicMock
+    ) -> None:
+        call.return_value = {"state_token": "b" * 64}
+        payload = {
+            "state_token": "a" * 64,
+            "terms_of_reference": "Préparer les activités de terrain.",
+            "document": {
+                "name": "tor.pdf",
+                "mimetype": "application/pdf",
+                "content_base64": b64encode(b"%PDF-1.4\n%%EOF\n").decode(),
+            },
+            "avatar": None,
+            "remove_avatar": False,
+            "remove_document": False,
+        }
+
+        response = self.client.patch(
+            "/api/v1/team/17/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session", "api_team_employee_profile_update", [17, payload]
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_employee_avatar_is_returned_without_caching(
+        self, call: MagicMock
+    ) -> None:
+        png = b"\x89PNG\r\n\x1a\nfixture"
+        call.return_value = {
+            "name": "avatar-17.png",
+            "mimetype": "image/png",
+            "content": b64encode(png).decode(),
+        }
+
+        response = self.client.get("/api/v1/team/17/avatar/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, png)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        call.assert_called_once_with(
+            "opaque-session", "api_team_employee_avatar", [17]
+        )
 
     @patch("gateway.api_views.OdooClient.call")
     def test_task_bulk_delete_validates_then_delegates(self, call: MagicMock) -> None:

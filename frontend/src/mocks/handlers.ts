@@ -63,6 +63,15 @@ function teamNodeById(nodes: TeamNode[], id: number): TeamNode | undefined {
   return undefined;
 }
 
+const teamProfile = {
+  terms_of_reference:
+    "Planifier les activités, documenter les résultats et rendre compte au responsable principal.",
+  has_avatar: false,
+  document: { name: "cahier-des-charges.pdf", mimetype: "application/pdf" },
+  can_edit: false,
+  state_token: "a".repeat(64),
+};
+
 function replaceProposal(updated: Proposal) {
   proposalState = {
     own: proposalState.own.map((item) =>
@@ -356,10 +365,18 @@ export const handlers = [
     return HttpResponse.json({
       period: teamFixture.period,
       employee: node.employee,
+      profile: teamProfile,
       tasks: taskGroups()
         .tasks.slice(0, node.task_count)
         .map((task) => ({ ...task, employee: node.employee })),
     });
+  }),
+  http.patch("/api/v1/team/:id/", async ({ request }) => {
+    const payload = (await request.json()) as { terms_of_reference?: string };
+    teamProfile.terms_of_reference =
+      payload.terms_of_reference ?? teamProfile.terms_of_reference;
+    teamProfile.state_token = "b".repeat(64);
+    return HttpResponse.json(teamProfile);
   }),
 ];
 
