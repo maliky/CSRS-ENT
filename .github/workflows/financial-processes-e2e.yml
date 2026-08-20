@@ -57,7 +57,7 @@ jobs:
         run: ./scripts/e2e_fixtures.sh reseed "$CSRS_E2E_DATASET" .env
 
       - name: Exercise BSF and DA in Chromium
-        run: npm run test:e2e --prefix frontend -- e2e/mutations/financial-processes.spec.ts
+        run: npm run test:e2e --prefix frontend -- --project=chromium-financial-processes
 
       - name: Collect service logs on failure
         if: failure()
