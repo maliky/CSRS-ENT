@@ -31,7 +31,7 @@ const document = {
 
 async function api<T>(
   page: Page,
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PUT" | "PATCH",
   path: string,
   body?: object,
 ): Promise<T> {
@@ -164,7 +164,7 @@ test("la DA produit un BC confirmé et trois preuves avant paiement", async ({
   expect(quotation).toBeTruthy();
   process = await api<ProcessDetail>(
     page,
-    "POST",
+    "PUT",
     `/api/v1/processes/${process.id}/procurement/`,
     {
       revision: process.revision,
