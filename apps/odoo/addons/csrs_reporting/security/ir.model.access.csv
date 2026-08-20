@@ -42,3 +42,9 @@ access_csrs_visa_request_agent,csrs.visa.request agent,model_csrs_visa_request,c
 access_csrs_data_management_case_agent,csrs.data.management.case agent,model_csrs_data_management_case,csrs_reporting.group_csrs_agent,1,0,0,0
 access_csrs_project_models_it,csrs project models it,model_csrs_project_section,csrs_reporting.group_csrs_it,1,1,1,0
 access_csrs_process_case_it,csrs.process.case it,model_csrs_process_case,csrs_reporting.group_csrs_it,1,1,1,0
+access_csrs_purchase_quotation_agent,csrs.purchase.quotation agent,model_csrs_purchase_quotation,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_purchase_quotation_procurement,csrs.purchase.quotation procurement,model_csrs_purchase_quotation,csrs_reporting.group_csrs_procurement,1,1,1,0
+access_csrs_purchase_quotation_finance,csrs.purchase.quotation finance,model_csrs_purchase_quotation,csrs_reporting.group_csrs_finance,1,0,0,0
+access_csrs_purchase_evidence_agent,csrs.purchase.evidence agent,model_csrs_purchase_evidence,csrs_reporting.group_csrs_agent,1,0,0,0
+access_csrs_purchase_evidence_procurement,csrs.purchase.evidence procurement,model_csrs_purchase_evidence,csrs_reporting.group_csrs_procurement,1,1,0,0
+access_csrs_purchase_evidence_finance,csrs.purchase.evidence finance,model_csrs_purchase_evidence,csrs_reporting.group_csrs_finance,1,1,0,0

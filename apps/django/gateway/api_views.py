@@ -68,6 +68,8 @@ from .serializers import (
     RoleGrantSerializer,
     ProjectSectionTransitionSerializer,
     ProcessCreateSerializer,
+    ProcessProcurementSerializer,
+    ProcessQuotationSerializer,
     ProcessTransitionSerializer,
     VisitSerializer,
 )
@@ -785,6 +787,38 @@ class ProcessDetailView(OdooAPIView):
     @extend_schema(operation_id="processes_retrieve", responses=OpenApiTypes.OBJECT)
     def get(self, request: Request, pk: int) -> Response:
         return Response(self.rpc(request, "api_process", [pk]))
+
+
+class ProcessQuotationCreateView(OdooAPIView):
+    @extend_schema(request=ProcessQuotationSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(ProcessQuotationSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_process_quotation_save", [pk, payload]),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProcessQuotationDetailView(OdooAPIView):
+    @extend_schema(request=ProcessQuotationSerializer, responses=OpenApiTypes.OBJECT)
+    def put(self, request: Request, pk: int, quotation_pk: int) -> Response:
+        payload = _payload(ProcessQuotationSerializer, request.data)
+        return Response(
+            self.rpc(
+                request,
+                "api_process_quotation_save",
+                [pk, payload, quotation_pk],
+            )
+        )
+
+
+class ProcessProcurementView(OdooAPIView):
+    @extend_schema(request=ProcessProcurementSerializer, responses=OpenApiTypes.OBJECT)
+    def put(self, request: Request, pk: int) -> Response:
+        payload = _payload(ProcessProcurementSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_process_procurement_save", [pk, payload])
+        )
 
 
 class ProcessTransitionView(OdooAPIView):
