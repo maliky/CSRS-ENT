@@ -42,6 +42,13 @@ test("charge une seule fois les tâches dans la branche du collaborateur", async
       return HttpResponse.json({
         period: teamFixture.period,
         employee,
+        profile: {
+          terms_of_reference: "Superviser les engagements financiers.",
+          has_avatar: false,
+          document: null,
+          can_edit: false,
+          state_token: "a".repeat(64),
+        },
         tasks: dashboardFixture.tasks
           .slice(0, 2)
           .map((task) => ({ ...task, employee })),
@@ -65,7 +72,7 @@ test("charge une seule fois les tâches dans la branche du collaborateur", async
   expect(child).not.toHaveAttribute("open");
   if (!root) throw new Error("Branche racine introuvable");
   expect(
-    within(root).getByText("Aucune tâche sur cette période."),
+    await within(root).findByText("Aucune tâche sur cette période."),
   ).toBeVisible();
   await user.click(summaryFor("Awa Finances"));
 

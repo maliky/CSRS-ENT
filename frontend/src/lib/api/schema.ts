@@ -746,6 +746,41 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    patch: operations["team_partial_update"];
+    trace?: never;
+  };
+  "/api/v1/team/{id}/avatar/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["team_avatar_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/team/{id}/tor-document/": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Authenticate via the relayed Odoo session and normalize RPC failures. */
+    get: operations["team_tor_document_retrieve"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
     patch?: never;
     trace?: never;
   };
@@ -960,6 +995,11 @@ export interface components {
      * @enum {string}
      */
     DecisionEnum: "accept" | "reject";
+    EncodedProfileFile: {
+      name: string;
+      mimetype: string;
+      content_base64: string;
+    };
     /**
      * @description * `leave` - leave
      *     * `absence` - absence
@@ -1014,6 +1054,16 @@ export interface components {
       /** @default  */
       note: string;
       revision?: number;
+    };
+    PatchedEmployeeProfileUpdate: {
+      state_token?: string;
+      terms_of_reference?: string;
+      avatar?: components["schemas"]["EncodedProfileFile"] | null;
+      document?: components["schemas"]["EncodedProfileFile"] | null;
+      /** @default false */
+      remove_avatar: boolean;
+      /** @default false */
+      remove_document: boolean;
     };
     PatchedOrganizationUnitUpdate: {
       code?: string;
@@ -2795,6 +2845,77 @@ export interface operations {
           "application/json": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  team_partial_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedEmployeeProfileUpdate"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedEmployeeProfileUpdate"];
+        "multipart/form-data": components["schemas"]["PatchedEmployeeProfileUpdate"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  team_avatar_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  team_tor_document_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": string;
         };
       };
     };

@@ -155,7 +155,7 @@ function TeamTreeNode({
   const [hasOpened, setHasOpened] = useState(initiallyOpen);
   const profile = useApi<TeamEmployee>(
     `/api/v1/team/${node.employee.id}/?${periodQuery}`,
-    hasOpened && node.task_count > 0,
+    hasOpened,
   );
 
   return (
@@ -193,7 +193,8 @@ function TeamTreeNode({
         {hasOpened && (
           <TeamProfile
             employeeName={node.employee.name}
-            expectedTaskCount={node.task_count}
+            employeeId={node.employee.id}
+            periodQuery={periodQuery}
             data={profile.data}
             error={profile.error}
             loading={profile.loading}
@@ -225,23 +226,21 @@ function TeamTreeNode({
 
 function TeamProfile({
   employeeName,
-  expectedTaskCount,
+  employeeId,
+  periodQuery,
   data,
   error,
   loading,
   retry,
 }: {
   employeeName: string;
-  expectedTaskCount: number;
+  employeeId: number;
+  periodQuery: string;
   data: TeamEmployee | null;
   error: Error | null;
   loading: boolean;
   retry: () => Promise<void>;
 }) {
-  if (expectedTaskCount === 0)
-    return (
-      <p className={styles.profileStatus}>Aucune tâche sur cette période.</p>
-    );
   if (loading || (!data && !error))
     return <Skeleton label={`Chargement des tâches de ${employeeName}`} />;
   if (error || !data)
@@ -254,21 +253,38 @@ function TeamProfile({
         </Button>
       </div>
     );
-  if (!data.tasks.length)
-    return (
-      <p className={styles.profileStatus}>Aucune tâche sur cette période.</p>
-    );
   return (
     <section
       className={styles.profile}
       aria-label={`Tâches de ${employeeName}`}
     >
-      <h2>Profil des tâches</h2>
-      <div className={styles.tasks}>
-        {data.tasks.map((task) => (
-          <TeamTaskProfile key={task.id} task={task} />
-        ))}
+      <div className={styles.profileTitle}>
+        <h2>Profil du collaborateur</h2>
+        <Link
+          to={`/equipe/${employeeId}${periodQuery ? `?${periodQuery}` : ""}`}
+        >
+          Voir la fiche complète
+        </Link>
       </div>
+      <p className={styles.termsText}>
+        {data.profile.terms_of_reference ||
+          "Aucun cahier des charges renseigné."}
+      </p>
+      {data.profile.document && (
+        <a href={`/api/v1/team/${employeeId}/tor-document/`}>
+          Télécharger {data.profile.document.name}
+        </a>
+      )}
+      <h2>Profil des tâches</h2>
+      {data.tasks.length ? (
+        <div className={styles.tasks}>
+          {data.tasks.map((task) => (
+            <TeamTaskProfile key={task.id} task={task} />
+          ))}
+        </div>
+      ) : (
+        <p className={styles.profileStatus}>Aucune tâche sur cette période.</p>
+      )}
     </section>
   );
 }

@@ -668,9 +668,17 @@ export type TeamNode = {
 };
 
 export type Team = { period: Period; nodes: TeamNode[] };
+export type TeamEmployeeProfile = {
+  terms_of_reference: string;
+  has_avatar: boolean;
+  document: { name: string; mimetype: string } | null;
+  can_edit: boolean;
+  state_token: string;
+};
 export type TeamEmployee = {
   period: Period;
   employee: Person;
+  profile: TeamEmployeeProfile;
   tasks: TaskSummary[];
 };
 

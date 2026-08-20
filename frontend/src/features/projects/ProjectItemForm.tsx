@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, FrenchDateInput } from "../../components/ui";
+import { Button, FrenchDateInput, WorkloadInput } from "../../components/ui";
 import { apiFetch } from "../../lib/api/client";
 import type {
   Person,
@@ -22,6 +22,7 @@ type FieldKind =
   | "textarea"
   | "date"
   | "number"
+  | "workload"
   | "boolean"
   | "user"
   | "user-list"
@@ -50,8 +51,8 @@ const RESOURCE_FIELDS: Record<ProjectResource, Field[]> = {
     { name: "date_deadline", label: "Échéance", kind: "date", required: true },
     {
       name: "csrs_estimated_work_days",
-      label: "Charge (jours)",
-      kind: "number",
+      label: "Charge estimée",
+      kind: "workload",
       required: true,
       defaultValue: "1",
     },
@@ -211,7 +212,12 @@ function rpcValue(
   value: string | boolean,
 ): string | number | boolean | number[] {
   if (field.kind === "boolean") return Boolean(value);
-  if (field.kind === "number" || field.kind === "user") return Number(value);
+  if (
+    field.kind === "number" ||
+    field.kind === "workload" ||
+    field.kind === "user"
+  )
+    return Number(value);
   if (field.kind === "user-list") return value ? [Number(value)] : [];
   return String(value);
 }
@@ -292,8 +298,19 @@ export function ProjectItemForm({
             className={`form-field ${field.kind === "textarea" ? "wide" : ""}`}
             key={field.name}
           >
-            <label htmlFor={`${resource}-${field.name}`}>{field.label}</label>
-            {field.kind === "textarea" ? (
+            {field.kind !== "workload" && (
+              <label htmlFor={`${resource}-${field.name}`}>{field.label}</label>
+            )}
+            {field.kind === "workload" ? (
+              <WorkloadInput
+                id={`${resource}-${field.name}`}
+                valueDays={String(values[field.name] ?? "")}
+                hoursPerDay={8}
+                onValueChange={(value) =>
+                  setValues({ ...values, [field.name]: value })
+                }
+              />
+            ) : field.kind === "textarea" ? (
               <textarea
                 id={`${resource}-${field.name}`}
                 required={field.required}
