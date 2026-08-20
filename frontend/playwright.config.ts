@@ -78,6 +78,7 @@ export default defineConfig({
       testMatch: /mutations\/financial-processes\.spec\.ts/,
       fullyParallel: false,
       workers: 1,
+      retries: 0,
       use: {
         ...devices["Desktop Chrome"],
       },

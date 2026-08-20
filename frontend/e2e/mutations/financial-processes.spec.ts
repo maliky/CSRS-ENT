@@ -1,6 +1,5 @@
-import type { Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { authenticateFixtureRole, type FixtureRole } from "../support/session";
-import { expect, test } from "../support/test";
 
 type ProcessDetail = Readonly<{
   id: number;
@@ -8,10 +7,6 @@ type ProcessDetail = Readonly<{
   process_type: "fund" | "purchase";
   state: string;
   revision: number;
-  options?: Readonly<{
-    vendors?: readonly Readonly<{ id: number; name: string }>[];
-    products?: readonly Readonly<{ id: number; name: string }>[];
-  }>;
   presentation?: Readonly<{
     kind: string;
     payment_method?: string;
@@ -23,6 +18,10 @@ type ProcessDetail = Readonly<{
 }>;
 
 type ProcessList = readonly ProcessDetail[];
+type ProcessOptions = Readonly<{
+  vendors: readonly Readonly<{ id: number; name: string }>[];
+  products: readonly Readonly<{ id: number; name: string }>[];
+}>;
 
 const document = {
   name: "justificatif-recette.pdf",
@@ -139,8 +138,13 @@ test("la DA produit un BC confirmé et trois preuves avant paiement", async ({
 
   await asRole(page, "procurement");
   process = await detail(page, process.id);
-  const vendor = process.options?.vendors?.[0];
-  const product = process.options?.products?.[0];
+  const options = await api<ProcessOptions>(
+    page,
+    "GET",
+    "/api/v1/processes/options/",
+  );
+  const vendor = options.vendors[0];
+  const product = options.products[0];
   expect(vendor).toBeTruthy();
   expect(product).toBeTruthy();
   process = await api<ProcessDetail>(
