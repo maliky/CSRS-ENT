@@ -186,6 +186,7 @@ test("la DA produit un BC confirmé et trois preuves avant paiement", async ({
         reference,
         date: today(),
         evidence_date: today(),
+        amount: action === "invoice" ? "280000.00" : 0,
         document,
       },
     });
@@ -198,6 +199,7 @@ test("la DA produit un BC confirmé et trois preuves avant paiement", async ({
       reference: "PAY-E2E-001",
       date: today(),
       evidence_date: today(),
+      amount: "280000.00",
       document,
     },
   });
