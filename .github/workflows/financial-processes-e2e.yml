@@ -1,0 +1,68 @@
+name: Financial processes browser UAT
+
+on:
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  financial-processes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CSRS_E2E_DATASET: e2e-financial-ci
+      CSRS_E2E_FIXTURE_PASSWORD: E2E-only-financial-processes-2026
+      CSRS_E2E_MUTATIONS: "true"
+      CSRS_E2E_APPLY: "true"
+      CSRS_E2E_CONFIRM_DATABASE: csrs_ent
+      CSRS_E2E_BASE_URL: http://127.0.0.1:18007
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend and browser
+        run: |
+          npm ci --prefix frontend
+          npx --prefix frontend playwright install --with-deps chromium
+
+      - name: Provide Compose v1-compatible command
+        run: |
+          mkdir -p "$HOME/bin"
+          printf '#!/bin/sh\nexec docker compose "$@"\n' > "$HOME/bin/docker-compose"
+          chmod 0755 "$HOME/bin/docker-compose"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap disposable stack
+        run: |
+          ./scripts/bootstrap_env.sh .env
+          docker-compose --env-file .env -f infrastructure/compose/compose.yaml up -d --build
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent "$CSRS_E2E_BASE_URL/readyz/" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker-compose --env-file .env -f infrastructure/compose/compose.yaml ps
+          exit 1
+
+      - name: Seed isolated financial UAT data
+        run: ./scripts/e2e_fixtures.sh reseed "$CSRS_E2E_DATASET" .env
+
+      - name: Exercise BSF and DA in Chromium
+        run: ./scripts/test_preprod_e2e.sh e2e/mutations/financial-processes.spec.ts
+
+      - name: Collect service logs on failure
+        if: failure()
+        run: docker-compose --env-file .env -f infrastructure/compose/compose.yaml logs --no-color --tail=300
+
+      - name: Stop disposable stack
+        if: always()
+        run: docker-compose --env-file .env -f infrastructure/compose/compose.yaml down --remove-orphans

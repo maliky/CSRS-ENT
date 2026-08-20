@@ -254,6 +254,46 @@ export type ProcedureSummary = {
 
 export type ProcedureDetail = ProcedureSummary & {
   details: Record<string, unknown>;
+  presentation?:
+    | {
+        kind: "fund";
+        budget_line: { id: number; code: string; name: string };
+        beneficiary: { id: number; name: string };
+        purpose: string;
+        payment_method: "cash" | "check";
+        payment_method_label: string;
+        payment_date: string | null;
+        documents: Array<{ id: number; name: string; mimetype: string }>;
+      }
+    | {
+        kind: "purchase";
+        budget_line: { id: number; code: string; name: string };
+        quantity: number;
+        estimated_amount: number;
+        negotiated_amount: number;
+        vendor: { id: number; name: string } | null;
+        product: { id: number; name: string } | null;
+        selected_quotation_id: number | null;
+        quotations: Array<{
+          id: number;
+          vendor: { id: number; name: string };
+          reference: string;
+          quotation_date: string;
+          amount: number;
+          documents: Array<{ id: number; name: string; mimetype: string }>;
+        }>;
+        purchase_order: { id: number; name: string; state: string } | null;
+        evidence: Array<{
+          id: number;
+          kind: "delivery" | "invoice" | "payment";
+          reference: string;
+          date: string;
+          amount: number;
+          document: { id: number; name: string };
+        }>;
+        documents: Array<{ id: number; name: string; mimetype: string }>;
+      }
+    | { kind: "generic" };
   events: Array<{
     id: number;
     action: string;
@@ -281,6 +321,8 @@ export type ProcedureOptions = {
     }>;
   }>;
   people: Array<Person & { employee_id: number; partner_id: number }>;
+  vendors?: Array<{ id: number; name: string }>;
+  products?: Array<{ id: number; name: string }>;
 };
 
 export type OrganizationUnitOption = {

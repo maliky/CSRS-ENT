@@ -225,4 +225,31 @@
     <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
     <field name="domain_force">[(1, '=', 1)] if user.has_group('csrs_reporting.group_csrs_compliance') or user.has_group('csrs_reporting.group_csrs_data_manager') or user.has_group('csrs_reporting.group_csrs_it') else [('case_id.requester_id', '=', user.id)]</field>
   </record>
+    <record id="rule_purchase_quotation_requester" model="ir.rule">
+        <field name="name">Purchase quotations: requester visibility</field>
+        <field name="model_id" ref="model_csrs_purchase_quotation"/>
+        <field name="domain_force">[('purchase_request_id.case_id.requester_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    </record>
+
+    <record id="rule_purchase_quotation_governance" model="ir.rule">
+        <field name="name">Purchase quotations: governance visibility</field>
+        <field name="model_id" ref="model_csrs_purchase_quotation"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_finance')), (4, ref('csrs_reporting.group_csrs_procurement')), (4, ref('csrs_reporting.group_csrs_dg'))]"/>
+    </record>
+
+    <record id="rule_purchase_evidence_requester" model="ir.rule">
+        <field name="name">Purchase evidence: requester visibility</field>
+        <field name="model_id" ref="model_csrs_purchase_evidence"/>
+        <field name="domain_force">[('purchase_request_id.case_id.requester_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_agent'))]"/>
+    </record>
+
+    <record id="rule_purchase_evidence_governance" model="ir.rule">
+        <field name="name">Purchase evidence: governance visibility</field>
+        <field name="model_id" ref="model_csrs_purchase_evidence"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('csrs_reporting.group_csrs_finance')), (4, ref('csrs_reporting.group_csrs_procurement')), (4, ref('csrs_reporting.group_csrs_dg'))]"/>
+    </record>
 </odoo>

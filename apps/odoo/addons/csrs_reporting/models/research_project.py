@@ -765,6 +765,11 @@ class CsrsProjectBudgetLine(models.Model):
 
     def action_reserve(self, amount):
         self.ensure_one()
+        self.env.cr.execute(
+            "SELECT id FROM csrs_project_budget_line WHERE id = %s FOR UPDATE",
+            [self.id],
+        )
+        self.invalidate_recordset(["committed_amount", "available_amount"])
         amount = float(amount)
         if amount <= 0:
             raise ValidationError(_("Le montant à réserver doit être positif."))
