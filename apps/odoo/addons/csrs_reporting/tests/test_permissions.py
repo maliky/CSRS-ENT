@@ -1,3 +1,4 @@
+from base64 import b64encode
 from datetime import timedelta
 
 from passlib.hash import django_pbkdf2_sha256
@@ -6,7 +7,7 @@ from odoo import fields
 from odoo.fields import Command
 from odoo.service.model import call_kw
 from odoo.tests.common import TransactionCase, tagged
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 
 @tagged("post_install", "-at_install")
@@ -84,6 +85,70 @@ class CsrsPermissionTests(TransactionCase):
         option = next(item for item in options["calendars"] if item["id"] == calendar.id)
         self.assertEqual(option["hours_per_day"], calendar.hours_per_day)
         self.assertEqual(preview["estimated_work_days"], "0.1875")
+
+    def test_employee_edits_own_profile_and_manager_reads_it(self):
+        facade = self.env["csrs.api"].with_user(self.agent)
+        current = facade.api_team_employee(self.agent.id)
+        png = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+            "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+        pdf = b64encode(b"%PDF-1.4\nfixture\n%%EOF\n").decode()
+
+        profile = facade.api_team_employee_profile_update(
+            self.agent.id,
+            {
+                "state_token": current["profile"]["state_token"],
+                "terms_of_reference": "Préparer et documenter les travaux de terrain.",
+                "avatar": {
+                    "name": "avatar.png",
+                    "mimetype": "image/png",
+                    "content_base64": png,
+                },
+                "document": {
+                    "name": "tor.pdf",
+                    "mimetype": "application/pdf",
+                    "content_base64": pdf,
+                },
+            },
+        )
+
+        self.assertTrue(profile["has_avatar"])
+        self.assertEqual(profile["document"]["name"], "tor.pdf")
+        manager_view = self.env["csrs.api"].with_user(
+            self.manager
+        ).api_team_employee(self.agent.id)
+        self.assertEqual(
+            manager_view["profile"]["terms_of_reference"],
+            "Préparer et documenter les travaux de terrain.",
+        )
+        self.assertFalse(manager_view["profile"]["can_edit"])
+        self.assertTrue(facade.api_team_employee_avatar(self.agent.id)["content"])
+        self.assertEqual(
+            facade.api_team_employee_tor_document(self.agent.id)["content"], pdf
+        )
+        with self.assertRaises(AccessError):
+            self.env["csrs.api"].with_user(
+                self.manager
+            ).api_team_employee_profile_update(
+                self.agent.id,
+                {
+                    "state_token": profile["state_token"],
+                    "terms_of_reference": "Modification interdite.",
+                },
+            )
+        with self.assertRaises(AccessError):
+            self.env["csrs.api"].with_user(self.outsider).api_team_employee(
+                self.agent.id
+            )
+        with self.assertRaises(UserError):
+            facade.api_team_employee_profile_update(
+                self.agent.id,
+                {
+                    "state_token": current["profile"]["state_token"],
+                    "terms_of_reference": "Écriture devenue ancienne.",
+                },
+            )
 
     def test_migrated_progress_activity_is_not_displayed_twice(self):
         recorded_at = fields.Datetime.now()

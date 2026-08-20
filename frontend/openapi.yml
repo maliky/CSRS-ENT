@@ -1390,6 +1390,76 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ""
+    patch:
+      operationId: team_partial_update
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - team
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedEmployeeProfileUpdate"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/PatchedEmployeeProfileUpdate"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PatchedEmployeeProfileUpdate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ""
+  /api/v1/team/{id}/avatar/:
+    get:
+      operationId: team_avatar_retrieve
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - team
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ""
+  /api/v1/team/{id}/tor-document/:
+    get:
+      operationId: team_tor_document_retrieve
+      description: Authenticate via the relayed Odoo session and normalize RPC failures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      tags:
+        - team
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ""
   /api/v1/users/:
     get:
       operationId: user_list
@@ -1786,6 +1856,23 @@ components:
       description: |-
         * `accept` - accept
         * `reject` - reject
+    EncodedProfileFile:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        mimetype:
+          type: string
+          maxLength: 100
+        content_base64:
+          type: string
+          maxLength: 7000000
+          pattern: ^[A-Za-z0-9+/]*={0,2}$
+      required:
+        - content_base64
+        - mimetype
+        - name
     KindEnum:
       enum:
         - leave
@@ -1918,6 +2005,30 @@ components:
         revision:
           type: integer
           minimum: 1
+    PatchedEmployeeProfileUpdate:
+      type: object
+      properties:
+        state_token:
+          type: string
+          maxLength: 64
+          minLength: 64
+        terms_of_reference:
+          type: string
+          maxLength: 20000
+        avatar:
+          allOf:
+            - $ref: "#/components/schemas/EncodedProfileFile"
+          nullable: true
+        document:
+          allOf:
+            - $ref: "#/components/schemas/EncodedProfileFile"
+          nullable: true
+        remove_avatar:
+          type: boolean
+          default: false
+        remove_document:
+          type: boolean
+          default: false
     PatchedOrganizationUnitUpdate:
       type: object
       properties:

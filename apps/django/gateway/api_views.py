@@ -35,6 +35,7 @@ from .serializers import (
     AgendaGenerateSerializer,
     AvailabilitySerializer,
     CancelSerializer,
+    EmployeeProfileUpdateSerializer,
     ObservationSerializer,
     PasswordSerializer,
     PlanningPreviewSerializer,
@@ -473,6 +474,76 @@ class TeamEmployeeView(OdooAPIView):
                     request.query_params.get("month"),
                 ],
             )
+        )
+
+    @extend_schema(
+        request=EmployeeProfileUpdateSerializer,
+        responses=OpenApiTypes.OBJECT,
+    )
+    def patch(self, request: Request, pk: int) -> Response:
+        payload = _payload(EmployeeProfileUpdateSerializer, request.data)
+        return Response(
+            self.rpc(request, "api_team_employee_profile_update", [pk, payload])
+        )
+
+
+def _profile_binary_response(
+    result: JsonValue,
+    *,
+    allowed_mimetypes: frozenset[str],
+    attachment: bool,
+) -> HttpResponse:
+    if not isinstance(result, dict):
+        raise OdooError("Réponse de profil Odoo invalide.")
+    name = result.get("name")
+    mimetype = result.get("mimetype")
+    content = result.get("content")
+    if (
+        not isinstance(name, str)
+        or not isinstance(mimetype, str)
+        or mimetype not in allowed_mimetypes
+        or not isinstance(content, str)
+    ):
+        raise OdooError("Réponse de profil Odoo invalide.")
+    try:
+        body = b64decode(content, validate=True)
+    except (Base64Error, ValueError) as exc:
+        raise OdooError("Réponse de profil Odoo invalide.") from exc
+    if not body or len(body) > 5 * 1024 * 1024:
+        raise OdooError("Réponse de profil Odoo invalide.")
+    safe_name = name.replace("/", "-").replace("\\", "-")
+    response = HttpResponse(body, content_type=mimetype)
+    response["Content-Disposition"] = (
+        content_disposition_header(attachment, safe_name)
+        or f'{"attachment" if attachment else "inline"}; filename="{safe_name}"'
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+class TeamEmployeeAvatarView(OdooAPIView):
+    @extend_schema(responses={200: bytes})
+    def get(self, request: Request, pk: int) -> HttpResponse:
+        return _profile_binary_response(
+            self.rpc(request, "api_team_employee_avatar", [pk]),
+            allowed_mimetypes=frozenset({"image/jpeg", "image/png"}),
+            attachment=False,
+        )
+
+
+class TeamEmployeeTorDocumentView(OdooAPIView):
+    @extend_schema(responses={200: bytes})
+    def get(self, request: Request, pk: int) -> HttpResponse:
+        return _profile_binary_response(
+            self.rpc(request, "api_team_employee_tor_document", [pk]),
+            allowed_mimetypes=frozenset(
+                {
+                    "application/pdf",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                }
+            ),
+            attachment=True,
         )
 
 

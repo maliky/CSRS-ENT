@@ -124,6 +124,34 @@
   font-size: 0.9rem;
   font-weight: 800;
 }
+.employeeHeading,
+.profileTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.employeeHeading {
+  justify-content: flex-start;
+}
+.profileAvatar {
+  width: 5.5rem;
+  height: 5.5rem;
+  flex: 0 0 5.5rem;
+  border: 3px solid var(--color-surface);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+.employeeProfile {
+  margin-bottom: 1.25rem;
+}
+.profileTitle h2 {
+  margin: 0;
+}
+.termsText {
+  white-space: pre-wrap;
+}
 .profileStatus {
   margin: 0;
   color: var(--color-muted);
@@ -264,5 +292,10 @@
   }
   .badges {
     justify-content: start;
+  }
+  .employeeHeading,
+  .profileTitle {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

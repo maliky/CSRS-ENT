@@ -431,6 +431,51 @@ class ResearchProjectItemSerializer(serializers.Serializer[dict[str, object]]):
     values = serializers.DictField()
 
 
+class EncodedProfileFileSerializer(serializers.Serializer[dict[str, object]]):
+    name = serializers.CharField(max_length=255)
+    mimetype = serializers.CharField(max_length=100)
+    content_base64 = serializers.RegexField(
+        r"^[A-Za-z0-9+/]*={0,2}$", max_length=7_000_000
+    )
+
+
+class EmployeeProfileUpdateSerializer(serializers.Serializer[dict[str, object]]):
+    state_token = serializers.CharField(min_length=64, max_length=64)
+    terms_of_reference = serializers.CharField(
+        max_length=20_000, required=False, allow_blank=True
+    )
+    avatar = EncodedProfileFileSerializer(required=False, allow_null=True)
+    document = EncodedProfileFileSerializer(required=False, allow_null=True)
+    remove_avatar = serializers.BooleanField(required=False, default=False)
+    remove_document = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        avatar = attrs.get("avatar")
+        document = attrs.get("document")
+        if avatar and cast(dict[str, object], avatar).get("mimetype") not in {
+            "image/jpeg",
+            "image/png",
+        }:
+            raise serializers.ValidationError({"avatar": "Format d'image invalide."})
+        if document and cast(dict[str, object], document).get("mimetype") not in {
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }:
+            raise serializers.ValidationError(
+                {"document": "Format de document invalide."}
+            )
+        if avatar and attrs.get("remove_avatar"):
+            raise serializers.ValidationError(
+                {"avatar": "Choisissez un avatar ou sa suppression."}
+            )
+        if document and attrs.get("remove_document"):
+            raise serializers.ValidationError(
+                {"document": "Choisissez un document ou sa suppression."}
+            )
+        return attrs
+
+
 class ProcessDocumentSerializer(serializers.Serializer[dict[str, object]]):
     name = serializers.CharField(max_length=255)
     mimetype = serializers.ChoiceField(

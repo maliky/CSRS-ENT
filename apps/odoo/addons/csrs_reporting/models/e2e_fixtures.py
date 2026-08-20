@@ -1,5 +1,6 @@
 """Private, namespaced browser-test fixtures for disposable environments."""
 
+from base64 import b64encode
 from collections import defaultdict
 from datetime import date, timedelta
 from hashlib import sha256
@@ -50,6 +51,7 @@ EXPECTED_COUNTS = {
     "res.users": len(ROLE_GROUPS),
     "res.partner": len(ROLE_GROUPS) + 1,
     "hr.employee": len(ROLE_GROUPS),
+    "ir.attachment": 1,
     "csrs.strategic.plan": 1,
     "csrs.action.plan": 1,
     "csrs.institutional.action": 1,
@@ -321,6 +323,34 @@ class CsrsE2EFixture(models.AbstractModel):
                 },
                 created,
             )
+
+        agent_employee = employees["agent"]
+        tor_attachment = self._ensure(
+            dataset,
+            "employee_agent_tor",
+            "ir.attachment",
+            {
+                "name": f"{marker} cahier-des-charges.pdf",
+                "mimetype": "application/pdf",
+                "datas": b64encode(b"%PDF-1.4\n% CSRS ENT fixture\n%%EOF\n"),
+                "res_model": "hr.employee",
+                "res_id": agent_employee.id,
+            },
+            created,
+        )
+        agent_employee.write(
+            {
+                "image_1920": (
+                    b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+                    b"+A8AAQUBAScY42YAAAAASUVORK5CYII="
+                ),
+                "csrs_terms_of_reference": (
+                    "Préparer les activités de terrain, documenter les résultats et "
+                    "rendre compte chaque semaine au responsable principal."
+                ),
+                "csrs_terms_of_reference_attachment_id": tor_attachment.id,
+            }
+        )
 
         strategic = self._ensure(
             dataset,

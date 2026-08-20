@@ -45,7 +45,7 @@ class CsrsE2EFixtureTests(TransactionCase):
         )
         generated_status = fixture._execute("status", dataset)
         self.assertEqual(generated_status["counts"]["csrs.agenda.version"], 1)
-        self.assertEqual(generated_status["counts"]["ir.attachment"], 1)
+        self.assertEqual(generated_status["counts"]["ir.attachment"], 2)
 
         cleaned = fixture._execute("clean", dataset)
 
