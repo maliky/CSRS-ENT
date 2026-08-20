@@ -65,11 +65,22 @@ export default defineConfig({
       name: "chromium-mutations",
       dependencies: ["authentication"],
       testMatch: /mutations\/.*\.spec\.ts/,
+      testIgnore: /mutations\/financial-processes\.spec\.ts/,
       fullyParallel: false,
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
         storageState: ".playwright/auth/dev.json",
+      },
+    },
+    {
+      name: "chromium-financial-processes",
+      testMatch: /mutations\/financial-processes\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
+      use: {
+        ...devices["Desktop Chrome"],
       },
     },
   ],

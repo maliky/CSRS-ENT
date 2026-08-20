@@ -17,6 +17,29 @@ PROCESS_TYPES = (
     ("data", "Gestion des données"),
 )
 
+BSF_CASH_LIMIT = 200_000.0
+BSF_PAYMENT_WEEKDAYS = frozenset({1, 3, 4})
+
+
+def bsf_payment_method(amount):
+    normalized = float(amount)
+    if normalized <= 0:
+        raise ValidationError(_("Le montant du BSF doit être positif."))
+    return "cash" if normalized <= BSF_CASH_LIMIT else "check"
+
+
+def validate_bsf_payment_date(value, today):
+    payment_date = fields.Date.to_date(value)
+    if not payment_date:
+        raise ValidationError(_("La date de paiement est obligatoire."))
+    if payment_date > today:
+        raise ValidationError(_("La date de paiement ne peut pas être future."))
+    if payment_date.weekday() not in BSF_PAYMENT_WEEKDAYS:
+        raise ValidationError(
+            _("Les paiements BSF sont autorisés le mardi, jeudi ou vendredi.")
+        )
+    return payment_date
+
 TRANSITIONS = {
     "fund": {
         ("draft", "submit"): "finance_review",
@@ -185,10 +208,28 @@ class CsrsProcessCase(models.Model):
             )
         return super().create(values_list)
 
-    def _check_revision(self, expected_revision):
+    def _check_revision(self, expected_revision, current_revision=None):
         self.ensure_one()
-        if expected_revision is not None and self.revision != int(expected_revision):
-            raise UserError(_("Le dossier a changé. Rechargez-le avant de continuer."))
+        revision = self.sudo().revision if current_revision is None else current_revision
+        if expected_revision is not None and revision != int(expected_revision):
+            raise UserError(
+                _(
+                    "Le dossier a changé (révision attendue %(expected)s, actuelle "
+                    "%(current)s). Rechargez-le avant de continuer.",
+                    expected=expected_revision,
+                    current=revision,
+                )
+            )
+
+    def _lock_for_transition(self):
+        self.ensure_one()
+        self.env["csrs.process.case"].sudo().flush_model(["state", "revision"])
+        self.env.cr.execute(
+            "SELECT state, revision FROM csrs_process_case WHERE id = %s FOR UPDATE",
+            [self.id],
+        )
+        state, revision = self.env.cr.fetchone()
+        return str(state), int(revision)
 
     def _is_dg(self):
         return self.env.user.has_group("csrs_reporting.group_csrs_dg")
@@ -196,20 +237,22 @@ class CsrsProcessCase(models.Model):
     def _is_it(self):
         return self.env.user.has_group("csrs_reporting.group_csrs_it")
 
-    def _can_handle(self):
+    def _can_handle(self, current_state=None):
         self.ensure_one()
-        if self.state == "draft" or self.state == "correction":
-            return self.env.user == self.requester_id
-        role = STEP_ROLE_CODES.get(self.state)
+        case = self.sudo()
+        state = current_state or case.state
+        if state == "draft" or state == "correction":
+            return self.env.user == case.requester_id
+        role = STEP_ROLE_CODES.get(state)
         if role == "REQUESTER":
-            return self.env.user == self.requester_id
+            return self.env.user == case.requester_id
         if role == "DG":
             return self._is_dg()
         if role == "PRIMARY_MANAGER":
             employee = (
                 self.env["hr.employee"]
                 .sudo()
-                .search([("user_id", "=", self.requester_id.id)], limit=1)
+                .search([("user_id", "=", case.requester_id.id)], limit=1)
             )
             return bool(employee.parent_id.user_id == self.env.user)
         group_by_role = {
@@ -250,20 +293,21 @@ class CsrsProcessCase(models.Model):
         )
 
     def _signature_details(self, confirmation):
+        case = self.sudo()
         expected = f"VALIDÉ LE {fields.Date.context_today(self):%d/%m/%Y}"
         if str(confirmation or "").strip() != expected:
             raise ValidationError(_("Saisissez exactement : %s", expected))
         snapshot = {
-            "case_id": self.id,
-            "reference": self.reference,
-            "revision": self.revision,
-            "process_type": self.process_type,
-            "state": self.state,
-            "amount": self.amount,
-            "currency": self.currency_id.name,
+            "case_id": case.id,
+            "reference": case.reference,
+            "revision": case.revision,
+            "process_type": case.process_type,
+            "state": case.state,
+            "amount": case.amount,
+            "currency": case.currency_id.name,
             "attachments": [
                 {"id": item.id, "name": item.name, "checksum": item.checksum or ""}
-                for item in self.attachment_ids.sorted("id")
+                for item in case.attachment_ids.sorted("id")
             ],
         }
         return {
@@ -274,14 +318,51 @@ class CsrsProcessCase(models.Model):
             "snapshot": snapshot,
         }
 
-    def action_transition(self, action, expected_revision=None, note="", confirmation=""):
+    def _apply_stage_data(self, from_state, action, stage_data):
         self.ensure_one()
-        self._check_revision(expected_revision)
+        process_type = self.sudo().process_type
+        if process_type == "fund" and from_state == "payment_preparation" and action == "pay":
+            fund = self.env["csrs.fund.request"].sudo().search(
+                [("case_id", "=", self.id)], limit=1
+            )
+            return fund.action_record_payment(stage_data or {})
+        if process_type != "purchase":
+            return {}
+        purchase = self.env["csrs.purchase.request"].sudo().search(
+            [("case_id", "=", self.id)], limit=1
+        ).with_context(csrs_actor_id=self.env.user.id)
+        if from_state == "procurement" and action == "order":
+            order = purchase.action_create_purchase_order()
+            return {"purchase_order_id": order.id, "purchase_order": order.name}
+        evidence_kind = {
+            ("ordered", "receive"): "delivery",
+            ("delivered", "invoice"): "invoice",
+            ("invoiced", "pay"): "payment",
+        }.get((from_state, action))
+        if evidence_kind:
+            evidence = purchase.action_record_evidence(evidence_kind, stage_data or {})
+            return {
+                "evidence_id": evidence.id,
+                "evidence_kind": evidence.kind,
+                "evidence_reference": evidence.reference,
+            }
+        return {}
+
+    def action_transition(
+        self,
+        action,
+        expected_revision=None,
+        note="",
+        confirmation="",
+        stage_data=None,
+    ):
+        self.ensure_one()
+        from_state, current_revision = self._lock_for_transition()
+        self._check_revision(expected_revision, current_revision)
         action = str(action or "").strip()
         note = str(note or "").strip()
-        if not self._can_handle():
+        if not self._can_handle(from_state):
             raise AccessError(_("Vous ne pouvez pas traiter cette étape."))
-        from_state = self.state
         if action == "correct":
             if from_state not in CORRECTABLE_STATES:
                 raise UserError(_("Cette étape ne peut pas demander de correction."))
@@ -289,21 +370,21 @@ class CsrsProcessCase(models.Model):
                 raise ValidationError(_("Le motif de correction est obligatoire."))
             to_state = "correction"
         elif action == "resubmit" and from_state == "correction":
-            to_state = TRANSITIONS[self.process_type][("draft", "submit")]
+            to_state = TRANSITIONS[self.sudo().process_type][("draft", "submit")]
         elif action == "reject" and from_state in CORRECTABLE_STATES:
             if not note:
                 raise ValidationError(_("Le motif de rejet est obligatoire."))
             to_state = "rejected"
         else:
-            to_state = TRANSITIONS[self.process_type].get((from_state, action))
+            to_state = TRANSITIONS[self.sudo().process_type].get((from_state, action))
             if not to_state:
                 raise UserError(_("Transition invalide pour cette étape."))
-        details = {}
+        details = self._apply_stage_data(from_state, action, stage_data)
         if from_state == "dg_review" and action == "approve":
-            details = self._signature_details(confirmation)
+            details.update(self._signature_details(confirmation))
         values = {
             "state": to_state,
-            "revision": self.revision + 1,
+            "revision": current_revision + 1,
             "correction_reason": note if to_state == "correction" else False,
         }
         if from_state == "draft" and action == "submit":
@@ -414,14 +495,27 @@ class CsrsFundRequest(models.Model):
     purpose = fields.Text(required=True)
     requires_purchase = fields.Boolean(default=False)
     payment_method = fields.Selection(
-        [("cash", "Espèces"), ("check", "Chèque")], readonly=True
+        [("cash", "Espèces"), ("check", "Chèque")],
+        compute="_compute_payment_method",
+        store=True,
+        readonly=True,
     )
+    payment_date = fields.Date(readonly=True, copy=False)
     purchase_case_id = fields.Many2one("csrs.process.case", readonly=True)
     payment_id = fields.Many2one("account.payment", readonly=True, ondelete="restrict")
 
     _case_unique = models.Constraint(
         "UNIQUE (case_id)", "Ce dossier possède déjà un BSF."
     )
+
+    @api.depends("case_id.amount")
+    def _compute_payment_method(self):
+        for request in self:
+            request.payment_method = (
+                bsf_payment_method(request.case_id.amount)
+                if request.case_id and request.case_id.amount
+                else False
+            )
 
     @api.constrains("case_id", "budget_line_id")
     def _check_project(self):
@@ -432,6 +526,19 @@ class CsrsFundRequest(models.Model):
                 raise ValidationError(
                     _("La ligne budgétaire appartient à un autre projet.")
                 )
+
+    def action_record_payment(self, payload):
+        self.ensure_one()
+        if not isinstance(payload, dict):
+            raise ValidationError(_("Informations de paiement invalides."))
+        payment_date = validate_bsf_payment_date(
+            payload.get("payment_date"), fields.Date.context_today(self)
+        )
+        self.sudo().write({"payment_date": payment_date})
+        return {
+            "payment_method": self.payment_method,
+            "payment_date": payment_date.isoformat(),
+        }
 
 
 class CsrsPurchaseRequest(models.Model):
@@ -448,23 +555,87 @@ class CsrsPurchaseRequest(models.Model):
     product_id = fields.Many2one("product.product", ondelete="restrict")
     quantity = fields.Float(default=1.0, required=True)
     estimated_amount = fields.Monetary(required=True, currency_field="currency_id")
+    negotiated_amount = fields.Monetary(currency_field="currency_id")
     currency_id = fields.Many2one(related="case_id.currency_id", readonly=True)
     purchase_order_id = fields.Many2one(
         "purchase.order", readonly=True, ondelete="restrict"
     )
     vendor_bill_id = fields.Many2one("account.move", readonly=True, ondelete="restrict")
     delivery_confirmed_at = fields.Datetime(readonly=True)
+    quotation_ids = fields.One2many(
+        "csrs.purchase.quotation", "purchase_request_id", copy=False
+    )
+    selected_quotation_id = fields.Many2one(
+        "csrs.purchase.quotation", readonly=True, copy=False, ondelete="restrict"
+    )
+    evidence_ids = fields.One2many(
+        "csrs.purchase.evidence", "purchase_request_id", copy=False
+    )
 
     _case_unique = models.Constraint(
         "UNIQUE (case_id)", "Ce dossier possède déjà une demande d'achat."
     )
 
+    @api.constrains(
+        "case_id", "budget_line_id", "quantity", "estimated_amount", "negotiated_amount"
+    )
+    def _check_purchase_values(self):
+        for request in self:
+            if request.case_id.process_type != "purchase":
+                raise ValidationError(_("Le dossier doit être une demande d'achat."))
+            if request.case_id.project_id != request.budget_line_id.project_id:
+                raise ValidationError(
+                    _("La ligne budgétaire appartient à un autre projet.")
+                )
+            if request.quantity <= 0 or request.estimated_amount <= 0:
+                raise ValidationError(_("La quantité et le montant doivent être positifs."))
+            if request.negotiated_amount and request.negotiated_amount <= 0:
+                raise ValidationError(_("Le montant négocié doit être positif."))
+
+    def action_save_procurement(self, payload):
+        self.ensure_one()
+        if not isinstance(payload, dict):
+            raise ValidationError(_("Informations d'achat invalides."))
+        quotation = self.env["csrs.purchase.quotation"].browse(
+            int(payload.get("selected_quotation_id") or 0)
+        ).exists()
+        product = self.env["product.product"].browse(
+            int(payload.get("product_id") or 0)
+        ).exists()
+        quantity = float(payload.get("quantity") or 0)
+        negotiated_amount = float(payload.get("negotiated_amount") or 0)
+        if not quotation or quotation.purchase_request_id != self:
+            raise ValidationError(_("Sélectionnez une cotation de cette demande."))
+        if not quotation.attachment_ids:
+            raise ValidationError(_("La cotation sélectionnée doit contenir un document."))
+        if not product or not product.purchase_ok:
+            raise ValidationError(_("Sélectionnez un produit ou service achetable."))
+        if quantity <= 0 or negotiated_amount <= 0:
+            raise ValidationError(_("La quantité et le montant négocié sont obligatoires."))
+        self.sudo().write(
+            {
+                "selected_quotation_id": quotation.id,
+                "vendor_id": quotation.vendor_id.id,
+                "product_id": product.id,
+                "quantity": quantity,
+                "negotiated_amount": negotiated_amount,
+            }
+        )
+        return True
+
     def action_create_purchase_order(self):
         self.ensure_one()
         if self.purchase_order_id:
             return self.purchase_order_id
-        if not self.vendor_id or not self.product_id:
-            raise ValidationError(_("Le fournisseur et le produit sont obligatoires."))
+        if (
+            not self.selected_quotation_id
+            or not self.vendor_id
+            or not self.product_id
+            or not self.negotiated_amount
+        ):
+            raise ValidationError(
+                _("La cotation, le fournisseur, le produit et le montant négocié sont obligatoires.")
+            )
         distribution = {}
         if self.case_id.project_id.account_id:
             distribution[str(self.case_id.project_id.account_id.id)] = 100
@@ -475,6 +646,7 @@ class CsrsPurchaseRequest(models.Model):
                 {
                     "partner_id": self.vendor_id.id,
                     "origin": self.case_id.reference,
+                    "csrs_process_case_id": self.case_id.id,
                     "order_line": [
                         (
                             0,
@@ -483,8 +655,8 @@ class CsrsPurchaseRequest(models.Model):
                                 "product_id": self.product_id.id,
                                 "name": self.case_id.subject,
                                 "product_qty": self.quantity,
-                                "product_uom": self.product_id.uom_id.id,
-                                "price_unit": self.estimated_amount / self.quantity,
+                                "product_uom_id": self.product_id.uom_id.id,
+                                "price_unit": self.negotiated_amount / self.quantity,
                                 "analytic_distribution": distribution or False,
                             },
                         )
@@ -492,8 +664,127 @@ class CsrsPurchaseRequest(models.Model):
                 }
             )
         )
+        order.button_confirm()
         self.sudo().write({"purchase_order_id": order.id})
         return order
+
+    def action_record_evidence(self, kind, payload):
+        self.ensure_one()
+        if not isinstance(payload, dict):
+            raise ValidationError(_("Justificatif d'étape invalide."))
+        existing = self.evidence_ids.filtered(lambda item: item.kind == kind)
+        if existing:
+            return existing[0]
+        reference = str(payload.get("reference") or "").strip()
+        evidence_date = fields.Date.to_date(payload.get("date"))
+        attachment = self.env["ir.attachment"].browse(
+            int(payload.get("attachment_id") or 0)
+        ).exists()
+        amount = float(payload.get("amount") or 0)
+        if not reference or not evidence_date or not attachment:
+            raise ValidationError(
+                _("La référence, la date et le document justificatif sont obligatoires.")
+            )
+        if evidence_date > fields.Date.context_today(self):
+            raise ValidationError(_("La date du justificatif ne peut pas être future."))
+        if kind in {"invoice", "payment"} and amount <= 0:
+            raise ValidationError(_("Le montant du justificatif doit être positif."))
+        if kind == "payment":
+            invoice = self.evidence_ids.filtered(lambda item: item.kind == "invoice")
+            if not invoice or not self.currency_id.is_zero(amount - invoice[0].amount):
+                raise ValidationError(
+                    _("Le paiement doit correspondre au montant de la facture.")
+                )
+        evidence = self.env["csrs.purchase.evidence"].sudo().create(
+            {
+                "purchase_request_id": self.id,
+                "kind": kind,
+                "reference": reference,
+                "evidence_date": evidence_date,
+                "amount": amount,
+                "attachment_id": attachment.id,
+                "recorded_by_id": int(self.env.context.get("csrs_actor_id") or self.env.user.id),
+            }
+        )
+        if kind == "delivery":
+            self.sudo().write({"delivery_confirmed_at": fields.Datetime.now()})
+        return evidence
+
+
+class CsrsPurchaseQuotation(models.Model):
+    _name = "csrs.purchase.quotation"
+    _description = "Cotation d'une demande d'achat CSRS"
+    _order = "quotation_date desc, id desc"
+
+    purchase_request_id = fields.Many2one(
+        "csrs.purchase.request", required=True, ondelete="restrict", index=True
+    )
+    vendor_id = fields.Many2one("res.partner", required=True, ondelete="restrict")
+    reference = fields.Char(required=True)
+    quotation_date = fields.Date(required=True)
+    amount = fields.Monetary(required=True, currency_field="currency_id")
+    currency_id = fields.Many2one(
+        related="purchase_request_id.currency_id", readonly=True
+    )
+    attachment_ids = fields.Many2many(
+        "ir.attachment",
+        "csrs_purchase_quotation_attachment_rel",
+        "quotation_id",
+        "attachment_id",
+    )
+
+    _positive_amount = models.Constraint(
+        "CHECK (amount > 0)", "Le montant de la cotation doit être positif."
+    )
+
+    def unlink(self):
+        raise UserError(_("Une cotation auditée ne peut pas être supprimée."))
+
+
+class CsrsPurchaseEvidence(models.Model):
+    _name = "csrs.purchase.evidence"
+    _description = "Justificatif d'une étape d'achat CSRS"
+    _order = "evidence_date, id"
+
+    purchase_request_id = fields.Many2one(
+        "csrs.purchase.request", required=True, ondelete="restrict", index=True
+    )
+    kind = fields.Selection(
+        [("delivery", "Livraison"), ("invoice", "Facture"), ("payment", "Paiement")],
+        required=True,
+    )
+    reference = fields.Char(required=True)
+    evidence_date = fields.Date(required=True)
+    amount = fields.Monetary(currency_field="currency_id")
+    currency_id = fields.Many2one(
+        related="purchase_request_id.currency_id", readonly=True
+    )
+    attachment_id = fields.Many2one("ir.attachment", required=True, ondelete="restrict")
+    recorded_by_id = fields.Many2one("res.users", required=True, ondelete="restrict")
+
+    _kind_unique = models.Constraint(
+        "UNIQUE (purchase_request_id, kind)",
+        "Cette étape possède déjà un justificatif.",
+    )
+
+    def write(self, values):
+        raise UserError(_("Un justificatif d'achat est immuable."))
+
+    def unlink(self):
+        raise UserError(_("Un justificatif d'achat est immuable."))
+
+
+class PurchaseOrder(models.Model):
+    _inherit = "purchase.order"
+
+    csrs_process_case_id = fields.Many2one(
+        "csrs.process.case", readonly=True, copy=False, ondelete="restrict", index=True
+    )
+
+    _csrs_process_unique = models.Constraint(
+        "UNIQUE (csrs_process_case_id)",
+        "Ce dossier CSRS possède déjà un bon de commande.",
+    )
 
 
 class CsrsAbsenceRequest(models.Model):
