@@ -1,6 +1,8 @@
 #+title: CSRS ENT - Guide utilisateur
 #+startup: overview
 
+Les captures de ce guide utilisent uniquement des comptes et dossiers de démonstration.
+
 * Connexion
 
 Ouvrir =https://preprod.ent.koba.sarl/app/=. Saisir l'adresse email ou l'identifiant court habituel et le même mot de passe que celui repris depuis l'ancienne application. =/= et =/connexion/= redirigent vers cette page unique.
@@ -19,9 +21,21 @@ En cas de modification concurrente, CSRS ENT refuse l'écriture devenue ancienne
 
 Chaque agent peut proposer une tâche en indiquant le titre, les dates, la charge et la description. Le responsable consulte la proposition et peut la valider, la rejeter avec un motif ou demander une correction. Une proposition corrigée est renvoyée au responsable. La validation crée une tâche Odoo en une seule opération et conserve le lien avec la proposition d'origine.
 
+La charge est saisie en =heures= par défaut. Choisir =jours= lorsque cette unité est plus naturelle; CSRS ENT applique l'équivalence affichée sous le champ, actuellement =1 jour ouvré = 8 heures=. Une valeur décimale, par exemple =1,5 heure=, reste autorisée. Le même choix est proposé dans les affectations directes et dans les activités du plan d'action d'un projet.
+
+#+caption: Saisir une charge en heures ou en jours dans une proposition
+[[file:screenshots/charge-heures-ou-jours.png]]
+
 * Équipe
 
 La rubrique =Équipe= présente les agents visibles selon l'organigramme et les délégations Odoo. Elle permet de consulter leurs tâches et leur charge. Les droits affichés dans CSRS ENT sont toujours contrôlés de nouveau dans Odoo lors de chaque opération.
+
+Pour compléter son profil professionnel, ouvrir sa ligne dans =Mon équipe=, choisir =Voir la fiche complète= puis =Modifier mon profil=. Le champ =Missions et responsabilités= reçoit le cahier des charges en texte. Il est aussi possible de remplacer l'avatar par une image JPEG ou PNG et de joindre le document TOR au format PDF, DOC ou DOCX; chaque fichier est limité à 5 Mo. Les cases de suppression retirent le fichier actuellement enregistré lors de la sauvegarde.
+
+Seul l'employé modifie son propre profil. Les responsables autorisés peuvent consulter le cahier des charges et télécharger le document, sans le modifier. Une modification concurrente est refusée et impose de recharger la fiche avant de recommencer.
+
+#+caption: Modifier son profil, son avatar et son cahier des charges
+[[file:screenshots/profil-cahier-des-charges.png]]
 
 * Absences, missions et visites
 
@@ -41,15 +55,31 @@ La rubrique =Projets= permet à tout agent de proposer un projet avec ses object
 
 Après autorisation du DG et désignation du chef de projet, le dossier suit un parcours de dix écrans numérotés : fiche projet, plan d'action, résultats, livrables, finances, conformité, risques, rapports, clôture et récapitulatif. Chaque écran indique s'il est obligatoire ou facultatif. Une étape obligatoire devient accessible dès que les brouillons obligatoires précédents sont complets; les écrans facultatifs restent disponibles sans bloquer la suite. Le bouton =Ouvrir le brouillon= permet de saisir l'étape active. Le porteur ou le chef de projet ajoute et modifie les éléments tant que l'onglet est en brouillon ou en correction; les activités du plan d'action deviennent des tâches Odoo suivies avec leur charge et leur progression. Le dernier écran récapitule les activités, le budget, la gouvernance et l'état des neuf sections.
 
+#+caption: Parcours numéroté d'un projet, de la fiche au récapitulatif
+[[file:screenshots/projet-parcours-dix-etapes.png]]
+
 Chaque onglet suit le cycle =Brouillon → Soumis → Vérifié → Validé → Clôturé=. Le bouton de soumission précise son destinataire : contrôle du projet, contrôle financier ou conformité, puis le DG après vérification. Les onglets =Plan d'action= et =Finances= exigent respectivement au moins une activité et une ligne budgétaire avant la soumission. Une fois soumis, un onglet est en lecture seule jusqu'à une correction motivée du contrôleur. La validation finale appartient au DG, exige la phrase de confirmation affichée et crée une preuve électronique immuable. Une révision devenue ancienne est refusée.
 
 La vue =À superviser= regroupe les projets du périmètre hiérarchique du responsable, y compris à travers plusieurs niveaux de l'organigramme. Le responsable, le DG et l'administration IT peuvent ouvrir et modifier ces projets, relire les sections, demander une correction motivée et archiver un projet avec un motif. L'archivage ne détruit ni le dossier ni son historique : le projet quitte les vues actives, reste accessible dans =Archivés= et crée une preuve d'audit immuable. Un agent extérieur au périmètre ne peut ni consulter ni modifier le projet.
 
 * Procédures métier
 
-La rubrique =Procédures= centralise les bons de sortie de fonds, demandes d'achat, absences, ordres de mission, notifications de paiement, visas et dossiers de gestion des données. Choisir un type affiche les champs correspondants; le formulaire accepte les justificatifs PDF, JPEG ou PNG. Le dossier indique l'étape courante, le destinataire du contrôle, les actions autorisées et son journal d'événements.
+La rubrique =Procédures= centralise les bons de sortie de fonds, demandes d'achat, absences, ordres de mission, notifications de paiement, visas et dossiers de gestion des données. Choisir =Nouveau dossier= puis le type de procédure : le formulaire adapte automatiquement ses champs. Renseigner l'objet, les données demandées et, si nécessaire, les justificatifs PDF, JPEG ou PNG, puis enregistrer le brouillon. Ouvrir ensuite le dossier et choisir =Soumettre= pour l'envoyer au premier destinataire.
 
-Les visas, contrôles et corrections suivent le circuit défini dans Odoo. Les étapes sensibles sont limitées au rôle concerné; la validation DG exige une confirmation électronique. Un bon de sortie approuvé réserve le montant sur la ligne budgétaire du projet, et les achats utilisent les objets Odoo d'achat plutôt qu'une comptabilité parallèle.
+Le dossier affiche toujours son état, son destinataire courant, les seules actions autorisées et l'=Historique audité=. Lorsqu'un contrôleur demande une correction, son motif est obligatoire; le demandeur corrige le même dossier puis le soumet de nouveau, sans perdre les événements antérieurs. Une révision devenue ancienne est refusée afin de ne pas écraser une décision plus récente. Les étapes sensibles sont limitées au rôle concerné et la validation DG exige la confirmation électronique affichée.
+
+#+caption: Soumettre un dossier et suivre son circuit ainsi que son historique
+[[file:screenshots/procedure-dossier-et-circuit.png]]
+
+Les circuits appliqués sont les suivants :
+
+- =Bon de sortie de fonds= : contrôle financier, visa du demandeur, responsable finances, DAF, comptabilité du projet, DG, puis préparation et exécution du paiement. L'approbation réserve le montant sur la ligne budgétaire du projet.
+- =Demande d'achat= : DAF, DG, cellule achat, commande, réception, facture, puis paiement. Les commandes et réceptions utilisent les objets Odoo d'achat plutôt qu'une comptabilité parallèle.
+- =Demande d'absence= : responsable hiérarchique, RH, DG, puis secrétariat pour clôture.
+- =Ordre de mission= : assistance de recherche, DG, secrétariat, comptabilité, puis parc automobile.
+- =Notification de paiement= : comptabilité, notification au bénéficiaire, puis accusé de réception du bénéficiaire.
+- =Visa ou prolongation= : assistance de recherche, contrôle I2A, DG, secrétariat, puis suivi auprès du MAE.
+- =Gestion des données= : validation des systèmes, contrôle qualité, traitement actif par le gestionnaire de données, audit, archivage, puis décision de conservation ou de suppression.
 
 * Administration IT
 
