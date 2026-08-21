@@ -225,7 +225,7 @@ class CsrsApiProjects(models.AbstractModel):
     _inherit = "csrs.api"
 
     def _project_can_view(self, project):
-        return bool(project.with_user(self.env.user)._csrs_can_view())
+        return bool(project.with_user(self.env.user).sudo()._csrs_can_view())
 
     def _project_can_supervise(self, project):
         return bool(project.with_user(self.env.user)._csrs_can_supervise())
