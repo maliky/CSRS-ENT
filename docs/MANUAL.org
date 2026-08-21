@@ -88,10 +88,43 @@ Le dossier affiche toujours son état, son destinataire courant, les seules acti
 #+attr_latex: :width 0.92\textwidth
 [[file:screenshots/procedure-dossier-et-circuit.png]]
 
-Les circuits appliqués sont les suivants :
+** Bon de sortie de fonds (BSF)
 
-- =Bon de sortie de fonds= : contrôle financier, visa du demandeur, responsable finances, DAF, comptabilité du projet, DG, puis préparation et exécution du paiement. L'approbation réserve le montant sur la ligne budgétaire du projet.
-- =Demande d'achat= : DAF, DG, cellule achat, commande, réception, facture, puis paiement. Les commandes et réceptions utilisent les objets Odoo d'achat plutôt qu'une comptabilité parallèle.
+Le demandeur choisit =Bon de sortie de fonds=, renseigne l'objet et la justification, le bénéficiaire, le projet, la ligne budgétaire et le montant, puis enregistre et soumet le dossier. Pour un montant inférieur ou égal à =200 000 FCFA=, le paiement est automatiquement classé =Espèces=. Au-delà, il est classé =Chèque= et le numéro de chèque doit être renseigné avant le paiement. Ce classement est calculé dans Odoo et ne peut pas être contourné depuis l'interface.
+
+Le dossier suit successivement le contrôle financier, le visa du demandeur, le responsable finances, la DAF, la comptabilité du projet et le DG. Chaque intervenant ouvre le même dossier, contrôle les données et justificatifs, puis choisit l'action affichée. Une demande de correction exige un motif et renvoie le dossier au demandeur sans supprimer l'historique. La validation DG réserve atomiquement le montant sur la ligne budgétaire : si le solde est devenu insuffisant ou si une autre opération a modifié la révision, Odoo refuse la validation au lieu de dépasser le budget.
+
+Après validation, la finance prépare le paiement. Le caissier indique la date réellement exécutée et choisit =Payer=. Les paiements BSF sont autorisés uniquement le mardi, le jeudi ou le vendredi; une date future ou un autre jour est refusé. Le dossier terminé affiche le mode et la date de paiement ainsi que tout l'historique audité.
+
+#+caption: Contrôler le mode, la ligne budgétaire et la date d'exécution d'un BSF
+#+attr_odt: :width 16cm
+#+attr_latex: :width 0.92\\textwidth
+[[file:screenshots/procedure-bsf-paiement.png]]
+
+** Demande d'achat (DA)
+
+Le demandeur choisit =Demande d'achat=, décrit le besoin, sélectionne le projet et sa ligne budgétaire, puis saisit la quantité et le montant estimé. Après soumission, la DAF contrôle la demande et le DG confirme électroniquement son approbation. Cette approbation réserve le budget avant l'engagement de la cellule achat.
+
+La cellule achat ouvre le dossier à l'étape =Traitement achat= et suit cette procédure :
+
+1. Dans =Cotations fournisseurs=, ajouter chaque offre avec le fournisseur, la référence, la date, le montant et le justificatif reçu.
+2. Sélectionner la cotation retenue, le produit ou service, la quantité et le montant négocié, puis enregistrer la préparation de commande.
+3. Choisir =Commander=. Odoo crée et confirme un bon de commande natif lié au dossier; son numéro apparaît dans le récapitulatif et une seconde commande ne peut pas être créée pour la même DA.
+4. À la livraison, enregistrer la référence, la date et le justificatif de réception, puis choisir =Réceptionner=.
+5. À réception de la facture, enregistrer sa référence, sa date, son montant et son justificatif, puis choisir =Facturer=.
+6. La finance enregistre enfin la référence, la date, le montant et la preuve de paiement, puis choisit =Payer=.
+
+Les montants de facture et de paiement doivent correspondre au montant négocié. Les preuves de réception, facture et paiement sont obligatoires, liées au même dossier et immuables après leur création. Toute action effectuée par un autre rôle, dans un ordre incorrect ou depuis une ancienne révision est refusée par Odoo.
+
+#+caption: Sélectionner une cotation et suivre le bon de commande ainsi que les trois preuves d'une DA
+#+attr_odt: :width 16cm
+#+attr_latex: :width 0.92\\textwidth
+[[file:screenshots/procedure-da-commande-preuves.png]]
+
+** Autres circuits
+
+Les autres circuits appliqués sont les suivants :
+
 - =Demande d'absence= : responsable hiérarchique, RH, DG, puis secrétariat pour clôture.
 - =Ordre de mission= : assistance de recherche, DG, secrétariat, comptabilité, puis parc automobile.
 - =Notification de paiement= : comptabilité, notification au bénéficiaire, puis accusé de réception du bénéficiaire.
