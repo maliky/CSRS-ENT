@@ -90,7 +90,7 @@ Le dossier affiche toujours son état, son destinataire courant, les seules acti
 
 ** Bon de sortie de fonds (BSF)
 
-Le demandeur choisit =Bon de sortie de fonds=, renseigne l'objet et la justification, le bénéficiaire, le projet, la ligne budgétaire et le montant, puis enregistre et soumet le dossier. Pour un montant inférieur ou égal à =200 000 FCFA=, le paiement est automatiquement classé =Espèces=. Au-delà, il est classé =Chèque= et le numéro de chèque doit être renseigné avant le paiement. Ce classement est calculé dans Odoo et ne peut pas être contourné depuis l'interface.
+Le demandeur choisit =Bon de sortie de fonds=, renseigne l'objet et la justification, le bénéficiaire, le projet, la ligne budgétaire et le montant, puis enregistre et soumet le dossier. Pour un montant inférieur ou égal à =200 000 FCFA=, le paiement est automatiquement classé =Espèces=. Au-delà, il est classé =Chèque=. Ce classement est calculé dans Odoo et ne peut pas être contourné depuis l'interface.
 
 Le dossier suit successivement le contrôle financier, le visa du demandeur, le responsable finances, la DAF, la comptabilité du projet et le DG. Chaque intervenant ouvre le même dossier, contrôle les données et justificatifs, puis choisit l'action affichée. Une demande de correction exige un motif et renvoie le dossier au demandeur sans supprimer l'historique. La validation DG réserve atomiquement le montant sur la ligne budgétaire : si le solde est devenu insuffisant ou si une autre opération a modifié la révision, Odoo refuse la validation au lieu de dépasser le budget.
 
@@ -98,12 +98,12 @@ Après validation, la finance prépare le paiement. Le caissier indique la date 
 
 #+caption: Contrôler le mode, la ligne budgétaire et la date d'exécution d'un BSF
 #+attr_odt: :width 16cm
-#+attr_latex: :width 0.92\\textwidth
+#+attr_latex: :width 0.92\textwidth
 [[file:screenshots/procedure-bsf-paiement.png]]
 
 ** Demande d'achat (DA)
 
-Le demandeur choisit =Demande d'achat=, décrit le besoin, sélectionne le projet et sa ligne budgétaire, puis saisit la quantité et le montant estimé. Après soumission, la DAF contrôle la demande et le DG confirme électroniquement son approbation. Cette approbation réserve le budget avant l'engagement de la cellule achat.
+Le demandeur choisit =Demande d'achat=, décrit le besoin, sélectionne le projet et sa ligne budgétaire, puis saisit la quantité et le montant estimé. Après soumission, la DAF contrôle la demande et le DG confirme électroniquement son approbation. Cette approbation autorise le traitement par la cellule achat, mais ne réserve pas le budget : la disponibilité doit donc être contrôlée avant de commander.
 
 La cellule achat ouvre le dossier à l'étape =Traitement achat= et suit cette procédure :
 
@@ -114,11 +114,11 @@ La cellule achat ouvre le dossier à l'étape =Traitement achat= et suit cette p
 5. À réception de la facture, enregistrer sa référence, sa date, son montant et son justificatif, puis choisir =Facturer=.
 6. La finance enregistre enfin la référence, la date, le montant et la preuve de paiement, puis choisit =Payer=.
 
-Les montants de facture et de paiement doivent correspondre au montant négocié. Les preuves de réception, facture et paiement sont obligatoires, liées au même dossier et immuables après leur création. Toute action effectuée par un autre rôle, dans un ordre incorrect ou depuis une ancienne révision est refusée par Odoo.
+Le montant payé doit correspondre au montant de la facture. Le rapprochement entre la facture et le montant négocié reste un contrôle métier de la cellule achat et de la finance; Odoo ne le bloque pas automatiquement. Les preuves de réception, facture et paiement sont obligatoires, liées au même dossier et immuables après leur création. Toute action effectuée par un autre rôle, dans un ordre incorrect ou depuis une ancienne révision est refusée par Odoo.
 
 #+caption: Sélectionner une cotation et suivre le bon de commande ainsi que les trois preuves d'une DA
 #+attr_odt: :width 16cm
-#+attr_latex: :width 0.92\\textwidth
+#+attr_latex: :width 0.92\textwidth
 [[file:screenshots/procedure-da-commande-preuves.png]]
 
 ** Autres circuits
