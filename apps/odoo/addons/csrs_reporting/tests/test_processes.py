@@ -326,6 +326,13 @@ class CsrsProcessTests(TransactionCase):
         self.assertEqual(case.state, "completed")
         self.assertEqual(set(purchase.evidence_ids.mapped("kind")), {"delivery", "invoice", "payment"})
 
+    def test_procurement_can_load_purchase_options_without_project_access(self):
+        options = self.env["csrs.api"].with_user(self.procurement).api_process_options()
+
+        self.assertIn(self.vendor.id, [item["id"] for item in options["vendors"]])
+        self.assertIn(self.product.id, [item["id"] for item in options["products"]])
+        self.assertNotIn(self.project.id, [item["id"] for item in options["projects"]])
+
     def test_wrong_role_and_stale_revision_cannot_advance_a_process(self):
         case = self._case("absence")
         case.with_user(self.requester).action_transition("submit", 1)
