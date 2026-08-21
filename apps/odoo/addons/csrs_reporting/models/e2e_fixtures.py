@@ -607,6 +607,12 @@ class CsrsE2EFixture(models.AbstractModel):
                 order.button_cancel()
             order.unlink()
         for model_name, records in (
+            (
+                "csrs.process.event",
+                self.env["csrs.process.event"].sudo().search(
+                    [("case_id", "in", tracked_cases.ids)]
+                ),
+            ),
             ("csrs.purchase.evidence", purchase_requests.evidence_ids),
             ("csrs.purchase.quotation", purchase_requests.quotation_ids),
             ("csrs.fund.request", self.env["csrs.fund.request"].sudo().search([("case_id", "in", tracked_cases.ids)])),
