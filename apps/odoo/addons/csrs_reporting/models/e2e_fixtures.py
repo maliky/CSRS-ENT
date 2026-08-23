@@ -30,6 +30,10 @@ ROLE_GROUPS = (
     ("it", "Administration IT", "csrs_reporting.group_csrs_it"),
 )
 DELETE_MODEL_ORDER = (
+    "csrs.purchase.evidence",
+    "csrs.purchase.quotation",
+    "csrs.fund.request",
+    "csrs.purchase.request",
     "hr.leave",
     "csrs.agenda.version",
     "ir.attachment",
@@ -37,6 +41,7 @@ DELETE_MODEL_ORDER = (
     "csrs.task.proposal",
     "project.task",
     "csrs.process.case",
+    "csrs.project.budget.line",
     "project.project",
     "csrs.institutional.action",
     "csrs.action.plan",
@@ -44,12 +49,14 @@ DELETE_MODEL_ORDER = (
     "hr.employee",
     "res.users",
     "res.partner",
+    "product.product",
     "hr.department",
 )
 EXPECTED_COUNTS = {
     "hr.department": 2,
     "res.users": len(ROLE_GROUPS),
-    "res.partner": len(ROLE_GROUPS) + 1,
+    "res.partner": len(ROLE_GROUPS) + 2,
+    "product.product": 1,
     "hr.employee": len(ROLE_GROUPS),
     "ir.attachment": 1,
     "csrs.strategic.plan": 1,
@@ -61,6 +68,9 @@ EXPECTED_COUNTS = {
     "hr.leave": 1,
     "csrs.agenda.draft": 1,
     "csrs.process.case": len(PROCESS_TYPES),
+    "csrs.project.budget.line": 1,
+    "csrs.fund.request": 1,
+    "csrs.purchase.request": 1,
 }
 
 
@@ -450,8 +460,36 @@ class CsrsE2EFixture(models.AbstractModel):
             created,
             user=users["agent"],
         )
+        vendor = self._ensure(
+            dataset,
+            "purchase_vendor",
+            "res.partner",
+            {"name": f"{marker} Fournisseur", "is_company": True, "supplier_rank": 1},
+            created,
+            user=users["it"],
+        )
+        product = self._ensure(
+            dataset,
+            "purchase_product",
+            "product.product",
+            {"name": f"{marker} Service terrain", "type": "service", "purchase_ok": True},
+            created,
+            user=users["it"],
+        )
+        budget_line = self._ensure(
+            dataset,
+            "research_budget_line",
+            "csrs.project.budget.line",
+            {
+                "project_id": research_project.id,
+                "code": "E2E-TERRAIN",
+                "name": "Activités de terrain",
+                "planned_amount": 1_000_000,
+            },
+            created,
+        )
         for process_type, label in PROCESS_TYPES:
-            self._ensure(
+            case = self._ensure(
                 dataset,
                 f"process_{process_type}",
                 "csrs.process.case",
@@ -467,6 +505,33 @@ class CsrsE2EFixture(models.AbstractModel):
                 created,
                 user=users["agent"],
             )
+            if process_type == "fund":
+                self._ensure(
+                    dataset,
+                    "fund_request",
+                    "csrs.fund.request",
+                    {
+                        "case_id": case.id,
+                        "budget_line_id": budget_line.id,
+                        "beneficiary_id": users["agent"].partner_id.id,
+                        "initiator_id": users["agent"].id,
+                        "purpose": "Frais de terrain de recette.",
+                    },
+                    created,
+                )
+            if process_type == "purchase":
+                self._ensure(
+                    dataset,
+                    "purchase_request",
+                    "csrs.purchase.request",
+                    {
+                        "case_id": case.id,
+                        "budget_line_id": budget_line.id,
+                        "quantity": 2,
+                        "estimated_amount": 1000,
+                    },
+                    created,
+                )
 
         start, end = self._fixture_period(dataset)
         facade = self.env["csrs.api"].with_user(users["it"])
@@ -527,6 +592,40 @@ class CsrsE2EFixture(models.AbstractModel):
         by_model = defaultdict(list)
         for reference, record in tracked:
             by_model[record._name].append((reference, record))
+        marker = f"[E2E:{dataset}]"
+        tracked_cases = self.env["csrs.process.case"].sudo().search(
+            [("subject", "ilike", marker)]
+        )
+        purchase_requests = self.env["csrs.purchase.request"].sudo().search(
+            [("case_id", "in", tracked_cases.ids)]
+        )
+        orders = self.env["purchase.order"].sudo().search(
+            [("csrs_process_case_id", "in", tracked_cases.ids)]
+        )
+        for order in orders:
+            if order.state not in {"draft", "cancel"}:
+                order.button_cancel()
+            order.unlink()
+        for model_name, records in (
+            (
+                "csrs.process.event",
+                self.env["csrs.process.event"].sudo().search(
+                    [("case_id", "in", tracked_cases.ids)]
+                ),
+            ),
+            ("csrs.purchase.evidence", purchase_requests.evidence_ids),
+            ("csrs.purchase.quotation", purchase_requests.quotation_ids),
+            ("csrs.fund.request", self.env["csrs.fund.request"].sudo().search([("case_id", "in", tracked_cases.ids)])),
+            ("csrs.purchase.request", purchase_requests),
+        ):
+            if records:
+                models.Model.unlink(records.sudo())
+        generated_attachments = self.env["ir.attachment"].sudo().search(
+            [("res_model", "=", "csrs.process.case"), ("res_id", "in", tracked_cases.ids)]
+        )
+        generated_attachments.unlink()
+        if tracked_cases:
+            models.Model.unlink(tracked_cases)
         for model_name in DELETE_MODEL_ORDER:
             for reference, record in by_model.pop(model_name, []):
                 if record.exists():
@@ -535,6 +634,8 @@ class CsrsE2EFixture(models.AbstractModel):
                         "csrs.agenda.draft",
                         "csrs.task.proposal",
                         "csrs.process.case",
+                        "csrs.purchase.evidence",
+                        "csrs.purchase.quotation",
                         "project.project",
                     }:
                         models.Model.unlink(record.sudo())

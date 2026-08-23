@@ -486,6 +486,32 @@ class ProcessDocumentSerializer(serializers.Serializer[dict[str, object]]):
     )
 
 
+class ProcessQuotationSerializer(RevisionSerializer):
+    vendor_id = serializers.IntegerField(min_value=1)
+    reference = serializers.CharField(max_length=160)
+    quotation_date = serializers.DateField()
+    amount = serializers.DecimalField(
+        max_digits=16, decimal_places=2, min_value=Decimal("0.01")
+    )
+    documents = ProcessDocumentSerializer(many=True)
+
+    def validate_documents(
+        self, value: list[dict[str, object]]
+    ) -> list[dict[str, object]]:
+        if not value:
+            raise serializers.ValidationError("Au moins un document est obligatoire.")
+        return value
+
+
+class ProcessProcurementSerializer(RevisionSerializer):
+    selected_quotation_id = serializers.IntegerField(min_value=1)
+    product_id = serializers.IntegerField(min_value=1)
+    quantity = serializers.FloatField(min_value=0.000001)
+    negotiated_amount = serializers.DecimalField(
+        max_digits=16, decimal_places=2, min_value=Decimal("0.01")
+    )
+
+
 class ProcessCreateSerializer(serializers.Serializer[dict[str, object]]):
     process_type = serializers.ChoiceField(
         choices=(
@@ -512,8 +538,37 @@ class ProcessCreateSerializer(serializers.Serializer[dict[str, object]]):
     details = serializers.DictField()
     documents = ProcessDocumentSerializer(many=True, required=False, default=list)
 
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        process_type = attrs.get("process_type")
+        details = cast(dict[str, object], attrs.get("details") or {})
+        required = {
+            "fund": {"budget_line_id", "beneficiary_id", "purpose"},
+            "purchase": {"budget_line_id", "quantity", "estimated_amount"},
+        }.get(str(process_type), set())
+        missing = sorted(name for name in required if not details.get(name))
+        if missing:
+            raise serializers.ValidationError(
+                {"details": f"Champs obligatoires manquants : {', '.join(missing)}."}
+            )
+        amount = cast(Decimal, attrs.get("amount", Decimal("0")))
+        if process_type in {"fund", "purchase"} and amount <= Decimal("0"):
+            raise serializers.ValidationError(
+                {"amount": "Le montant doit être strictement positif."}
+            )
+        return attrs
+
 
 class ProcessTransitionSerializer(RevisionSerializer):
     action = serializers.CharField(max_length=32)
     note = serializers.CharField(required=False, allow_blank=True, default="")
     confirmation = serializers.CharField(required=False, allow_blank=True, default="")
+    stage_data = serializers.DictField(required=False, default=dict)
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        action = attrs.get("action")
+        stage_data = cast(dict[str, object], attrs.get("stage_data") or {})
+        if action in {"receive", "invoice", "pay"} and not stage_data:
+            raise serializers.ValidationError(
+                {"stage_data": "Le justificatif d'étape est obligatoire."}
+            )
+        return attrs

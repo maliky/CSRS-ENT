@@ -46,6 +46,14 @@ class CsrsE2EFixtureTests(TransactionCase):
         generated_status = fixture._execute("status", dataset)
         self.assertEqual(generated_status["counts"]["csrs.agenda.version"], 1)
         self.assertEqual(generated_status["counts"]["ir.attachment"], 2)
+        purchase_case = self.env["csrs.process.case"].search(
+            [("subject", "like", f"[E2E:{dataset}]"), ("process_type", "=", "purchase")],
+            limit=1,
+        )
+        purchase_case.with_user(purchase_case.requester_id).action_transition(
+            "submit", purchase_case.revision
+        )
+        self.assertTrue(purchase_case.event_ids)
 
         cleaned = fixture._execute("clean", dataset)
 

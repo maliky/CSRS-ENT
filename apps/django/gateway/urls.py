@@ -141,6 +141,18 @@ urlpatterns = [
     path("api/v1/processes/", api_views.ProcessListCreateView.as_view()),
     path("api/v1/processes/<int:pk>/", api_views.ProcessDetailView.as_view()),
     path(
+        "api/v1/processes/<int:pk>/quotations/",
+        api_views.ProcessQuotationCreateView.as_view(),
+    ),
+    path(
+        "api/v1/processes/<int:pk>/quotations/<int:quotation_pk>/",
+        api_views.ProcessQuotationDetailView.as_view(),
+    ),
+    path(
+        "api/v1/processes/<int:pk>/procurement/",
+        api_views.ProcessProcurementView.as_view(),
+    ),
+    path(
         "api/v1/processes/<int:pk>/transition/",
         api_views.ProcessTransitionView.as_view(),
     ),

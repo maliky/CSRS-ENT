@@ -63,6 +63,8 @@ PROCESS_DETAIL_MODELS = {
             "beneficiary_id",
             "purpose",
             "requires_purchase",
+            "payment_method",
+            "payment_date",
         },
     ),
     "purchase": (
@@ -73,6 +75,9 @@ PROCESS_DETAIL_MODELS = {
             "product_id",
             "quantity",
             "estimated_amount",
+            "negotiated_amount",
+            "selected_quotation_id",
+            "purchase_order_id",
         },
     ),
     "absence": (
@@ -220,7 +225,7 @@ class CsrsApiProjects(models.AbstractModel):
     _inherit = "csrs.api"
 
     def _project_can_view(self, project):
-        return bool(project.with_user(self.env.user)._csrs_can_view())
+        return bool(project.with_user(self.env.user).sudo()._csrs_can_view())
 
     def _project_can_supervise(self, project):
         return bool(project.with_user(self.env.user)._csrs_can_supervise())
@@ -776,6 +781,61 @@ class CsrsApiProjects(models.AbstractModel):
             return {}
         return {name: _value(detail, name) for name in sorted(allowed)}
 
+    def _process_presentation(self, case):
+        model_name, _allowed = PROCESS_DETAIL_MODELS[case.process_type]
+        detail = self.env[model_name].sudo().search([("case_id", "=", case.id)], limit=1)
+        documents = [
+            {"id": item.id, "name": item.name, "mimetype": item.mimetype or ""}
+            for item in case.attachment_ids.sorted("id")
+        ]
+        if case.process_type == "fund" and detail:
+            return {
+                "kind": "fund",
+                "budget_line": {"id": detail.budget_line_id.id, "code": detail.budget_line_id.code, "name": detail.budget_line_id.name},
+                "beneficiary": {"id": detail.beneficiary_id.id, "name": detail.beneficiary_id.name},
+                "purpose": detail.purpose,
+                "payment_method": detail.payment_method or "",
+                "payment_method_label": dict(detail._fields["payment_method"].selection).get(detail.payment_method, ""),
+                "payment_date": detail.payment_date.isoformat() if detail.payment_date else None,
+                "documents": documents,
+            }
+        if case.process_type == "purchase" and detail:
+            return {
+                "kind": "purchase",
+                "budget_line": {"id": detail.budget_line_id.id, "code": detail.budget_line_id.code, "name": detail.budget_line_id.name},
+                "quantity": detail.quantity,
+                "estimated_amount": detail.estimated_amount,
+                "negotiated_amount": detail.negotiated_amount,
+                "vendor": {"id": detail.vendor_id.id, "name": detail.vendor_id.name} if detail.vendor_id else None,
+                "product": {"id": detail.product_id.id, "name": detail.product_id.display_name} if detail.product_id else None,
+                "selected_quotation_id": detail.selected_quotation_id.id or None,
+                "quotations": [
+                    {
+                        "id": quote.id,
+                        "vendor": {"id": quote.vendor_id.id, "name": quote.vendor_id.name},
+                        "reference": quote.reference,
+                        "quotation_date": quote.quotation_date.isoformat(),
+                        "amount": quote.amount,
+                        "documents": [{"id": item.id, "name": item.name, "mimetype": item.mimetype or ""} for item in quote.attachment_ids.sorted("id")],
+                    }
+                    for quote in detail.quotation_ids
+                ],
+                "purchase_order": {"id": detail.purchase_order_id.id, "name": detail.purchase_order_id.name, "state": detail.purchase_order_id.state} if detail.purchase_order_id else None,
+                "evidence": [
+                    {
+                        "id": item.id,
+                        "kind": item.kind,
+                        "reference": item.reference,
+                        "date": item.evidence_date.isoformat(),
+                        "amount": item.amount,
+                        "document": {"id": item.attachment_id.id, "name": item.attachment_id.name},
+                    }
+                    for item in detail.evidence_ids
+                ],
+                "documents": documents,
+            }
+        return {"kind": "generic"}
+
     def _process_summary(self, case, detail=False):
         type_labels = dict(PROCESS_TYPES)
         transitions = TRANSITIONS[case.process_type]
@@ -814,6 +874,7 @@ class CsrsApiProjects(models.AbstractModel):
         }
         if detail:
             payload["details"] = self._process_detail_values(case)
+            payload["presentation"] = self._process_presentation(case)
             payload["events"] = [
                 {
                     "id": event.id,
@@ -882,6 +943,18 @@ class CsrsApiProjects(models.AbstractModel):
                     "partner_id": employee.user_id.partner_id.id,
                 }
                 for employee in employees
+            ],
+            "vendors": [
+                {"id": item.id, "name": item.display_name}
+                for item in self.env["res.partner"].sudo().search(
+                    [("supplier_rank", ">", 0), ("active", "=", True)], order="name"
+                )
+            ],
+            "products": [
+                {"id": item.id, "name": item.display_name}
+                for item in self.env["product.product"].sudo().search(
+                    [("purchase_ok", "=", True), ("active", "=", True)], order="name"
+                )
             ],
         }
 
@@ -968,13 +1041,74 @@ class CsrsApiProjects(models.AbstractModel):
     def api_process(self, case_id):
         return self._process_summary(self._process_record(case_id), detail=True)
 
+    def _process_attachment(self, case, document):
+        if not isinstance(document, dict) or not document.get("content_base64"):
+            raise ValidationError(_("Document justificatif invalide."))
+        return self.env["ir.attachment"].sudo().create(
+            {
+                "name": str(document.get("name") or "document"),
+                "mimetype": str(document.get("mimetype") or "application/octet-stream"),
+                "datas": document["content_base64"],
+                "res_model": "csrs.process.case",
+                "res_id": case.id,
+            }
+        )
+
+    @api.model
+    def api_process_quotation_save(self, case_id, payload, quotation_id=None):
+        case = self._process_record(case_id).with_user(self.env.user)
+        case._lock_for_transition()
+        case._check_revision(payload.get("revision"))
+        if case.process_type != "purchase" or case.state != "procurement" or not case._can_handle():
+            raise AccessError(_("Seule la cellule achat peut modifier les cotations."))
+        request = self.env["csrs.purchase.request"].sudo().search([("case_id", "=", case.id)], limit=1)
+        vendor = self.env["res.partner"].sudo().browse(int(payload.get("vendor_id") or 0)).exists()
+        reference = str(payload.get("reference") or "").strip()
+        quotation_date = fields.Date.to_date(payload.get("quotation_date"))
+        amount = float(payload.get("amount") or 0)
+        if not vendor or vendor.supplier_rank <= 0 or not reference or not quotation_date or amount <= 0:
+            raise ValidationError(_("Fournisseur, référence, date et montant de cotation sont obligatoires."))
+        attachments = [self._process_attachment(case, item) for item in payload.get("documents") or []]
+        values = {"purchase_request_id": request.id, "vendor_id": vendor.id, "reference": reference, "quotation_date": quotation_date, "amount": amount}
+        quote = self.env["csrs.purchase.quotation"].sudo().browse(int(quotation_id or 0)).exists()
+        if quote:
+            if quote.purchase_request_id != request:
+                raise UserError(_("Cotation introuvable."))
+            quote.write(values)
+        else:
+            quote = self.env["csrs.purchase.quotation"].sudo().create(values)
+        if attachments:
+            quote.write({"attachment_ids": [Command.set([item.id for item in attachments])]})
+        case.sudo().with_context(csrs_authorized_mutation=True).write({"revision": case.revision + 1})
+        case._event("quotation", case.state, case.state, details={"quotation_id": quote.id})
+        return self._process_summary(case.sudo(), detail=True)
+
+    @api.model
+    def api_process_procurement_save(self, case_id, payload):
+        case = self._process_record(case_id).with_user(self.env.user)
+        case._lock_for_transition()
+        case._check_revision(payload.get("revision"))
+        if case.process_type != "purchase" or case.state != "procurement" or not case._can_handle():
+            raise AccessError(_("Seule la cellule achat peut compléter cette demande."))
+        request = self.env["csrs.purchase.request"].sudo().search([("case_id", "=", case.id)], limit=1)
+        request.action_save_procurement(payload)
+        case.sudo().with_context(csrs_authorized_mutation=True).write({"revision": case.revision + 1})
+        case._event("procurement_update", case.state, case.state)
+        return self._process_summary(case.sudo(), detail=True)
+
     @api.model
     def api_process_transition(self, case_id, payload):
         case = self._process_record(case_id).with_user(self.env.user)
+        stage_data = dict(payload.get("stage_data") or {})
+        document = stage_data.pop("document", None)
+        if document:
+            attachment = self._process_attachment(case, document)
+            stage_data["attachment_id"] = attachment.id
         case.action_transition(
             payload.get("action"),
             payload.get("revision"),
             note=payload.get("note") or "",
             confirmation=payload.get("confirmation") or "",
+            stage_data=stage_data,
         )
         return self._process_summary(case.sudo(), detail=True)
