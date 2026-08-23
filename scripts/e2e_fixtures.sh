@@ -6,6 +6,7 @@ readonly MODE="${1:-status}"
 readonly DATASET="${2:-e2e-preprod}"
 readonly ENV_FILE="${3:-${ROOT_DIR}/.env}"
 readonly COMPOSE_FILE="${ROOT_DIR}/infrastructure/compose/compose.yaml"
+readonly COMPOSE_PROJECT="${CSRS_E2E_COMPOSE_PROJECT_NAME:-}"
 readonly SECRET_DIR="${CSRS_E2E_SECRET_DIR:-${ROOT_DIR}/secrets/e2e}"
 readonly PASSWORD_FILE="${SECRET_DIR}/${DATASET}.password"
 
@@ -19,6 +20,10 @@ if [[ ! "$DATASET" =~ ^e2e-[a-z0-9-]{1,40}$ ]]; then
 fi
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Fichier d'environnement introuvable : $ENV_FILE" >&2
+  exit 2
+fi
+if [[ -n "$COMPOSE_PROJECT" && ! "$COMPOSE_PROJECT" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
+  echo "Nom de projet Compose de capture invalide." >&2
   exit 2
 fi
 
@@ -45,7 +50,12 @@ if [[ "$MODE" =~ ^(seed|reseed)$ && "$dry_run" == false && -z "${CSRS_E2E_FIXTUR
 fi
 
 cd "$ROOT_DIR"
-docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm -T \
+compose=(docker-compose)
+if [[ -n "$COMPOSE_PROJECT" ]]; then
+  compose+=(-p "$COMPOSE_PROJECT")
+fi
+compose+=(--env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+"${compose[@]}" run --rm -T \
   -e CSRS_E2E_MODE="$MODE" \
   -e CSRS_E2E_DATASET="$DATASET" \
   -e CSRS_E2E_DRY_RUN="$dry_run" \

@@ -551,37 +551,107 @@ Le détail affiche la référence, l'état, le demandeur, l'unité, les données
 [[file:screenshots/26-procedure-historique.png]]
 
 ** Bon de sortie de fonds
+:PROPERTIES:
+:CUSTOM_ID: proc-bsf
+:END:
 
-Champs principaux: projet, ligne budgétaire, montant, bénéficiaire, objet de la dépense et indication d'achat nécessaire.
+Le bon de sortie de fonds, ou BSF, sert à demander le décaissement d'une dépense rattachée à un projet et à une ligne budgétaire. Avant de commencer, réunir l'objet de la dépense, le montant, le bénéficiaire et les justificatifs disponibles : ordre de mission, termes de référence, budget, contrat, convention, facture ou demande d'achat.
 
-| Ordre | État / responsable | Action produite |
-|-------+--------------------+-----------------|
-| 1 | Demandeur | Soumettre le brouillon |
-| 2 | Contrôle financier | Approuver ou demander correction |
-| 3 | Demandeur | Viser la demande |
-| 4 | Responsable finances | Approuver |
-| 5 | DAF | Approuver |
-| 6 | Comptabilité du projet | Approuver |
-| 7 | DG | Approuver avec confirmation électronique |
-| 8 | Préparation du paiement | Confirmer le paiement et terminer |
+*** Créer et soumettre le BSF
 
-L'approbation DG réserve le montant sur la ligne budgétaire. Si le disponible est insuffisant, Odoo refuse la réservation.
+1. Ouvrir =Procédures=, sélectionner =Nouveau dossier= puis =Bon de sortie de fonds=.
+2. Sélectionner le projet puis une ligne budgétaire appartenant à ce projet.
+3. Indiquer le bénéficiaire, l'objet précis du décaissement et le montant demandé.
+4. Ajouter les pièces justificatives utiles et sélectionner =Créer le brouillon=.
+5. Relire le dossier puis sélectionner =Soumettre=. Le dossier est transmis au contrôle financier; il ne faut pas créer une seconde demande pour la même dépense.
+
+*** Suivre les visas et les corrections
+
+| Ordre | Intervenant | Action attendue | Résultat visible |
+|-------+-------------+-----------------+-----------------|
+| 1 | Contrôle financier | Vérifier la capacité budgétaire et la situation comptable | Approbation ou retour motivé au demandeur |
+| 2 | Demandeur | Vérifier et viser le BSF préparé | Transmission au responsable finances |
+| 3 | Responsable finances | Contrôler et viser | Transmission à la DAF |
+| 4 | DAF | Vérifier et viser | Transmission à la comptabilité du projet |
+| 5 | Comptabilité du projet | Contrôler le dossier financier | Transmission au DG ou demande de correction |
+| 6 | Direction générale | Approuver avec la confirmation électronique demandée | Autorisation de paiement et réservation budgétaire |
+| 7 | Finances / caisse | Indiquer la date réellement exécutée et confirmer le paiement | Dossier =Terminé= et événement de paiement audité |
+
+Lorsqu'une correction est demandée, le motif apparaît dans le dossier. Le demandeur corrige le même BSF puis sélectionne =Soumettre à nouveau=. Les visas et retours antérieurs restent dans l'historique; il ne faut ni supprimer le dossier ni recommencer le circuit.
+
+*** Comprendre les contrôles de paiement
+
+- Jusqu'à =200 000 FCFA= inclus, Odoo classe automatiquement le paiement en =Espèces=.
+- Au-delà de =200 000 FCFA=, Odoo classe automatiquement le paiement en =Chèque=. Le BSF ne demande actuellement pas de numéro de chèque.
+- L'approbation DG réserve une seule fois le montant sur la ligne budgétaire. Si le disponible est insuffisant ou si le dossier a été modifié entre-temps, Odoo refuse l'opération.
+- La date de paiement doit être un mardi, un jeudi ou un vendredi et ne peut pas être future.
+- Le processus de référence prévoit l'élaboration des BSF le lundi et le mercredi et vise un paiement dans les trois jours. Ces deux délais sont des consignes d'organisation; l'application ne bloque pas la saisie sur les autres jours.
+
+#+CAPTION: BSF de 250 000 FCFA prêt au paiement par chèque, avec date et action réservées aux finances.
+#+ATTR_HTML: :alt "Écran de préparation du paiement d'un bon de sortie de fonds" :width "100%"
+#+ATTR_LATEX: :width 0.95\linewidth :placement [H]
+#+ATTR_ODT: :width 16.0
+#+ATTR_ORG: :width 1000
+[[file:screenshots/procedure-bsf-paiement.png]]
+
+Après paiement, vérifier que l'état est =Terminé=, que le mode et la date sont affichés et que l'historique contient la confirmation du paiement. Cette trace permet au demandeur, aux finances et aux responsables autorisés de retrouver le circuit sans consulter une comptabilité parallèle.
+
+#+CAPTION: Historique audité du BSF après confirmation du paiement.
+#+ATTR_HTML: :alt "Historique des visas et du paiement d'un bon de sortie de fonds" :width "100%"
+#+ATTR_LATEX: :width 0.78\linewidth :placement [H]
+#+ATTR_ODT: :width 13.0
+#+ATTR_ORG: :width 820
+[[file:screenshots/procedure-bsf-historique.png]]
 
 ** Demande d'achat
+:PROPERTIES:
+:CUSTOM_ID: proc-da
+:END:
 
-Champs principaux: projet, ligne budgétaire, montant estimé et quantité.
+La demande d'achat, ou DA, sert à obtenir l'autorisation puis à suivre l'achat d'un produit ou d'un service. Le demandeur décrit le besoin; la cellule achats renseigne ensuite les fournisseurs, les cotations et les données nécessaires au bon de commande.
 
-| Ordre | État / responsable | Action produite |
-|-------+--------------------+-----------------|
-| 1 | Demandeur | Soumettre |
-| 2 | DAF | Approuver ou demander correction |
-| 3 | DG | Approuver avec confirmation électronique |
-| 4 | Achats | Créer la commande |
-| 5 | Achats | Confirmer la réception |
-| 6 | Finances | Enregistrer la facture |
-| 7 | Finances | Confirmer le paiement |
+*** Créer et faire approuver la demande
 
-La commande, la réception et la facture utilisent les objets Odoo d'achat et de comptabilité; CSRS ENT ne maintient pas de comptabilité parallèle.
+1. Ouvrir =Procédures=, sélectionner =Nouveau dossier= puis =Demande d'achat=.
+2. Décrire clairement le besoin, sélectionner le projet et sa ligne budgétaire, puis indiquer la quantité et le montant estimé.
+3. Ajouter les justificatifs disponibles, créer le brouillon, le relire puis sélectionner =Soumettre=.
+4. La DAF approuve, demande une correction ou rejette la demande. Une DA approuvée est transmise au DG.
+5. Le DG approuve avec la confirmation électronique demandée, demande une correction ou rejette. Seule une DA approuvée par le DG atteint la cellule achats.
+
+Une demande de correction renvoie le même dossier au demandeur avec un motif obligatoire. Après modification, utiliser =Soumettre à nouveau= afin de conserver l'historique complet.
+
+*** Comparer les cotations et préparer la commande
+
+1. Le responsable des achats ouvre le dossier à l'étape =Traitement achat=.
+2. Pour chaque offre reçue, il sélectionne le fournisseur, saisit la référence, la date et le montant puis joint le document de cotation.
+3. Il sélectionne la cotation retenue, le produit ou service, la quantité commandée et le montant négocié, puis enregistre la préparation.
+4. Il sélectionne =Créer le bon de commande=. Odoo crée et confirme un bon de commande natif lié à la DA; une seconde commande ne peut pas être créée pour le même dossier.
+
+#+CAPTION: Comparaison des cotations et préparation du bon de commande par la cellule achats.
+#+ATTR_HTML: :alt "Cotation retenue, produit, quantité et montant négocié d'une demande d'achat" :width "100%"
+#+ATTR_LATEX: :width 0.82\linewidth :placement [H]
+#+ATTR_ODT: :width 14.0
+#+ATTR_ORG: :width 900
+[[file:screenshots/procedure-da-cotations-commande.png]]
+
+*** Enregistrer la livraison, la facture et le paiement
+
+| Ordre | Intervenant | Informations et preuve obligatoires | Action |
+|-------+-------------+-------------------------------------+--------|
+| 1 | Cellule achats | Référence, date et justificatif de livraison | =Confirmer la livraison= |
+| 2 | Cellule achats | Référence, date, montant et document de facture | =Enregistrer la facture= |
+| 3 | Finances | Référence, date, montant et preuve de paiement | =Confirmer le paiement= |
+
+Le montant payé doit être exactement égal au montant de la facture. Le rapprochement entre la facture et le montant négocié reste un contrôle humain de la cellule achats et des finances. L'approbation de la DA ne réserve pas automatiquement le budget : la disponibilité de la ligne doit être contrôlée avant de créer le bon de commande.
+
+Le dossier terminé affiche le fournisseur retenu, le produit ou service, le montant négocié, le numéro du bon de commande, les cotations et les trois preuves. Les documents et événements audités ne peuvent pas être supprimés pour réécrire le parcours.
+
+#+CAPTION: DA terminée avec bon de commande, livraison, facture, paiement et historique audité.
+#+ATTR_HTML: :alt "Dossier d'achat terminé avec bon de commande et preuves" :width "100%"
+#+ATTR_LATEX: :width 0.95\linewidth :placement [H]
+#+ATTR_ODT: :width 16.0
+#+ATTR_ORG: :width 1000
+[[file:screenshots/procedure-da-commande-preuves.png]]
 
 ** Demande d'absence
 

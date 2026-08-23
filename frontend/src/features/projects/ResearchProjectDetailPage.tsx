@@ -38,6 +38,19 @@ function confirmationPhrase() {
   return `VALIDÉ LE ${new Intl.DateTimeFormat("fr-FR").format(new Date())}`;
 }
 
+const SECTION_STATE_LABELS: Record<string, string> = {
+  draft: "Brouillon",
+  submitted: "Soumis",
+  verified: "Vérifié",
+  approved: "Approuvé",
+  correction: "À corriger",
+  rejected: "Rejeté",
+};
+
+export function sectionStateLabel(state: string): string {
+  return SECTION_STATE_LABELS[state] ?? state;
+}
+
 export function ResearchProjectDetailPage() {
   const { projectId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -218,7 +231,9 @@ export function ResearchProjectDetailPage() {
     return (
       <div className="stack">
         <div className="cluster">
-          <StatusBadge status={section.state}>{section.state}</StatusBadge>
+          <StatusBadge status={section.state}>
+            {sectionStateLabel(section.state)}
+          </StatusBadge>
           <span className="muted">{section.readiness_message}</span>
         </div>
         {section.correction_reason && (
@@ -306,7 +321,7 @@ export function ResearchProjectDetailPage() {
                 </span>
                 <span className={styles.stepMeta}>
                   {section.required ? "Obligatoire" : "Facultatif"} ·{" "}
-                  {section.state}
+                  {sectionStateLabel(section.state)}
                 </span>
                 {!section.unlocked && (
                   <span className={styles.stepMeta}>
@@ -638,7 +653,7 @@ export function ResearchProjectDetailPage() {
                   <h2>{title}</h2>
                   {section && (
                     <StatusBadge status={section.state}>
-                      {section.state}
+                      {sectionStateLabel(section.state)}
                     </StatusBadge>
                   )}
                 </div>
@@ -721,7 +736,8 @@ export function ResearchProjectDetailPage() {
           <ul>
             {data.sections.map((section) => (
               <li key={section.code}>
-                {section.sequence}. {section.label} — {section.state}
+                {section.sequence}. {section.label} —{" "}
+                {sectionStateLabel(section.state)}
               </li>
             ))}
           </ul>
