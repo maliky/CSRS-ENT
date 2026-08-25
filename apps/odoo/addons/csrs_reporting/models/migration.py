@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta, timezone
 import hashlib
 import json
+from typing import Any, Mapping
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
@@ -69,14 +70,26 @@ class CsrsMigrationImporter(models.AbstractModel):
         if snapshot["version"] >= 3:
             plans, action_plans, actions = self._upsert_planning(snapshot, report)
             calendars = self._upsert_calendars(snapshot, report)
+            progress_states = self._source_progress_states(snapshot)
             task_definitions, tasks, imported_task_ids = self._upsert_tasks(
-                snapshot, users, departments, actions, calendars, report
+                snapshot,
+                users,
+                departments,
+                actions,
+                calendars,
+                progress_states,
+                report,
             )
             proposals = self._upsert_proposals(
                 snapshot, users, actions, calendars, tasks, report
             )
             self._upsert_progress_history(
-                snapshot, users, tasks, imported_task_ids, report
+                snapshot,
+                users,
+                tasks,
+                imported_task_ids,
+                progress_states,
+                report,
             )
             self._upsert_task_activities(snapshot, users, tasks, report)
             self._upsert_legacy_revisions(
@@ -1245,8 +1258,55 @@ class CsrsMigrationImporter(models.AbstractModel):
                 report["unchanged"]["working_day_overrides"] += 1
         return calendars
 
+    @staticmethod
+    def _source_progress_states(
+        snapshot: Mapping[str, Any],
+    ) -> dict[int, dict[str, Any]]:
+        history_by_assignment = defaultdict(list)
+        for row in snapshot["progress_history"]:
+            if row.get("history_type") != "-":
+                history_by_assignment[row["assignment_source_id"]].append(row)
+        current_by_assignment = defaultdict(list)
+        for row in snapshot["progress_entries"]:
+            current_by_assignment[row["assignment_source_id"]].append(row)
+        assignment_revisions = {
+            row["source_id"]: int(row.get("revision") or 1)
+            for row in snapshot["task_assignments"]
+        }
+        states = {}
+        for assignment_id, assignment_revision in assignment_revisions.items():
+            history = sorted(
+                history_by_assignment.get(assignment_id, []),
+                key=lambda item: (
+                    item.get("history_date") or "",
+                    item.get("history_id") or 0,
+                ),
+            )
+            current = sorted(
+                current_by_assignment.get(assignment_id, []),
+                key=lambda item: (item["entry_date"], item["source_id"]),
+            )
+            latest = current[-1] if current else (history[-1] if history else None)
+            if latest:
+                states[assignment_id] = {
+                    "csrs_progress_percent": float(latest["percentage"]),
+                    "csrs_blocked": bool(latest.get("blocked")),
+                    "csrs_revision": max(
+                        len(history) if history else len(current),
+                        assignment_revision,
+                    ),
+                }
+        return states
+
     def _upsert_tasks(
-        self, snapshot, users, departments, actions, calendars, report
+        self,
+        snapshot,
+        users,
+        departments,
+        actions,
+        calendars,
+        progress_states,
+        report,
     ):
         del departments
         Task = self.env["project.task"].sudo().with_context(active_test=False)
@@ -1254,14 +1314,6 @@ class CsrsMigrationImporter(models.AbstractModel):
         assignments = {
             row["task_source_id"]: row for row in snapshot["task_assignments"]
         }
-        progress_assignment_ids = {
-            row["assignment_source_id"] for row in snapshot["progress_entries"]
-        }
-        progress_assignment_ids.update(
-            row["assignment_source_id"]
-            for row in snapshot["progress_history"]
-            if row.get("history_type") != "-"
-        )
         tasks = {}
         imported_task_ids = set()
         for source_id, definition in definitions.items():
@@ -1297,8 +1349,12 @@ class CsrsMigrationImporter(models.AbstractModel):
                     else False,
                     "csrs_institutional_action_id": action.id if action else False,
                 }
-                if assignment["source_id"] not in progress_assignment_ids:
-                    values["csrs_revision"] = int(assignment.get("revision") or 1)
+                values.update(
+                    progress_states.get(
+                        assignment["source_id"],
+                        {"csrs_revision": int(assignment.get("revision") or 1)},
+                    )
+                )
             else:
                 creator = users[definition["created_by_source_id"]]
                 values = {
@@ -1387,7 +1443,13 @@ class CsrsMigrationImporter(models.AbstractModel):
         return proposals
 
     def _upsert_progress_history(
-        self, snapshot, users, tasks, imported_task_ids, report
+        self,
+        snapshot,
+        users,
+        tasks,
+        imported_task_ids,
+        progress_states,
+        report,
     ):
         Progress = self.env["csrs.progress.entry"].sudo()
         history_by_assignment = defaultdict(list)
@@ -1397,10 +1459,6 @@ class CsrsMigrationImporter(models.AbstractModel):
         current_by_assignment = defaultdict(list)
         for row in snapshot["progress_entries"]:
             current_by_assignment[row["assignment_source_id"]].append(row)
-        assignment_revisions = {
-            row["source_id"]: int(row.get("revision") or 1)
-            for row in snapshot["task_assignments"]
-        }
         for assignment_id, task in tasks.items():
             rows = history_by_assignment.get(assignment_id)
             if not rows:
@@ -1413,7 +1471,6 @@ class CsrsMigrationImporter(models.AbstractModel):
                     for row in current_by_assignment.get(assignment_id, [])
                 ]
             previous = 0.0
-            last = None
             revision = 0
             for row in sorted(
                 rows,
@@ -1456,22 +1513,8 @@ class CsrsMigrationImporter(models.AbstractModel):
                     Progress.create(values)
                     report["created"]["progress_history"] += 1
                 previous = float(row["percentage"])
-                last = row
-            current = sorted(
-                current_by_assignment.get(assignment_id, []),
-                key=lambda item: (item["entry_date"], item["source_id"]),
-            )
-            if current:
-                last = current[-1]
-            if last:
-                source_revision = max(
-                    revision, assignment_revisions.get(assignment_id, 0)
-                )
-                source_progress = {
-                    "csrs_progress_percent": float(last["percentage"]),
-                    "csrs_blocked": bool(last.get("blocked")),
-                    "csrs_revision": source_revision,
-                }
+            source_progress = progress_states.get(assignment_id)
+            if source_progress:
                 if task.id in imported_task_ids or task.csrs_task_source_id:
                     changes = self._changes(task, source_progress)
                     if changes:
@@ -1479,6 +1522,7 @@ class CsrsMigrationImporter(models.AbstractModel):
                             csrs_authorized_mutation=True,
                             csrs_migration_import=True,
                         ).write(changes)
+                        report["updated"]["tasks"] += 1
                 elif self._changes(task, source_progress):
                     report["unchanged"]["task_progress_source_conflicts"] += 1
 
