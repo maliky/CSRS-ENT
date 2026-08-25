@@ -98,7 +98,9 @@ export function AppShell() {
       );
     } catch (caught) {
       setRoleError(
-        caught instanceof Error ? caught.message : "Le rôle n'a pas pu être activé.",
+        caught instanceof Error
+          ? caught.message
+          : "Le rôle n'a pas pu être activé.",
       );
     } finally {
       setSwitchingRole(false);

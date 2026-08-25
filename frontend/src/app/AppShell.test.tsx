@@ -187,7 +187,8 @@ test("permet à l'administrateur d'activer une vue de rôle auditée", async () 
       }),
     ),
     http.post("/api/v1/session/role/", async ({ request }) => {
-      selectedRole = (await request.json() as { role_code: unknown }).role_code;
+      selectedRole = ((await request.json()) as { role_code: unknown })
+        .role_code;
       return HttpResponse.json({
         ...sessionFixture,
         capabilities: {
@@ -221,8 +222,12 @@ test("permet à l'administrateur d'activer une vue de rôle auditée", async () 
   );
 
   expect(selectedRole).toBe("hr");
-  expect(await screen.findByText(/Vue active : Ressources humaines/)).toBeVisible();
-  expect(screen.getByRole("combobox", { name: "Rôle actif" })).toHaveValue("hr");
+  expect(
+    await screen.findByText(/Vue active : Ressources humaines/),
+  ).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Rôle actif" })).toHaveValue(
+    "hr",
+  );
 });
 
 test("signale le miroir historique et renvoie la saisie vers CSRS Report", async () => {
