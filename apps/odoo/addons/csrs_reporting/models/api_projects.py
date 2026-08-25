@@ -275,11 +275,11 @@ class CsrsApiProjects(models.AbstractModel):
                 "supervise": supervise,
                 "archive": project.active and supervise,
                 "approve": project.csrs_state == "proposal"
-                and self.env.user.has_group("csrs_reporting.group_csrs_dg"),
+                and self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"),
                 "reject": project.csrs_state == "proposal"
-                and self.env.user.has_group("csrs_reporting.group_csrs_dg"),
+                and self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"),
                 "close": project.csrs_state == "active"
-                and self.env.user.has_group("csrs_reporting.group_csrs_dg"),
+                and self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"),
             },
         }
 
@@ -322,11 +322,11 @@ class CsrsApiProjects(models.AbstractModel):
                         and section.state == "submitted",
                         "correct": current_section._can_request_correction()
                         and section.state in {"submitted", "verified"},
-                        "validate": self.env.user.has_group(
+                        "validate": self.env.user.csrs_has_effective_group(
                             "csrs_reporting.group_csrs_dg"
                         )
                         and section.state == "verified",
-                        "close": self.env.user.has_group("csrs_reporting.group_csrs_dg")
+                        "close": self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg")
                         and section.state == "validated",
                     },
                 }
@@ -764,7 +764,7 @@ class CsrsApiProjects(models.AbstractModel):
         )
         return bool(
             user == case.requester_id
-            or any(user.has_group(xmlid) for xmlid in governance_groups)
+            or any(user.csrs_has_effective_group(xmlid) for xmlid in governance_groups)
             or case.with_user(user)._can_handle()
         )
 
@@ -979,7 +979,7 @@ class CsrsApiProjects(models.AbstractModel):
         department_id = int(payload.get("origin_department_id") or 0)
         if not employee or (
             department_id != employee.department_id.id
-            and not self.env.user.has_group("csrs_reporting.group_csrs_it")
+            and not self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_it")
         ):
             raise AccessError(_("L'unité d'origine n'est pas autorisée."))
         project_id = int(payload.get("project_id") or 0)

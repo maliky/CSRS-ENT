@@ -96,6 +96,12 @@ export type Session = {
     source_extracted_at: string;
     last_success_at: string;
   };
+  role_switcher: {
+    can_switch: boolean;
+    active_code: string | null;
+    active_label: string | null;
+    roles: { code: string; label: string }[];
+  };
   capabilities: {
     create_task: boolean;
     create_proposal: boolean;

@@ -30,7 +30,9 @@ export function parseSession(value: unknown): Session {
     typeof (user as Record<string, unknown>).id !== "number" ||
     typeof (user as Record<string, unknown>).name !== "string" ||
     typeof payload.capabilities !== "object" ||
-    payload.capabilities === null
+    payload.capabilities === null ||
+    typeof payload.role_switcher !== "object" ||
+    payload.role_switcher === null
   ) {
     throw new Error("Réponse de session invalide.");
   }

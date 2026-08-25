@@ -192,7 +192,7 @@ class CsrsProcessCase(models.Model):
     def create(self, values_list):
         for values in values_list:
             requester_id = values.get("requester_id") or self.env.user.id
-            if requester_id != self.env.user.id and not self.env.user.has_group(
+            if requester_id != self.env.user.id and not self.env.user.csrs_has_effective_group(
                 "csrs_reporting.group_csrs_it"
             ):
                 raise AccessError(
@@ -232,10 +232,10 @@ class CsrsProcessCase(models.Model):
         return str(state), int(revision)
 
     def _is_dg(self):
-        return self.env.user.has_group("csrs_reporting.group_csrs_dg")
+        return self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg")
 
     def _is_it(self):
-        return self.env.user.has_group("csrs_reporting.group_csrs_it")
+        return self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_it")
 
     def _can_handle(self, current_state=None):
         self.ensure_one()
@@ -249,6 +249,8 @@ class CsrsProcessCase(models.Model):
         if role == "DG":
             return self._is_dg()
         if role == "PRIMARY_MANAGER":
+            if self.env.user.csrs_effective_role_code() == "primary_manager":
+                return True
             employee = (
                 self.env["hr.employee"]
                 .sudo()
@@ -271,11 +273,17 @@ class CsrsProcessCase(models.Model):
             "DATA_MANAGER": "csrs_reporting.group_csrs_data_manager",
             "IT_SYSTEMS": "csrs_reporting.group_csrs_it",
         }
-        if role in group_by_role and self.env.user.has_group(group_by_role[role]):
+        if role in group_by_role and self.env.user.csrs_has_effective_group(
+            group_by_role[role]
+        ):
             return True
         return bool(role and self.env.user.csrs_has_active_role_grant(role))
 
     def _event(self, action, from_state, to_state, note="", details=None):
+        event_details = dict(details or {})
+        effective_role = self.env.user.csrs_effective_role_code()
+        if effective_role:
+            event_details["effective_role"] = effective_role
         return (
             self.env["csrs.process.event"]
             .sudo()
@@ -287,7 +295,7 @@ class CsrsProcessCase(models.Model):
                     "from_state": from_state,
                     "to_state": to_state,
                     "note": note,
-                    "details": details or {},
+                    "details": event_details,
                 }
             )
         )

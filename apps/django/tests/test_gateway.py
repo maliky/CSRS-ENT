@@ -152,6 +152,54 @@ class GatewayViewTests(SimpleTestCase):
         self.assertIn("csrf_token", response.json())
         call.assert_called_once_with("opaque-session", "api_session")
 
+    @patch("gateway.views.OdooClient.call")
+    def test_effective_role_is_forwarded_from_the_server_side_session(
+        self, call: MagicMock
+    ) -> None:
+        session = self.client.session
+        session["odoo_session_id"] = "opaque-session"
+        session["odoo_effective_role"] = "hr"
+        session.save()
+        call.return_value = {"user": {"id": 7}, "capabilities": {}}
+
+        response = self.client.get("/api/v1/session/")
+
+        self.assertEqual(response.status_code, 200)
+        call.assert_called_once_with(
+            "opaque-session",
+            "api_session",
+            kwargs={"context": {"csrs_effective_role": "hr"}},
+        )
+
+    @patch("gateway.api_views.OdooClient.call")
+    def test_administrator_role_switch_is_validated_by_odoo_then_stored(
+        self, call: MagicMock
+    ) -> None:
+        session = self.client.session
+        session["odoo_session_id"] = "opaque-session"
+        session.save()
+        call.return_value = {
+            "user": {"id": 7, "name": "Admin", "position": "IT"},
+            "capabilities": {"admin": False, "manage_availability": True},
+            "role_switcher": {
+                "can_switch": True,
+                "active_code": "hr",
+                "active_label": "Ressources humaines",
+                "roles": [],
+            },
+        }
+
+        response = self.client.post(
+            "/api/v1/session/role/",
+            data=json.dumps({"role_code": "hr"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.session["odoo_effective_role"], "hr")
+        self.assertEqual(response.json()["role_switcher"]["active_code"], "hr")
+        call.assert_called_once_with("opaque-session", "api_role_switch", ["hr"])
+
     @patch(
         "gateway.views.OdooClient.call",
         side_effect=OdooAuthenticationError("revoked"),

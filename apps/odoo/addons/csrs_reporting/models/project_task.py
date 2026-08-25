@@ -136,9 +136,9 @@ class ProjectTask(models.Model):
                 raise ValidationError(_("La fin prévue doit suivre la date de début."))
 
     def _csrs_is_admin(self):
-        return self.env.user.has_group(
+        return self.env.user.csrs_has_effective_group(
             "csrs_reporting.group_csrs_it"
-        ) or self.env.user.has_group("base.group_system")
+        ) or self.env.user.csrs_has_effective_group("base.group_system")
 
     def _csrs_can_manage(self):
         self.ensure_one()
@@ -292,9 +292,9 @@ class ProjectTask(models.Model):
             values["csrs_managed"] = True
             values.setdefault("csrs_code", self.env["ir.sequence"].next_by_code("csrs.task"))
             manager_id = values.get("csrs_manager_id")
-            is_admin = self.env.user.has_group(
+            is_admin = self.env.user.csrs_has_effective_group(
                 "csrs_reporting.group_csrs_it"
-            ) or self.env.user.has_group("base.group_system")
+            ) or self.env.user.csrs_has_effective_group("base.group_system")
             if not is_admin and manager_id != self.env.user.id:
                 raise UserError(_("Le responsable principal doit créer la tâche CSRS."))
         return super().create(values_list)

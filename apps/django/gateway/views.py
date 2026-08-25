@@ -14,6 +14,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .auth import LoginRateLimiter, client_ip, normalize_login
+from .effective_role import SESSION_EFFECTIVE_ROLE_KEY, effective_role_rpc_kwargs
 from .odoo import OdooAuthenticationError, OdooClient, OdooError
 
 
@@ -54,7 +55,14 @@ def _session_payload(request: HttpRequest) -> dict[str, object] | None:
     if not isinstance(session_id, str) or not session_id:
         return None
     try:
-        payload = _client().call(session_id, "api_session")
+        kwargs = effective_role_rpc_kwargs(
+            request.session.get(SESSION_EFFECTIVE_ROLE_KEY)
+        )
+        payload = (
+            _client().call(session_id, "api_session", kwargs=kwargs)
+            if kwargs
+            else _client().call(session_id, "api_session")
+        )
     except (OdooAuthenticationError, OdooError):
         request.session.flush()
         return None
