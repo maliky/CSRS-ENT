@@ -129,7 +129,7 @@ class CsrsTaskProposal(models.Model):
         """Accept atomically into one task or reject with a required reason."""
         self.ensure_one()
         self._check_revision(expected_revision)
-        if self.manager_id != self.env.user and not self.env.user.has_group(
+        if self.manager_id != self.env.user and not self.env.user.csrs_has_effective_group(
             "csrs_reporting.group_csrs_it"
         ):
             raise UserError(_("Seul le responsable principal peut décider."))
@@ -185,7 +185,9 @@ class CsrsTaskProposal(models.Model):
             if (
                 not self.env.context.get("csrs_migration_import")
                 and author != self.env.user
-                and not self.env.user.has_group("csrs_reporting.group_csrs_it")
+                and not self.env.user.csrs_has_effective_group(
+                    "csrs_reporting.group_csrs_it"
+                )
             ):
                 raise UserError(_("Vous ne pouvez proposer une tâche que pour vous-même."))
             values["author_id"] = author.id

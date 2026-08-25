@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/v1/session/login/", views.session_login, name="session_login"),
     path("api/v1/session/logout/", views.session_logout, name="session_logout"),
     path("api/v1/session/password/", api_views.SessionPasswordView.as_view()),
+    path("api/v1/session/role/", api_views.SessionRoleSwitchView.as_view()),
     path("api/v1/openapi/", SpectacularAPIView.as_view(), name="openapi"),
     path(
         "api/v1/documentation/",

@@ -8,6 +8,7 @@ from typing import cast
 
 from django.conf import settings
 from django.http import HttpResponse
+from django.middleware.csrf import get_token
 from django.utils.http import content_disposition_header
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
@@ -30,6 +31,7 @@ from .odoo import (
     OdooPermissionError,
     OdooValidationError,
 )
+from .effective_role import SESSION_EFFECTIVE_ROLE_KEY, effective_role_rpc_kwargs
 from .serializers import (
     AgendaDraftSerializer,
     AgendaGenerateSerializer,
@@ -66,6 +68,7 @@ from .serializers import (
     ResearchProjectTransitionSerializer,
     ResearchProjectUpdateSerializer,
     RoleGrantSerializer,
+    RoleSwitchSerializer,
     ProjectSectionTransitionSerializer,
     ProcessCreateSerializer,
     ProcessProcurementSerializer,
@@ -122,7 +125,14 @@ class OdooAPIView(APIView):
         session_id = request.session.get("odoo_session_id")
         if not isinstance(session_id, str) or not session_id:
             raise OdooAuthenticationError("Authentification requise.")
-        return _client().call(session_id, method, args)
+        kwargs = effective_role_rpc_kwargs(
+            request.session.get(SESSION_EFFECTIVE_ROLE_KEY)
+        )
+        return (
+            _client().call(session_id, method, args, kwargs=kwargs)
+            if kwargs
+            else _client().call(session_id, method, args)
+        )
 
     def handle_exception(self, exc: Exception) -> Response:
         if isinstance(exc, DrfValidationError):
@@ -163,6 +173,23 @@ class SessionPasswordView(OdooAPIView):
             [payload["current_password"], payload["new_password"]],
         )
         return Response(status=204)
+
+
+class SessionRoleSwitchView(OdooAPIView):
+    @extend_schema(request=RoleSwitchSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request) -> Response:
+        payload = _payload(RoleSwitchSerializer, request.data)
+        role_code = payload["role_code"]
+        result = self.rpc(request, "api_role_switch", [role_code])
+        if not isinstance(result, dict):
+            raise OdooError("Réponse RPC Odoo invalide.")
+        if isinstance(role_code, str):
+            request.session[SESSION_EFFECTIVE_ROLE_KEY] = role_code
+        else:
+            request.session.pop(SESSION_EFFECTIVE_ROLE_KEY, None)
+        response = dict(result)
+        response["csrf_token"] = get_token(request._request)
+        return Response(response)
 
 
 class DashboardView(OdooAPIView):

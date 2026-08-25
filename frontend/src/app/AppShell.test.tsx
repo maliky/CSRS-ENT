@@ -168,6 +168,75 @@ test("affiche les outils d'administration uniquement avec les droits Odoo", asyn
   );
 });
 
+test("permet à l'administrateur d'activer une vue de rôle auditée", async () => {
+  let selectedRole: unknown = null;
+  const roles = [
+    { code: "hr", label: "Ressources humaines" },
+    { code: "finance", label: "Finances et comptabilité" },
+  ];
+  server.use(
+    http.get("/api/v1/session/", () =>
+      HttpResponse.json({
+        ...sessionFixture,
+        role_switcher: {
+          can_switch: true,
+          active_code: null,
+          active_label: null,
+          roles,
+        },
+      }),
+    ),
+    http.post("/api/v1/session/role/", async ({ request }) => {
+      selectedRole = ((await request.json()) as { role_code: unknown })
+        .role_code;
+      return HttpResponse.json({
+        ...sessionFixture,
+        capabilities: {
+          ...sessionFixture.capabilities,
+          admin: false,
+          manage_availability: true,
+        },
+        role_switcher: {
+          can_switch: true,
+          active_code: "hr",
+          active_label: "Ressources humaines",
+          roles,
+        },
+      });
+    }),
+  );
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter initialEntries={["/administration/utilisateurs"]}>
+      <Routes>
+        <Route path="/" element={<AppShell />}>
+          <Route index element={<h1>Tableau de bord</h1>} />
+          <Route
+            path="administration/utilisateurs"
+            element={<h1>Données utilisateurs</h1>}
+          />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Données utilisateurs")).toBeVisible();
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Rôle actif" }),
+    "hr",
+  );
+
+  expect(selectedRole).toBe("hr");
+  expect(
+    await screen.findByText(/Vue active : Ressources humaines/),
+  ).toBeVisible();
+  expect(screen.getByText("Tableau de bord")).toBeVisible();
+  expect(screen.queryByText("Données utilisateurs")).not.toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Rôle actif" })).toHaveValue(
+    "hr",
+  );
+});
+
 test("signale le miroir historique et renvoie la saisie vers CSRS Report", async () => {
   server.use(
     http.get("/api/v1/session/", () =>

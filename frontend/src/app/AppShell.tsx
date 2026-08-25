@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "../lib/router";
+import { NavLink, Outlet, useLocation, useNavigate } from "../lib/router";
 import { apiFetch } from "../lib/api/client";
 import type { Session } from "../lib/api/types";
 import { ErrorState, Skeleton } from "../components/ui";
@@ -38,14 +38,18 @@ export function AppShell() {
     error,
     loading,
     reload,
+    setData,
   } = useApi<Session>("/api/v1/session/");
   const [collapsed, setCollapsed] = useState(
     () => window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true",
   );
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
+  const [roleError, setRoleError] = useState("");
   const mobileToggle = useRef<HTMLButtonElement>(null);
   const mobileClose = useRef<HTMLButtonElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -81,6 +85,27 @@ export function AppShell() {
   async function signOut() {
     await apiFetch<void>("/api/v1/session/logout/", { method: "POST" });
     window.location.assign("/app/");
+  }
+
+  async function switchRole(roleCode: string | null) {
+    setSwitchingRole(true);
+    setRoleError("");
+    try {
+      const nextSession = await apiFetch<Session>("/api/v1/session/role/", {
+        method: "POST",
+        body: JSON.stringify({ role_code: roleCode }),
+      });
+      setData(nextSession);
+      navigate("/");
+    } catch (caught) {
+      setRoleError(
+        caught instanceof Error
+          ? caught.message
+          : "Le rôle n'a pas pu être activé.",
+      );
+    } finally {
+      setSwitchingRole(false);
+    }
   }
 
   if (session.capabilities.password_change_required)
@@ -317,6 +342,28 @@ export function AppShell() {
           )}
         </nav>
         <div className={styles.sidebarSecondary}>
+          {session.role_switcher.can_switch && (
+            <div className={styles.roleSwitcher}>
+              <label htmlFor="effective-role">Voir comme</label>
+              <select
+                id="effective-role"
+                aria-label="Rôle actif"
+                value={session.role_switcher.active_code ?? ""}
+                disabled={switchingRole}
+                onChange={(event) =>
+                  void switchRole(event.target.value || null)
+                }
+              >
+                <option value="">Administrateur IT</option>
+                {session.role_switcher.roles.map((role) => (
+                  <option key={role.code} value={role.code}>
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+              {roleError && <small role="alert">{roleError}</small>}
+            </div>
+          )}
           <button
             type="button"
             className={styles.navItem}
@@ -355,6 +402,13 @@ export function AppShell() {
         </button>
       </aside>
       <div className={styles.content}>
+        {session.role_switcher.active_label && (
+          <div className={styles.roleBanner} role="status">
+            <strong>Vue active : {session.role_switcher.active_label}.</strong>{" "}
+            Vous restez identifié comme administrateur IT et vos actions sont
+            auditées sous votre identité.
+          </div>
+        )}
         {!session.reporting.write_enabled && (
           <div className={styles.mirrorBanner} role="status">
             <strong>Consultation synchronisée.</strong> Les tâches, absences,

@@ -217,6 +217,51 @@ class CsrsPermissionTests(TransactionCase):
         self.assertTrue(session["capabilities"]["manage_users"])
         self.assertTrue(session["capabilities"]["manage_organization"])
 
+    def test_it_can_assume_an_audited_role_without_changing_identity(self):
+        facade = self.env["csrs.api"].with_user(self.it)
+
+        session = facade.api_role_switch("hr")
+
+        self.assertEqual(session["user"]["id"], self.it.id)
+        self.assertEqual(session["role_switcher"]["active_code"], "hr")
+        self.assertTrue(session["role_switcher"]["can_switch"])
+        self.assertTrue(session["capabilities"]["manage_availability"])
+        self.assertFalse(session["capabilities"]["manage_users"])
+        audit = self.env["csrs.audit.event"].sudo().search(
+            [("event_type", "=", "role_switch")], limit=1
+        )
+        self.assertEqual(audit.actor_id, self.it)
+        self.assertEqual(audit.snapshot["selected_role_code"], "hr")
+
+        restored = facade.with_context(csrs_effective_role="hr").api_role_switch(None)
+
+        self.assertIsNone(restored["role_switcher"]["active_code"])
+        self.assertTrue(restored["capabilities"]["admin"])
+
+    def test_non_it_user_cannot_spoof_or_activate_an_effective_role(self):
+        facade = self.env["csrs.api"].with_user(self.agent).with_context(
+            csrs_effective_role="dg"
+        )
+
+        session = facade.api_session()
+
+        self.assertFalse(session["role_switcher"]["can_switch"])
+        self.assertFalse(session["capabilities"]["self_assign"])
+        with self.assertRaises(AccessError):
+            facade.api_role_switch("dg")
+
+    def test_effective_agent_role_cannot_read_an_unrelated_task_by_id(self):
+        facade = self.env["csrs.api"].with_user(self.it).with_context(
+            csrs_effective_role="agent"
+        )
+
+        with self.assertRaises(UserError):
+            facade.api_task(self.task.id)
+
+    def test_it_cannot_activate_an_unknown_role(self):
+        with self.assertRaises(ValidationError):
+            self.env["csrs.api"].with_user(self.it).api_role_switch("unknown")
+
     def test_it_cannot_reset_the_protected_odoo_administrator(self):
         administrator = self.env.ref("base.user_admin")
         token = self.env["csrs.api"].with_user(self.it)._user_state_token(

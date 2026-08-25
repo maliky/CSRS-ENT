@@ -23,6 +23,12 @@ export const sessionFixture: Session = {
     source_extracted_at: "",
     last_success_at: "",
   },
+  role_switcher: {
+    can_switch: false,
+    active_code: null,
+    active_label: null,
+    roles: [],
+  },
   capabilities: {
     create_task: true,
     create_proposal: true,

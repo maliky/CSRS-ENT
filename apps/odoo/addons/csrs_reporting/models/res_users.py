@@ -7,6 +7,8 @@ from odoo.addons.base.models.res_users import CryptContext, MIN_ROUNDS
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 
+from .roles import IT_GROUP, ROLE_PROFILE_BY_CODE, SWITCHABLE_GROUP_XMLIDS
+
 
 DJANGO_HASH_RE = re.compile(
     r"^pbkdf2_sha256\$(?P<rounds>[1-9][0-9]{4,7})\$[A-Za-z0-9]+\$[A-Za-z0-9+/=]+$"
@@ -95,6 +97,31 @@ class ResUsers(models.Model):
         """Feature roles follow legacy CSRS semantics while retaining grant dates."""
         self.ensure_one()
         return bool(self.csrs_active_role_grants(role_codes))
+
+    def csrs_effective_role_code(self):
+        """Return a validated role context only for the real IT administrator."""
+        self.ensure_one()
+        role_code = self.env.context.get("csrs_effective_role")
+        if (
+            self != self.env.user
+            or not isinstance(role_code, str)
+            or role_code not in ROLE_PROFILE_BY_CODE
+            or not self.env.user.has_group(IT_GROUP)
+        ):
+            return None
+        return role_code
+
+    def csrs_has_effective_group(self, xmlid):
+        """Resolve CSRS business groups through the administrator's selected role."""
+        self.ensure_one()
+        role_code = self.csrs_effective_role_code()
+        if not role_code:
+            return self.has_group(xmlid)
+        if xmlid == "base.group_system":
+            return False
+        if xmlid in SWITCHABLE_GROUP_XMLIDS:
+            return xmlid in ROLE_PROFILE_BY_CODE[role_code].group_xmlids
+        return self.has_group(xmlid)
 
     def csrs_import_legacy_password_hash(self, password_hash, replace_native=False):
         """Install one validated Django hash without ever logging its value."""

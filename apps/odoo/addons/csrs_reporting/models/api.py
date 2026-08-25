@@ -18,6 +18,8 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command, Domain
 
+from .roles import IT_GROUP, ROLE_PROFILE_BY_CODE, ROLE_PROFILES
+
 
 TAG_RE = re.compile(r"<[^>]+>")
 PROFILE_FILE_MAX_BYTES = 5 * 1024 * 1024
@@ -141,11 +143,15 @@ class CsrsApi(models.AbstractModel):
     _description = "Façade RPC métier CSRS ENT"
 
     def _require_group(self, *xmlids):
-        if not any(self.env.user.has_group(xmlid) for xmlid in xmlids):
+        if not any(
+            self.env.user.csrs_has_effective_group(xmlid) for xmlid in xmlids
+        ):
             raise AccessError(_("Cette opération n'est pas autorisée."))
 
     def _require_group_or_feature_role(self, xmlids, role_codes):
-        if any(self.env.user.has_group(xmlid) for xmlid in xmlids):
+        if any(
+            self.env.user.csrs_has_effective_group(xmlid) for xmlid in xmlids
+        ):
             return
         if self.env.user.csrs_has_active_role_grant(*role_codes):
             return
@@ -333,10 +339,10 @@ class CsrsApi(models.AbstractModel):
 
     def _managed_users(self):
         user = self.env.user
-        if user.has_group("csrs_reporting.group_csrs_it"):
+        if user.csrs_has_effective_group("csrs_reporting.group_csrs_it"):
             employees = self.env["hr.employee"].sudo().search([("user_id", "!=", False)])
             return employees.user_id | user
-        if user.has_group("csrs_reporting.group_csrs_dg"):
+        if user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"):
             employees = self.env["hr.employee"].sudo().search(
                 [("user_id", "!=", False)]
             )
@@ -388,20 +394,34 @@ class CsrsApi(models.AbstractModel):
     def api_session(self):
         user = self.env.user
         managed = self._managed_users()
-        is_it = user.has_group("csrs_reporting.group_csrs_it")
-        is_secretariat = user.has_group(
+        is_it = user.csrs_has_effective_group("csrs_reporting.group_csrs_it")
+        is_secretariat = user.csrs_has_effective_group(
             "csrs_reporting.group_csrs_secretariat"
         ) or user.csrs_has_active_role_grant("AGENDA_SECRETARIAT")
-        is_hr = user.has_group(
+        is_hr = user.csrs_has_effective_group(
             "csrs_reporting.group_csrs_hr"
         ) or user.csrs_has_active_role_grant("AGENDA_HR")
         is_agenda_viewer = user.csrs_has_active_role_grant("AGENDA_VIEWER")
-        is_dg = user.has_group("csrs_reporting.group_csrs_dg")
+        is_dg = user.csrs_has_effective_group("csrs_reporting.group_csrs_dg")
+        active_role_code = user.csrs_effective_role_code()
+        active_role = ROLE_PROFILE_BY_CODE.get(active_role_code)
+        can_switch_role = user.has_group(IT_GROUP)
         reporting = self._reporting_state()
         write_enabled = reporting["write_enabled"]
         return {
             "user": self._person(user),
             "reporting": reporting,
+            "role_switcher": {
+                "can_switch": can_switch_role,
+                "active_code": active_role.code if active_role else None,
+                "active_label": active_role.label if active_role else None,
+                "roles": [
+                    {"code": profile.code, "label": profile.label}
+                    for profile in ROLE_PROFILES
+                ]
+                if can_switch_role
+                else [],
+            },
             "capabilities": {
                 "create_task": write_enabled and (bool(managed) or is_it),
                 "create_proposal": write_enabled,
@@ -428,16 +448,77 @@ class CsrsApi(models.AbstractModel):
         }
 
     @api.model
+    def api_role_switch(self, role_code):
+        """Audit and activate one role perspective without changing the actor."""
+        user = self.env.user
+        if not user.has_group(IT_GROUP):
+            raise AccessError(_("Seul un administrateur IT peut changer de rôle."))
+        if role_code not in (None, False, "") and not isinstance(role_code, str):
+            raise ValidationError(_("Rôle effectif invalide."))
+        selected_code = str(role_code or "").strip() or None
+        if selected_code and selected_code not in ROLE_PROFILE_BY_CODE:
+            raise ValidationError(_("Rôle effectif invalide."))
+        previous_code = user.csrs_effective_role_code()
+        if previous_code != selected_code:
+            selected_label = (
+                ROLE_PROFILE_BY_CODE[selected_code].label
+                if selected_code
+                else "Administrateur IT"
+            )
+            self.env["csrs.audit.event"].sudo().create(
+                {
+                    "event_type": "role_switch",
+                    "actor_id": user.id,
+                    "reason": _("Activation de la vue %(role)s.", role=selected_label),
+                    "snapshot": {
+                        "previous_role_code": previous_code,
+                        "selected_role_code": selected_code,
+                    },
+                }
+            )
+        return self.with_context(csrs_effective_role=selected_code).api_session()
+
+    @api.model
     def api_change_password(self, current_password, new_password):
         self.env.user.action_csrs_change_own_password(current_password, new_password)
         return True
+
+    def _effective_task_scope_domain(self):
+        """Reapply restricted task visibility hidden by the real IT record rule."""
+        role_code = self.env.user.csrs_effective_role_code()
+        if not role_code or role_code in {"hr", "secretariat", "dg"}:
+            return []
+        user_id = self.env.user.id
+        return [
+            "|",
+            "|",
+            "|",
+            ("user_ids", "in", [user_id]),
+            ("csrs_manager_id", "=", user_id),
+            ("csrs_secondary_manager_user_ids", "in", [user_id]),
+            ("project_id.csrs_supervisor_user_ids", "in", [user_id]),
+        ]
 
     def _task_domain_for_period(self, period):
         return [
             ("csrs_managed", "=", True),
             ("csrs_start_date", "<=", period["end"]),
             ("date_deadline", ">=", period["start"]),
-        ]
+        ] + self._effective_task_scope_domain()
+
+    def _task(self, task_id):
+        task = self.env["project.task"].search(
+            [
+                ("id", "=", int(task_id)),
+                ("csrs_managed", "=", True),
+            ]
+            + self._effective_task_scope_domain(),
+            limit=1,
+        )
+        if not task:
+            raise UserError(_("Tâche introuvable."))
+        task.check_access("read")
+        return task
 
     def _progress_at(self, task, selected):
         entry = task.csrs_progress_entry_ids.filtered(
@@ -633,7 +714,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_planning_options(self):
         managed = self._managed_users()
-        if self.env.user.has_group("csrs_reporting.group_csrs_dg"):
+        if self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"):
             managed |= self.env.user
         calendar = self.env.company.resource_calendar_id
         today = fields.Date.context_today(self)
@@ -703,11 +784,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task(self, task_id):
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task or not task.csrs_managed:
-            raise UserError(_("Tâche introuvable."))
-        task.check_access("read")
-        return self._task_detail(task)
+        return self._task_detail(self._task(task_id))
 
     @api.model
     def api_task_create(self, payload):
@@ -736,9 +813,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_update(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         if not task._csrs_can_manage():
             raise AccessError(_("Seul le responsable principal peut modifier la tâche."))
         task._csrs_check_revision(payload.get("revision"))
@@ -760,9 +835,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_progress(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         task.action_csrs_record_progress(
             float(payload["percentage"]),
             str(payload.get("note") or ""),
@@ -774,9 +847,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_comment(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         task._csrs_check_revision(payload.get("revision"))
         task.action_csrs_comment(str(payload.get("message") or ""))
         task.with_context(csrs_authorized_mutation=True).write(
@@ -787,9 +858,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_transition(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         transition = payload.get("transition")
         if transition == "validate":
             task.action_csrs_validate_completion(payload.get("revision"))

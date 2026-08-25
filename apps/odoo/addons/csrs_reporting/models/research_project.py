@@ -144,10 +144,10 @@ class ProjectProject(models.Model):
     )
 
     def _csrs_is_dg(self):
-        return self.env.user.has_group("csrs_reporting.group_csrs_dg")
+        return self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg")
 
     def _csrs_is_it(self):
-        return self.env.user.has_group("csrs_reporting.group_csrs_it")
+        return self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_it")
 
     def _csrs_owner(self):
         self.ensure_one()
@@ -235,7 +235,7 @@ class ProjectProject(models.Model):
                     )
                 continue
             proposer_id = values.get("csrs_proposer_id") or self.env.user.id
-            if proposer_id != self.env.user.id and not self.env.user.has_group(
+            if proposer_id != self.env.user.id and not self.env.user.csrs_has_effective_group(
                 "csrs_reporting.group_csrs_it"
             ):
                 raise AccessError(
@@ -487,8 +487,9 @@ class CsrsProjectSection(models.Model):
     def _can_control(self):
         self.ensure_one()
         role = SECTION_CONTROLLER_ROLES[self.code]
-        return self.env.user.csrs_has_active_role_grant(role) or self.env.user.has_group(
-            "csrs_reporting.group_csrs_dg"
+        return (
+            self.env.user.csrs_has_active_role_grant(role)
+            or self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg")
         )
 
     def _can_request_correction(self):
@@ -583,7 +584,7 @@ class CsrsProjectSection(models.Model):
     def action_validate(self, confirmation, expected_revision=None):
         self.ensure_one()
         self._check_revision(expected_revision)
-        if not self.env.user.has_group("csrs_reporting.group_csrs_dg"):
+        if not self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"):
             raise AccessError(_("Seul le DG peut valider cet onglet."))
         if self.state != "verified":
             raise UserError(_("Seul un onglet vérifié peut être validé."))
@@ -620,7 +621,7 @@ class CsrsProjectSection(models.Model):
     def action_close(self, expected_revision=None):
         self.ensure_one()
         self._check_revision(expected_revision)
-        if not self.env.user.has_group("csrs_reporting.group_csrs_dg"):
+        if not self.env.user.csrs_has_effective_group("csrs_reporting.group_csrs_dg"):
             raise AccessError(_("Seul le DG peut clôturer cet onglet."))
         if self.state != "validated":
             raise UserError(_("Seul un onglet validé peut être clôturé."))

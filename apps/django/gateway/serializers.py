@@ -250,6 +250,12 @@ class RevokeGrantSerializer(serializers.Serializer[dict[str, object]]):
     reason = serializers.CharField(min_length=3, max_length=500)
 
 
+class RoleSwitchSerializer(serializers.Serializer[dict[str, object]]):
+    role_code = serializers.CharField(
+        max_length=64, required=True, allow_null=True, allow_blank=False
+    )
+
+
 class ProposalCreateSerializer(ScheduleSerializer):
     title = serializers.CharField(max_length=180)
     description = serializers.CharField()

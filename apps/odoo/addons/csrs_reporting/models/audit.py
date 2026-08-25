@@ -16,6 +16,7 @@ class CsrsAuditEvent(models.Model):
             ("organization_change", "Modification d'organigramme"),
             ("partner_change", "Modification d'organisation partenaire"),
             ("project_archive", "Archivage de projet"),
+            ("role_switch", "Changement de rôle effectif"),
         ],
         required=True,
         readonly=True,
