@@ -376,6 +376,15 @@ class CsrsMigrationTests(TransactionCase):
     def test_progress_revision_reconciliation_is_idempotent(self):
         payload = self.payload_v3()
         payload["task_assignments"][0]["revision"] = 1
+        second_progress_revision = dict(payload["progress_history"][0])
+        second_progress_revision.update(
+            {
+                "history_id": 9_002_005,
+                "history_date": "2026-08-10 09:00:00",
+                "history_type": "~",
+            }
+        )
+        payload["progress_history"].append(second_progress_revision)
         importer = self.env["csrs.migration.importer"]
 
         importer.import_payload(payload, apply=True, reconcile=True)
