@@ -6,7 +6,7 @@ CSRS ENT est le socle Python de l'ENT du CSRS. Il associe une interface Django/R
 
 La préproduction fournit une interface React unique sous =/app/= pour les tâches, propositions, équipes, absences, missions, visites, agendas de direction, projets de recherche, procédures métier et l'administration IT. Les projets couvrent la fiche, le plan d'action, les résultats, livrables, finances, conformité, risques, rapports et clôture avec révisions et validations par rôle. Django porte les sessions, les contrats HTTP et la passerelle RPC centralisée; Odoo applique les autorisations et conserve seul les objets métier, leur historique, les événements d'audit et les PDF d'agenda versionnés.
 
-La reprise v3 des comptes, empreintes de mot de passe, organigramme, plans, calendriers, tâches, propositions, progressions et révisions historiques est explicite, simulable, auditée et idempotente. Elle lit =csrs_report= à distance sans en faire une dépendance permanente; Odoo devient la source de vérité après réconciliation.
+La reprise v4 des comptes, empreintes de mot de passe, organigramme, plans, calendriers, tâches, propositions, progressions, agendas, PDF et révisions historiques est explicite, simulable, auditée et idempotente. Pendant la coexistence validée, =csrs_report= reste propriétaire des données importées et une synchronisation quotidienne alimente Odoo en lecture seule; ce mode transitoire est désactivable lorsque la bascule fonctionnelle est acceptée.
 
 ** Structure
 
@@ -37,7 +37,7 @@ docker-compose --env-file .env -f infrastructure/compose/compose.yaml up --build
 
 Django répond sur =http://127.0.0.1:18007/app/=, Odoo sur =http://127.0.0.1:18069/= et la boîte de capture Mailpit sur =http://127.0.0.1:18025/=. Les trois ports restent liés à l'interface locale. Les routes =/healthz/= et =/readyz/= distinguent la santé de Django de la disponibilité d'Odoo.
 
-La première initialisation installe le module =csrs_reporting= et prépare l'administrateur Odoo. =./scripts/export_csrs_remote.sh jil@179.237.107.40 FICHIER_JSON= crée un export v3 temporaire de mode =0600= sans afficher les empreintes; =./scripts/import_csrs_odoo.sh dry-run FICHIER_JSON .env= le valide sans écriture et le mode =reconcile= applique la reprise en retirant les identités de démonstration sauf =dev=. Les évolutions fonctionnelles continuent dans Odoo; Django ne devient pas une seconde base métier.
+La première initialisation installe le module =csrs_reporting= et prépare l'administrateur Odoo. =./scripts/export_csrs_remote.sh jil@179.237.107.40 FICHIER_JSON= crée un export v4 temporaire de mode =0600= sans afficher les empreintes; =./scripts/import_csrs_odoo.sh dry-run FICHIER_JSON .env= valide les références et les empreintes sans écriture, puis le mode =reconcile= applique la reprise. =./scripts/sync_csrs_legacy.sh .env jil@179.237.107.40= enchaîne ces deux étapes sous verrou; le minuteur de préproduction l'exécute chaque jour.
 
 ** Vérification
 

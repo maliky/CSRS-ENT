@@ -1,7 +1,11 @@
-"""Validated, idempotent import of the active CSRS identity snapshot."""
+"""Validated, idempotent import of the active CSRS reporting snapshot."""
 
+import base64
+import binascii
 from collections import defaultdict
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
+import hashlib
+import json
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
@@ -53,7 +57,7 @@ class CsrsMigrationImporter(models.AbstractModel):
         self._upsert_role_grants(
             snapshot["role_grants"], users, departments, report
         )
-        if snapshot["version"] == 3:
+        if snapshot["version"] >= 3:
             plans, action_plans, actions = self._upsert_planning(snapshot, report)
             calendars = self._upsert_calendars(snapshot, report)
             task_definitions, tasks, imported_task_ids = self._upsert_tasks(
@@ -70,6 +74,17 @@ class CsrsMigrationImporter(models.AbstractModel):
                 snapshot, users, task_definitions, tasks, proposals, report
             )
             del plans, action_plans
+        if snapshot["version"] >= 4:
+            self._upsert_legacy_reporting(snapshot, users, employees, report)
+            parameters = self.env["ir.config_parameter"].sudo()
+            parameters.set_param("csrs_reporting.reporting_mode", "legacy_mirror")
+            parameters.set_param(
+                "csrs_reporting.legacy_source_extracted_at",
+                snapshot["extracted_at"],
+            )
+            parameters.set_param(
+                "csrs_reporting.legacy_last_success_at", fields.Datetime.now()
+            )
         if reconcile:
             self._archive_absent_source_records(snapshot, report)
         report["created"] = dict(report["created"])
@@ -119,7 +134,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             user.write({"group_ids": [Command.link(group.id)]})
 
     def _validate_payload(self, payload):
-        if not isinstance(payload, dict) or payload.get("version") not in {2, 3}:
+        if not isinstance(payload, dict) or payload.get("version") not in {2, 3, 4}:
             raise ValidationError(_("Version de fichier de migration invalide."))
         names = [
             "users",
@@ -145,10 +160,19 @@ class CsrsMigrationImporter(models.AbstractModel):
             "proposal_history",
             "progress_history",
         ]
-        if payload["version"] == 3:
+        reporting_names = [
+            "visitor_visits",
+            "staff_availability",
+            "agenda_drafts",
+            "agenda_versions",
+        ]
+        if payload["version"] >= 3:
             names.extend(extended_names)
+        if payload["version"] >= 4:
+            names.extend(reporting_names)
         snapshot = {name: self._records(payload, name) for name in names}
         snapshot["version"] = payload["version"]
+        snapshot["extracted_at"] = str(payload.get("extracted_at") or "").strip()
         for name in extended_names:
             snapshot.setdefault(name, [])
         self._unique(snapshot["users"], "source_id", "utilisateur")
@@ -186,7 +210,12 @@ class CsrsMigrationImporter(models.AbstractModel):
             self._required_string(row, "name")
             self._required_string(row, "password_hash")
             direction = row.get("agenda_direction") or ""
-            if direction not in ("", "programs", "administration", "research"):
+            allowed_directions = (
+                ("", "programs", "administration")
+                if snapshot["version"] >= 4
+                else ("", "programs", "administration", "research")
+            )
+            if direction not in allowed_directions:
                 raise ValidationError(_("Direction d'agenda invalide."))
         for row in snapshot["departments"]:
             self._required_string(row, "code")
@@ -214,9 +243,79 @@ class CsrsMigrationImporter(models.AbstractModel):
             self._required_string(row, "role_code")
             if row.get("scope") not in ("unit", "tree"):
                 raise ValidationError(_("Portée de délégation invalide."))
-        if snapshot["version"] == 3:
+        if snapshot["version"] >= 3:
             self._validate_work_snapshot(snapshot, user_ids, department_ids)
+        if snapshot["version"] >= 4:
+            if not snapshot["extracted_at"]:
+                raise ValidationError(_("Date d'extraction source absente."))
+            self._validate_reporting_snapshot(snapshot, user_ids)
         return snapshot
+
+    def _validate_reporting_snapshot(self, snapshot, user_ids):
+        for name in (
+            "visitor_visits",
+            "staff_availability",
+            "agenda_drafts",
+            "agenda_versions",
+        ):
+            self._unique(snapshot[name], "source_id", name)
+        draft_ids = {
+            self._positive_int(row, "source_id") for row in snapshot["agenda_drafts"]
+        }
+        for row in snapshot["visitor_visits"]:
+            self._positive_int(row, "source_id")
+            if int(row.get("party_size") or 0) < 1:
+                raise ValidationError(_("Nombre de visiteurs source invalide."))
+        for row in snapshot["staff_availability"]:
+            self._positive_int(row, "source_id")
+            self._reference(row, "employee_source_id", user_ids)
+            if row.get("kind") not in {"leave", "absence", "mission"}:
+                raise ValidationError(_("Nature d'indisponibilité source invalide."))
+            self._required_string(row, "start_date")
+            self._required_string(row, "end_date")
+        for row in snapshot["agenda_drafts"]:
+            self._required_string(row, "period_start")
+            self._required_string(row, "period_end")
+            self._reference(row, "updated_by_source_id", user_ids)
+        for row in snapshot["agenda_versions"]:
+            self._positive_int(row, "source_id")
+            self._reference(row, "draft_source_id", draft_ids)
+            self._reference(row, "generated_by_source_id", user_ids)
+            if row.get("agenda_direction") not in {
+                "programs",
+                "administration",
+                "legacy",
+            }:
+                raise ValidationError(_("Direction d'archive source invalide."))
+            if not isinstance(row.get("snapshot"), dict):
+                raise ValidationError(_("Instantané d'agenda source invalide."))
+            canonical = json.dumps(
+                row["snapshot"],
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            if hashlib.sha256(canonical).hexdigest() != row.get("snapshot_sha256"):
+                raise ValidationError(_("Empreinte d'instantané source invalide."))
+            raw = self._legacy_pdf_bytes(row)
+            if len(raw) != int(row.get("pdf_size") or -1):
+                raise ValidationError(_("Taille de PDF source invalide."))
+            if hashlib.sha256(raw).hexdigest() != row.get("pdf_sha256"):
+                raise ValidationError(_("Empreinte de PDF source invalide."))
+
+    @staticmethod
+    def _legacy_pdf_bytes(row):
+        try:
+            return base64.b64decode(str(row.get("pdf_base64") or ""), validate=True)
+        except (binascii.Error, ValueError):
+            raise ValidationError(_("PDF source invalide.")) from None
+
+    @staticmethod
+    def _source_datetime(value):
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
 
     @staticmethod
     def _records(payload, name):
@@ -862,6 +961,178 @@ class CsrsMigrationImporter(models.AbstractModel):
         if stale_departments:
             stale_departments.write({"active": False})
             report["updated"]["departments_archived"] += len(stale_departments)
+        if snapshot["version"] >= 3:
+            source_task_ids = {row["source_id"] for row in snapshot["tasks"]}
+            stale_tasks = (
+                self.env["project.task"]
+                .sudo()
+                .with_context(active_test=False)
+                .search(
+                    [
+                        ("csrs_task_source_id", "!=", False),
+                        (
+                            "csrs_task_source_id",
+                            "not in",
+                            sorted(source_task_ids) or [0],
+                        ),
+                    ]
+                )
+            )
+            if stale_tasks:
+                stale_tasks.with_context(csrs_authorized_mutation=True).write(
+                    {"active": False}
+                )
+                report["updated"]["tasks_archived"] += len(stale_tasks)
+
+    def _upsert_legacy_reporting(self, snapshot, users, employees, report):
+        Visit = self.env["csrs.visitor.visit"].sudo()
+        for row in snapshot["visitor_visits"]:
+            record = Visit.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            values = {
+                "csrs_source_id": row["source_id"],
+                "party_size": int(row["party_size"]),
+                "visitor_names": row.get("visitor_names") or [],
+                "arrived_at": self._source_datetime(row["arrived_at"]),
+                "departed_at": self._source_datetime(row["departed_at"])
+                if row.get("departed_at")
+                else False,
+                "cancelled_at": self._source_datetime(row["cancelled_at"])
+                if row.get("cancelled_at")
+                else False,
+                "cancellation_reason": row.get("cancellation_reason") or False,
+                "revision": int(row.get("revision") or 1),
+            }
+            if record:
+                self._write_or_report(
+                    record.with_context(csrs_authorized_mutation=True),
+                    values,
+                    report,
+                    "visitor_visits",
+                )
+            else:
+                Visit.create(values)
+                report["created"]["visitor_visits"] += 1
+
+        Leave = self.env["hr.leave"].sudo().with_context(active_test=False)
+        leave_types = {
+            "leave": self.env.ref("csrs_reporting.leave_type_csrs_leave"),
+            "absence": self.env.ref("csrs_reporting.leave_type_csrs_absence"),
+            "mission": self.env.ref("csrs_reporting.leave_type_csrs_mission"),
+        }
+        leave_labels = dict(Leave._fields["csrs_kind"].selection)
+        for row in snapshot["staff_availability"]:
+            record = Leave.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            employee = employees[row["employee_source_id"]]
+            values = {
+                "csrs_source_id": row["source_id"],
+                "name": row.get("note") or leave_labels[row["kind"]],
+                "employee_id": employee.id,
+                "holiday_status_id": leave_types[row["kind"]].id,
+                "request_date_from": fields.Date.to_date(row["start_date"]),
+                "request_date_to": fields.Date.to_date(row["end_date"]),
+                "csrs_managed": True,
+                "csrs_kind": row["kind"],
+                "csrs_note": row.get("note") or "",
+                "csrs_cancelled_at": self._source_datetime(row["cancelled_at"])
+                if row.get("cancelled_at")
+                else False,
+                "csrs_cancellation_reason": row.get("cancellation_reason") or False,
+                "csrs_revision": int(row.get("revision") or 1),
+            }
+            if record:
+                self._write_or_report(
+                    record.with_context(csrs_authorized_mutation=True),
+                    values,
+                    report,
+                    "staff_availability",
+                )
+            else:
+                Leave.with_context(csrs_authorized_mutation=True).create(values)
+                report["created"]["staff_availability"] += 1
+
+        Draft = self.env["csrs.agenda.draft"].sudo()
+        drafts = {}
+        for row in snapshot["agenda_drafts"]:
+            record = Draft.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            if not record:
+                record = Draft.search(
+                    [
+                        ("period_start", "=", row["period_start"]),
+                        ("period_end", "=", row["period_end"]),
+                    ],
+                    limit=1,
+                )
+            values = {
+                "csrs_source_id": row["source_id"],
+                "period_start": fields.Date.to_date(row["period_start"]),
+                "period_end": fields.Date.to_date(row["period_end"]),
+                "major_events": row.get("major_events") or "",
+                "revision": int(row.get("revision") or 1),
+                "updated_by_id": users[row["updated_by_source_id"]].id,
+            }
+            if record:
+                self._write_or_report(
+                    record.with_context(csrs_authorized_mutation=True),
+                    values,
+                    report,
+                    "agenda_drafts",
+                )
+            else:
+                record = Draft.create(values)
+                report["created"]["agenda_drafts"] += 1
+            drafts[row["source_id"]] = record
+
+        Version = self.env["csrs.agenda.version"].sudo()
+        Attachment = self.env["ir.attachment"].sudo()
+        for row in snapshot["agenda_versions"]:
+            record = Version.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            if record:
+                report["unchanged"]["agenda_versions"] += 1
+                continue
+            local_version = int(row["version"])
+            collision_domain = [
+                ("period_start", "=", row["period_start"]),
+                ("period_end", "=", row["period_end"]),
+                ("agenda_direction", "=", row["agenda_direction"]),
+                ("version", "=", local_version),
+            ]
+            if Version.search(collision_domain, limit=1):
+                latest = Version.search(
+                    collision_domain[:-1], order="version desc", limit=1
+                )
+                local_version = latest.version + 1
+            raw = self._legacy_pdf_bytes(row)
+            record = Version.create(
+                {
+                    "csrs_source_id": row["source_id"],
+                    "csrs_source_version": int(row["version"]),
+                    "draft_id": drafts[row["draft_source_id"]].id,
+                    "period_start": fields.Date.to_date(row["period_start"]),
+                    "period_end": fields.Date.to_date(row["period_end"]),
+                    "agenda_direction": row["agenda_direction"],
+                    "version": local_version,
+                    "snapshot": row["snapshot"],
+                    "snapshot_sha256": row["snapshot_sha256"],
+                    "pdf_sha256": row["pdf_sha256"],
+                    "pdf_size": int(row["pdf_size"]),
+                    "generated_by_id": users[row["generated_by_source_id"]].id,
+                    "generated_at": self._source_datetime(row["generated_at"]),
+                }
+            )
+            attachment = Attachment.create(
+                {
+                    "name": f"agenda-source-{row['source_id']}.pdf",
+                    "type": "binary",
+                    "raw": raw,
+                    "mimetype": "application/pdf",
+                    "res_model": "csrs.agenda.version",
+                    "res_id": record.id,
+                }
+            )
+            record.with_context(csrs_authorized_mutation=True).write(
+                {"pdf_attachment_id": attachment.id}
+            )
+            report["created"]["agenda_versions"] += 1
 
     def _upsert_planning(self, snapshot, report):
         Strategic = self.env["csrs.strategic.plan"].sudo().with_context(
@@ -1026,11 +1297,21 @@ class CsrsMigrationImporter(models.AbstractModel):
                     "csrs_institutional_action_id": action.id if action else False,
                 }
             if record:
-                if self._changes(record, values):
-                    report["unchanged"]["task_source_conflicts"] += 1
-                report["unchanged"]["tasks"] += 1
+                self._write_or_report(
+                    record.with_context(
+                        csrs_authorized_mutation=True,
+                        csrs_migration_import=True,
+                    ),
+                    values,
+                    report,
+                    "tasks",
+                )
+                imported_task_ids.add(record.id)
             else:
-                record = Task.with_context(csrs_authorized_mutation=True).create(values)
+                record = Task.with_context(
+                    csrs_authorized_mutation=True,
+                    csrs_migration_import=True,
+                ).create(values)
                 report["created"]["tasks"] += 1
                 imported_task_ids.add(record.id)
             tasks[source_id] = record
@@ -1168,8 +1449,11 @@ class CsrsMigrationImporter(models.AbstractModel):
                     "csrs_blocked": bool(last.get("blocked")),
                     "csrs_revision": source_revision,
                 }
-                if task.id in imported_task_ids:
-                    task.with_context(csrs_authorized_mutation=True).write(
+                if task.id in imported_task_ids or task.csrs_task_source_id:
+                    task.with_context(
+                        csrs_authorized_mutation=True,
+                        csrs_migration_import=True,
+                    ).write(
                         source_progress
                     )
                 elif self._changes(task, source_progress):

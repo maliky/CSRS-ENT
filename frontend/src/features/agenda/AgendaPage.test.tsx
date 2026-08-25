@@ -110,8 +110,8 @@ test("enregistre le brouillon avant de générer une version PDF", async () => {
           ...emptySnapshot,
           agenda_direction: direction,
           agenda_direction_label:
-            direction === "research"
-              ? "Direction de la recherche"
+            direction === "administration"
+              ? "Direction administrative"
               : "Direction des programmes",
         },
       });
@@ -138,8 +138,8 @@ test("enregistre le brouillon avant de générer une version PDF", async () => {
         id: 31,
         period_start: "2026-08-10",
         period_end: "2026-08-16",
-        agenda_direction: "research",
-        agenda_direction_label: "Direction de la recherche",
+        agenda_direction: "administration",
+        agenda_direction_label: "Direction administrative",
         version: 1,
         snapshot_sha256: "a".repeat(64),
         pdf_sha256: "b".repeat(64),
@@ -193,7 +193,7 @@ test("enregistre le brouillon avant de générer une version PDF", async () => {
   );
   await user.selectOptions(
     screen.getByLabelText("Direction de l’agenda"),
-    "research",
+    "administration",
   );
   expect(
     screen.getAllByRole("button", { name: "Générer le PDF" }),
@@ -202,13 +202,13 @@ test("enregistre le brouillon avant de générer une version PDF", async () => {
 
   expect(
     await screen.findByText(
-      "La nouvelle version PDF « Direction de la recherche » est archivée et prête à imprimer.",
+      "La nouvelle version PDF « Direction administrative » est archivée et prête à imprimer.",
     ),
   ).toBeInTheDocument();
   expect(draftRevision).toBe(0);
   expect(
     await screen.findByText(
-      "Direction de la recherche · du 10/08/2026 au 16/08/2026 — version 1",
+      "Direction administrative · du 10/08/2026 au 16/08/2026 — version 1",
     ),
   ).toBeInTheDocument();
 });

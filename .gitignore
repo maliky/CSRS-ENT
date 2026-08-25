@@ -1,5 +1,6 @@
 # Secrets and local configuration
 .python-version
+*pdf
 .env
 .env.*
 !.env.example
@@ -56,3 +57,6 @@ Thumbs.db
 *~
 .#*
 \#*\#
+*.docx
+*.odt
+*.tex

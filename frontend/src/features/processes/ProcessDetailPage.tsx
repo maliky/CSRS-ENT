@@ -13,7 +13,7 @@ import type { ProcedureDetail, ProcedureOptions } from "../../lib/api/types";
 import { useParams } from "../../lib/router";
 import { useApi } from "../../lib/useApi";
 
-const ACTION_LABELS: Record<string, string> = {
+export const ACTION_LABELS: Record<string, string> = {
   submit: "Soumettre",
   approve: "Approuver",
   pay: "Confirmer le paiement",
@@ -31,6 +31,14 @@ const ACTION_LABELS: Record<string, string> = {
   correct: "Demander correction",
   reject: "Rejeter",
   resubmit: "Soumettre à nouveau",
+  quotation: "Cotation ajoutée",
+  procurement_update: "Préparation d'achat enregistrée",
+};
+
+export const EVIDENCE_LABELS: Record<string, string> = {
+  delivery: "Livraison",
+  invoice: "Facture",
+  payment: "Paiement",
 };
 
 function confirmationPhrase() {
@@ -606,7 +614,10 @@ export function ProcessDetailPage() {
                 <dt className="muted">Livraison, facture et paiement</dt>
                 <dd>
                   {purchase.evidence
-                    .map((item) => `${item.kind} · ${item.reference}`)
+                    .map(
+                      (item) =>
+                        `${EVIDENCE_LABELS[item.kind] ?? item.kind} · ${item.reference}`,
+                    )
                     .join(", ") || "—"}
                 </dd>
               </div>

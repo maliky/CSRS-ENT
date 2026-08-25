@@ -1,0 +1,12 @@
+[Unit]
+Description=Synchronisation quotidienne CSRS Report vers CSRS ENT preprod
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jil
+Group=jil
+WorkingDirectory=/srv/apps/csrs-ent-preprod/current
+ExecStart=/srv/apps/csrs-ent-preprod/current/scripts/sync_csrs_legacy.sh /srv/apps/csrs-ent-preprod/config/.env jil@179.237.107.40
+Nice=10

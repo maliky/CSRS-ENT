@@ -355,6 +355,20 @@ export function AppShell() {
         </button>
       </aside>
       <div className={styles.content}>
+        {!session.reporting.write_enabled && (
+          <div className={styles.mirrorBanner} role="status">
+            <strong>Consultation synchronisée.</strong> Les tâches, absences,
+            visites et agendas sont encore saisis dans{" "}
+            <a href={session.reporting.source_url}>CSRS Report</a> puis recopiés
+            automatiquement dans CSRS ENT.
+            {session.reporting.last_success_at && (
+              <small>
+                Dernière synchronisation réussie :{" "}
+                {session.reporting.last_success_at.replace("T", " ")}.
+              </small>
+            )}
+          </div>
+        )}
         <main id="contenu" className={styles.main} tabIndex={-1}>
           <Outlet context={session} />
         </main>

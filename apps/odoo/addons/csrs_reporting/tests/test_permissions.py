@@ -304,9 +304,9 @@ class CsrsPermissionTests(TransactionCase):
             delegated.api_agenda_preview(
                 today.isoformat(),
                 (today + timedelta(days=6)).isoformat(),
-                "research",
+                "programs",
             )["snapshot"]["agenda_direction"],
-            "research",
+            "programs",
         )
 
     def test_it_bulk_delete_is_revision_checked_and_audited(self):
@@ -426,7 +426,7 @@ class CsrsPermissionTests(TransactionCase):
             "last_name": "Agent",
             "position": "Analyste",
             "phone": "",
-            "agenda_direction": "research",
+            "agenda_direction": "programs",
             "include_in_direction_agendas": True,
             "unit_ids": [department.id],
             "primary_unit_id": department.id,
@@ -441,7 +441,7 @@ class CsrsPermissionTests(TransactionCase):
             [("user_id", "=", user.id)]
         )
         self.assertEqual(employee.parent_id, self.manager_employee)
-        self.assertEqual(employee.csrs_agenda_direction, "research")
+        self.assertEqual(employee.csrs_agenda_direction, "programs")
         self.assertEqual(
             self.env["csrs.organization.membership"].sudo().search_count(
                 [
@@ -664,8 +664,8 @@ class CsrsPermissionTests(TransactionCase):
             "schema_version": 1,
             "period_start": "2026-08-17",
             "period_end": "2026-08-23",
-            "agenda_direction": "research",
-            "agenda_direction_label": "Direction de la recherche",
+            "agenda_direction": "programs",
+            "agenda_direction_label": "Direction des programmes",
             "major_events": "Réunion de coordination",
             "unclassified_users": [],
             "arrivals": [],
@@ -681,7 +681,7 @@ class CsrsPermissionTests(TransactionCase):
 
         version = self.env["csrs.agenda.version"].with_user(
             self.secretariat
-        ).create_from_snapshot(draft, "research", snapshot)
+        ).create_from_snapshot(draft, "programs", snapshot)
 
         self.assertTrue(version.pdf_attachment_id)
         self.assertGreater(version.pdf_size, 0)
