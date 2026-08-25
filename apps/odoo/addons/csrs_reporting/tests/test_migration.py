@@ -373,6 +373,41 @@ class CsrsMigrationTests(TransactionCase):
             1,
         )
 
+    def test_progress_revision_updates_are_reported_and_convergent(self):
+        payload = self.payload_v3()
+        payload["task_assignments"][0]["revision"] = 1
+        second_progress_revision = dict(payload["progress_history"][0])
+        second_progress_revision.update(
+            {
+                "history_id": 9_002_005,
+                "history_date": "2026-08-10 09:00:00",
+                "history_type": "~",
+            }
+        )
+        payload["progress_history"].append(second_progress_revision)
+        importer = self.env["csrs.migration.importer"]
+
+        importer.import_payload(payload, apply=True, reconcile=True)
+        task = self.env["project.task"].search(
+            [("csrs_task_source_id", "=", 9_001_006)]
+        )
+        self.assertEqual(task.csrs_revision, 2)
+        third_progress_revision = dict(second_progress_revision)
+        third_progress_revision.update(
+            {
+                "history_id": 9_002_006,
+                "history_date": "2026-08-10 10:00:00",
+            }
+        )
+        payload["progress_history"].append(third_progress_revision)
+
+        updated = importer.import_payload(payload, apply=True, reconcile=True)
+        converged = importer.import_payload(payload, apply=True, reconcile=True)
+
+        self.assertEqual(updated["updated"]["tasks"], 1)
+        self.assertEqual(task.csrs_revision, 3)
+        self.assertEqual(converged["updated"].get("tasks", 0), 0)
+
     def test_historical_work_accepts_a_deleted_organization_unit_reference(self):
         payload = self.payload_v3()
         payload["task_assignments"][0]["organization_unit_source_id"] = 9_999_991
