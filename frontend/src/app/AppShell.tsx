@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "../lib/router";
+import { NavLink, Outlet, useLocation, useNavigate } from "../lib/router";
 import { apiFetch } from "../lib/api/client";
 import type { Session } from "../lib/api/types";
 import { ErrorState, Skeleton } from "../components/ui";
@@ -49,6 +49,7 @@ export function AppShell() {
   const mobileToggle = useRef<HTMLButtonElement>(null);
   const mobileClose = useRef<HTMLButtonElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -90,12 +91,12 @@ export function AppShell() {
     setSwitchingRole(true);
     setRoleError("");
     try {
-      setData(
-        await apiFetch<Session>("/api/v1/session/role/", {
-          method: "POST",
-          body: JSON.stringify({ role_code: roleCode }),
-        }),
-      );
+      const nextSession = await apiFetch<Session>("/api/v1/session/role/", {
+        method: "POST",
+        body: JSON.stringify({ role_code: roleCode }),
+      });
+      setData(nextSession);
+      navigate("/");
     } catch (caught) {
       setRoleError(
         caught instanceof Error

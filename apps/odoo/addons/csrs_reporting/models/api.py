@@ -483,12 +483,42 @@ class CsrsApi(models.AbstractModel):
         self.env.user.action_csrs_change_own_password(current_password, new_password)
         return True
 
+    def _effective_task_scope_domain(self):
+        """Reapply restricted task visibility hidden by the real IT record rule."""
+        role_code = self.env.user.csrs_effective_role_code()
+        if not role_code or role_code in {"hr", "secretariat", "dg"}:
+            return []
+        user_id = self.env.user.id
+        return [
+            "|",
+            "|",
+            "|",
+            ("user_ids", "in", [user_id]),
+            ("csrs_manager_id", "=", user_id),
+            ("csrs_secondary_manager_user_ids", "in", [user_id]),
+            ("project_id.csrs_supervisor_user_ids", "in", [user_id]),
+        ]
+
     def _task_domain_for_period(self, period):
         return [
             ("csrs_managed", "=", True),
             ("csrs_start_date", "<=", period["end"]),
             ("date_deadline", ">=", period["start"]),
-        ]
+        ] + self._effective_task_scope_domain()
+
+    def _task(self, task_id):
+        task = self.env["project.task"].search(
+            [
+                ("id", "=", int(task_id)),
+                ("csrs_managed", "=", True),
+            ]
+            + self._effective_task_scope_domain(),
+            limit=1,
+        )
+        if not task:
+            raise UserError(_("Tâche introuvable."))
+        task.check_access("read")
+        return task
 
     def _progress_at(self, task, selected):
         entry = task.csrs_progress_entry_ids.filtered(
@@ -754,11 +784,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task(self, task_id):
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task or not task.csrs_managed:
-            raise UserError(_("Tâche introuvable."))
-        task.check_access("read")
-        return self._task_detail(task)
+        return self._task_detail(self._task(task_id))
 
     @api.model
     def api_task_create(self, payload):
@@ -787,9 +813,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_update(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         if not task._csrs_can_manage():
             raise AccessError(_("Seul le responsable principal peut modifier la tâche."))
         task._csrs_check_revision(payload.get("revision"))
@@ -811,9 +835,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_progress(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         task.action_csrs_record_progress(
             float(payload["percentage"]),
             str(payload.get("note") or ""),
@@ -825,9 +847,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_comment(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         task._csrs_check_revision(payload.get("revision"))
         task.action_csrs_comment(str(payload.get("message") or ""))
         task.with_context(csrs_authorized_mutation=True).write(
@@ -838,9 +858,7 @@ class CsrsApi(models.AbstractModel):
     @api.model
     def api_task_transition(self, task_id, payload):
         self._require_reporting_write()
-        task = self.env["project.task"].browse(int(task_id)).exists()
-        if not task:
-            raise UserError(_("Tâche introuvable."))
+        task = self._task(task_id)
         transition = payload.get("transition")
         if transition == "validate":
             task.action_csrs_validate_completion(payload.get("revision"))

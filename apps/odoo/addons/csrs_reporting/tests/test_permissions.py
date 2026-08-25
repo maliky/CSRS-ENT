@@ -250,6 +250,14 @@ class CsrsPermissionTests(TransactionCase):
         with self.assertRaises(AccessError):
             facade.api_role_switch("dg")
 
+    def test_effective_agent_role_cannot_read_an_unrelated_task_by_id(self):
+        facade = self.env["csrs.api"].with_user(self.it).with_context(
+            csrs_effective_role="agent"
+        )
+
+        with self.assertRaises(UserError):
+            facade.api_task(self.task.id)
+
     def test_it_cannot_activate_an_unknown_role(self):
         with self.assertRaises(ValidationError):
             self.env["csrs.api"].with_user(self.it).api_role_switch("unknown")

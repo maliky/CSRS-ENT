@@ -207,17 +207,22 @@ test("permet à l'administrateur d'activer une vue de rôle auditée", async () 
   );
   const user = userEvent.setup();
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={["/administration/utilisateurs"]}>
       <Routes>
         <Route path="/" element={<AppShell />}>
           <Route index element={<h1>Tableau de bord</h1>} />
+          <Route
+            path="administration/utilisateurs"
+            element={<h1>Données utilisateurs</h1>}
+          />
         </Route>
       </Routes>
     </MemoryRouter>,
   );
 
+  expect(await screen.findByText("Données utilisateurs")).toBeVisible();
   await user.selectOptions(
-    await screen.findByRole("combobox", { name: "Rôle actif" }),
+    screen.getByRole("combobox", { name: "Rôle actif" }),
     "hr",
   );
 
@@ -225,6 +230,8 @@ test("permet à l'administrateur d'activer une vue de rôle auditée", async () 
   expect(
     await screen.findByText(/Vue active : Ressources humaines/),
   ).toBeVisible();
+  expect(screen.getByText("Tableau de bord")).toBeVisible();
+  expect(screen.queryByText("Données utilisateurs")).not.toBeInTheDocument();
   expect(screen.getByRole("combobox", { name: "Rôle actif" })).toHaveValue(
     "hr",
   );

@@ -72,6 +72,9 @@ class GatewayViewTests(SimpleTestCase):
     def test_login_stores_only_the_opaque_odoo_session(
         self, authenticate: MagicMock, call: MagicMock
     ) -> None:
+        session = self.client.session
+        session["odoo_effective_role"] = "hr"
+        session.save()
         authenticate.return_value = OdooSession(
             session_id="opaque-session",
             identity=OdooIdentity(user_id=42, login="agent", name="Agent CSRS"),
@@ -95,6 +98,7 @@ class GatewayViewTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["user"]["id"], 42)
         self.assertEqual(self.client.session["odoo_session_id"], "opaque-session")
+        self.assertNotIn("odoo_effective_role", self.client.session)
         self.assertNotIn("password", dict(self.client.session))
         authenticate.assert_called_once_with("agent", "secret")
         call.assert_called_once_with("opaque-session", "api_session")

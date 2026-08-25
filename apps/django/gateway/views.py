@@ -155,6 +155,7 @@ def session_login(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": "odoo_unavailable"}, status=503)
     limiter.clear(ip_address, payload["login"])
     request.session.cycle_key()
+    request.session.pop(SESSION_EFFECTIVE_ROLE_KEY, None)
     request.session["odoo_session_id"] = odoo_session.session_id
     request.session.set_expiry(settings.SESSION_COOKIE_AGE)
     session_payload = _session_payload(request)
