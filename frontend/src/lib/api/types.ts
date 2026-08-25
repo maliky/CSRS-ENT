@@ -40,6 +40,8 @@ export type TaskSummary = {
   employee: Person;
   manager: Person;
   action: { id: number; label: string } | null;
+  origin: "legacy" | "odoo";
+  read_only: boolean;
 };
 
 export type ChartPoint = {
@@ -87,6 +89,13 @@ export type TaskDetail = Omit<
 export type Session = {
   user: Person;
   csrf_token: string;
+  reporting: {
+    mode: "native" | "legacy_mirror";
+    write_enabled: boolean;
+    source_url: string;
+    source_extracted_at: string;
+    last_success_at: string;
+  };
   capabilities: {
     create_task: boolean;
     create_proposal: boolean;
@@ -559,13 +568,13 @@ export type AgendaPreview = {
   snapshot: AgendaSnapshot;
 };
 
-export type AgendaDirection = "programs" | "administration" | "research";
+export type AgendaDirection = "programs" | "administration";
 
 export type AgendaVersion = {
   id: number;
   period_start: string;
   period_end: string;
-  agenda_direction: AgendaDirection | "legacy";
+  agenda_direction: AgendaDirection | "legacy" | "research";
   agenda_direction_label: string;
   version: number;
   snapshot_sha256: string;
@@ -574,6 +583,7 @@ export type AgendaVersion = {
   generated_by: AgendaPerson;
   generated_at: string;
   pdf_url: string;
+  origin: "legacy" | "odoo";
 };
 
 export type AgendaVersions = { versions: AgendaVersion[] };

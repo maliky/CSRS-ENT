@@ -231,14 +231,38 @@ class CsrsE2EFixture(models.AbstractModel):
             raise ValidationError(_("Le mot de passe E2E doit contenir au moins 16 caractères."))
         created = defaultdict(int)
         marker = f"[E2E:{dataset}]"
+        manual = dataset == "e2e-manual"
+
+        def visible(default, manual_value=None):
+            return (manual_value or default) if manual else f"{marker} {default}"
+
+        manual_roles = {
+            "agent": ("Agent demandeur", "Chargé de programme"),
+            "manager": ("Responsable principal", "Responsable des programmes"),
+            "secondary": ("Responsable secondaire", "Appui à la supervision"),
+            "hr": ("Responsable RH", "Ressources humaines"),
+            "secretariat": ("Secrétariat de direction", "Secrétariat"),
+            "dg": ("Direction générale", "Direction générale"),
+            "finance": ("Responsable financier", "Finances et comptabilité"),
+            "procurement": ("Responsable des achats", "Achats"),
+            "compliance": ("Responsable conformité", "Conformité"),
+            "data": ("Gestionnaire des données", "Gestion des données"),
+            "fleet": ("Responsable du parc automobile", "Parc automobile"),
+            "it": ("Administrateur IT", "Systèmes d'information"),
+        }
+        manual_currency = (
+            self.env.ref("base.XOF", raise_if_not_found=False)
+            if manual
+            else self.env.company.currency_id
+        ) or self.env.company.currency_id
         root = self._ensure(
             dataset,
             "department_root",
             "hr.department",
             {
-                "name": f"{marker} Direction de recette",
-                "csrs_code": f"{_external_prefix(dataset).upper()}-ROOT",
-                "csrs_short_name": "E2E",
+                "name": visible("Direction de recette", "Direction des opérations"),
+                "csrs_code": "DOP" if manual else f"{_external_prefix(dataset).upper()}-ROOT",
+                "csrs_short_name": "DOP" if manual else "E2E",
             },
             created,
         )
@@ -247,9 +271,9 @@ class CsrsE2EFixture(models.AbstractModel):
             "department_child",
             "hr.department",
             {
-                "name": f"{marker} Service de recette",
-                "csrs_code": f"{_external_prefix(dataset).upper()}-UNIT",
-                "csrs_short_name": "E2E-UNIT",
+                "name": visible("Service de recette", "Service des programmes"),
+                "csrs_code": "PROG" if manual else f"{_external_prefix(dataset).upper()}-UNIT",
+                "csrs_short_name": "PROGRAMMES" if manual else "E2E-UNIT",
                 "parent_id": root.id,
             },
             created,
@@ -259,16 +283,34 @@ class CsrsE2EFixture(models.AbstractModel):
         agent_group = self.env.ref("csrs_reporting.group_csrs_agent")
         for role, label, group_xmlid in ROLE_GROUPS:
             group = self.env.ref(group_xmlid)
-            login = f"{dataset}-{role}@example.invalid"
+            manual_login = {
+                "agent": "agent.demandeur@demo.invalid",
+                "manager": "responsable.principal@demo.invalid",
+                "secondary": "responsable.secondaire@demo.invalid",
+                "hr": "responsable.rh@demo.invalid",
+                "secretariat": "secretariat.direction@demo.invalid",
+                "dg": "direction.generale@demo.invalid",
+                "finance": "responsable.finance@demo.invalid",
+                "procurement": "responsable.achats@demo.invalid",
+                "compliance": "responsable.conformite@demo.invalid",
+                "data": "gestionnaire.donnees@demo.invalid",
+                "fleet": "responsable.parc@demo.invalid",
+                "it": "administration.it@demo.invalid",
+            }[role]
+            login = manual_login if manual else f"{dataset}-{role}@example.invalid"
             user = self._ensure(
                 dataset,
                 f"user_{role}",
                 "res.users",
                 {
-                    "name": f"{marker} {label}",
+                    "name": manual_roles[role][0] if manual else f"{marker} {label}",
                     "login": login,
                     "email": login,
-                    "csrs_alias": f"{_external_prefix(dataset)}-{role}"[:64],
+                    "csrs_alias": (
+                        manual_login.partition("@")[0]
+                        if manual
+                        else f"{_external_prefix(dataset)}-{role}"[:64]
+                    ),
                     "password": password,
                     "group_ids": [
                         Command.link(agent_group.id),
@@ -293,7 +335,7 @@ class CsrsE2EFixture(models.AbstractModel):
             "project_partner",
             "res.partner",
             {
-                "name": f"{marker} Fondation partenaire",
+                "name": visible("Fondation partenaire", "Fondation pour les communautés"),
                 "company_type": "company",
                 "email": "fondation@example.invalid",
             },
@@ -309,7 +351,9 @@ class CsrsE2EFixture(models.AbstractModel):
                 "name": users["manager"].name,
                 "user_id": users["manager"].id,
                 "department_id": root.id,
-                "job_title": "Responsable de recette",
+                "job_title": (
+                    manual_roles["manager"][1] if manual else "Responsable de recette"
+                ),
             },
             created,
         )
@@ -326,8 +370,12 @@ class CsrsE2EFixture(models.AbstractModel):
                     "user_id": users[role].id,
                     "department_id": child.id,
                     "parent_id": manager_employee.id,
-                    "job_title": f"Fonction de recette {role}",
-                    "csrs_agenda_direction": "research"
+                    "job_title": (
+                        manual_roles[role][1]
+                        if manual
+                        else f"Fonction de recette {role}"
+                    ),
+                    "csrs_agenda_direction": "programs"
                     if role in {"agent", "data"}
                     else "administration",
                 },
@@ -340,7 +388,7 @@ class CsrsE2EFixture(models.AbstractModel):
             "employee_agent_tor",
             "ir.attachment",
             {
-                "name": f"{marker} cahier-des-charges.pdf",
+                "name": visible("cahier-des-charges.pdf"),
                 "mimetype": "application/pdf",
                 "datas": b64encode(b"%PDF-1.4\n% CSRS ENT fixture\n%%EOF\n"),
                 "res_model": "hr.employee",
@@ -367,7 +415,7 @@ class CsrsE2EFixture(models.AbstractModel):
             "strategic_plan",
             "csrs.strategic.plan",
             {
-                "name": f"{marker} Plan stratégique",
+                "name": visible("Plan stratégique", "Plan stratégique institutionnel"),
                 "start_date": "2090-01-01",
                 "end_date": "2099-12-31",
             },
@@ -379,8 +427,8 @@ class CsrsE2EFixture(models.AbstractModel):
             "csrs.action.plan",
             {
                 "strategic_plan_id": strategic.id,
-                "code": f"{_external_prefix(dataset).upper()}-PA",
-                "name": f"{marker} Plan d'action",
+                "code": "PA" if manual else f"{_external_prefix(dataset).upper()}-PA",
+                "name": visible("Plan d'action", "Plan d'action institutionnel"),
             },
             created,
         )
@@ -390,8 +438,8 @@ class CsrsE2EFixture(models.AbstractModel):
             "csrs.institutional.action",
             {
                 "action_plan_id": action_plan.id,
-                "code": f"{_external_prefix(dataset).upper()}-ACT",
-                "name": f"{marker} Action institutionnelle",
+                "code": "ACT" if manual else f"{_external_prefix(dataset).upper()}-ACT",
+                "name": visible("Action institutionnelle"),
             },
             created,
         )
@@ -400,7 +448,7 @@ class CsrsE2EFixture(models.AbstractModel):
             "task_project",
             "project.project",
             {
-                "name": f"{marker} Activités institutionnelles",
+                "name": visible("Activités institutionnelles"),
                 "privacy_visibility": "employees",
             },
             created,
@@ -411,7 +459,9 @@ class CsrsE2EFixture(models.AbstractModel):
                 f"task_{index}",
                 "project.task",
                 {
-                    "name": f"{marker} Tâche de recette {index}",
+                    "name": visible(
+                        f"Tâche de recette {index}", f"Tâche prioritaire {index}"
+                    ),
                     "project_id": standard_project.id,
                     "csrs_managed": True,
                     "csrs_manager_id": users["manager"].id,
@@ -430,7 +480,7 @@ class CsrsE2EFixture(models.AbstractModel):
             "proposal",
             "csrs.task.proposal",
             {
-                "title": f"{marker} Proposition de recette",
+                "title": visible("Proposition de recette", "Proposition d'activité terrain"),
                 "description": "Vérifier le parcours complet de proposition.",
                 "author_id": users["agent"].id,
                 "manager_id": users["manager"].id,
@@ -448,7 +498,9 @@ class CsrsE2EFixture(models.AbstractModel):
             "research_project",
             "project.project",
             {
-                "name": f"{marker} Projet de recherche",
+                "name": visible(
+                    "Projet de recherche", "Projet d'appui aux activités communautaires"
+                ),
                 "csrs_research_project": True,
                 "csrs_objectives": "Exercer les neuf onglets du projet.",
                 "csrs_institutional_commitments": "Jeu de données jetable.",
@@ -464,7 +516,11 @@ class CsrsE2EFixture(models.AbstractModel):
             dataset,
             "purchase_vendor",
             "res.partner",
-            {"name": f"{marker} Fournisseur", "is_company": True, "supplier_rank": 1},
+            {
+                "name": visible("Fournisseur", "Fournitures et services du territoire"),
+                "is_company": True,
+                "supplier_rank": 1,
+            },
             created,
             user=users["it"],
         )
@@ -472,7 +528,11 @@ class CsrsE2EFixture(models.AbstractModel):
             dataset,
             "purchase_product",
             "product.product",
-            {"name": f"{marker} Service terrain", "type": "service", "purchase_ok": True},
+            {
+                "name": visible("Service terrain", "Kit de collecte terrain"),
+                "type": "service",
+                "purchase_ok": True,
+            },
             created,
             user=users["it"],
         )
@@ -482,7 +542,7 @@ class CsrsE2EFixture(models.AbstractModel):
             "csrs.project.budget.line",
             {
                 "project_id": research_project.id,
-                "code": "E2E-TERRAIN",
+                "code": "TERRAIN" if manual else "E2E-TERRAIN",
                 "name": "Activités de terrain",
                 "planned_amount": 1_000_000,
             },
@@ -498,9 +558,25 @@ class CsrsE2EFixture(models.AbstractModel):
                     "requester_id": users["agent"].id,
                     "origin_department_id": child.id,
                     "project_id": research_project.id,
-                    "subject": f"{marker} {label}",
-                    "description": "Dossier de recette navigateur.",
-                    "amount": 1000 if process_type in {"fund", "purchase"} else 0,
+                    "subject": visible(
+                        label,
+                        {
+                            "fund": "Frais de déplacement terrain",
+                            "purchase": "Achat de kits de collecte",
+                            "absence": "Demande d'absence annuelle",
+                        }.get(process_type, label),
+                    ),
+                    "description": (
+                        "Dossier d'exemple destiné au guide utilisateur."
+                        if manual
+                        else "Dossier de recette navigateur."
+                    ),
+                    "amount": (
+                        {"fund": 250_000, "purchase": 300_000}.get(process_type, 0)
+                        if manual
+                        else (1000 if process_type in {"fund", "purchase"} else 0)
+                    ),
+                    "currency_id": manual_currency.id,
                 },
                 created,
                 user=users["agent"],
@@ -515,7 +591,11 @@ class CsrsE2EFixture(models.AbstractModel):
                         "budget_line_id": budget_line.id,
                         "beneficiary_id": users["agent"].partner_id.id,
                         "initiator_id": users["agent"].id,
-                        "purpose": "Frais de terrain de recette.",
+                        "purpose": (
+                            "Frais de déplacement pour le suivi des activités terrain."
+                            if manual
+                            else "Frais de terrain de recette."
+                        ),
                     },
                     created,
                 )
@@ -528,7 +608,7 @@ class CsrsE2EFixture(models.AbstractModel):
                         "case_id": case.id,
                         "budget_line_id": budget_line.id,
                         "quantity": 2,
-                        "estimated_amount": 1000,
+                        "estimated_amount": 300_000 if manual else 1000,
                     },
                     created,
                 )
@@ -543,7 +623,7 @@ class CsrsE2EFixture(models.AbstractModel):
                     "kind": "mission",
                     "start_date": start.isoformat(),
                     "end_date": end.isoformat(),
-                    "note": f"{marker} Mission de recette",
+                    "note": visible("Mission de recette", "Mission de suivi terrain"),
                 }
             )
             leave = self.env["hr.leave"].sudo().browse(payload["id"])
@@ -555,7 +635,10 @@ class CsrsE2EFixture(models.AbstractModel):
                 {
                     "period_start": start.isoformat(),
                     "period_end": end.isoformat(),
-                    "major_events": f"{marker} Réunion de coordination",
+                    "major_events": visible(
+                        "Réunion de coordination",
+                        "Réunion de coordination des programmes",
+                    ),
                     "revision": 0,
                 }
             )
@@ -593,17 +676,29 @@ class CsrsE2EFixture(models.AbstractModel):
         for reference, record in tracked:
             by_model[record._name].append((reference, record))
         marker = f"[E2E:{dataset}]"
-        tracked_cases = self.env["csrs.process.case"].sudo().search(
+        marked_cases = self.env["csrs.process.case"].sudo().search(
             [("subject", "ilike", marker)]
         )
+        referenced_cases = self.env["csrs.process.case"].sudo().browse(
+            [record.id for _reference, record in by_model["csrs.process.case"]]
+        )
+        tracked_cases = marked_cases | referenced_cases
         purchase_requests = self.env["csrs.purchase.request"].sudo().search(
             [("case_id", "in", tracked_cases.ids)]
         )
         orders = self.env["purchase.order"].sudo().search(
             [("csrs_process_case_id", "in", tracked_cases.ids)]
         )
+        if purchase_requests:
+            purchase_requests.write(
+                {
+                    "selected_quotation_id": False,
+                    "purchase_order_id": False,
+                    "vendor_bill_id": False,
+                }
+        )
         for order in orders:
-            if order.state not in {"draft", "cancel"}:
+            if order.state != "cancel":
                 order.button_cancel()
             order.unlink()
         for model_name, records in (

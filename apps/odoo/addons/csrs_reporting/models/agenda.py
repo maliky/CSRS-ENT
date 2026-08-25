@@ -12,7 +12,7 @@ from odoo.exceptions import UserError, ValidationError
 AGENDA_DIRECTIONS = [
     ("programs", "Direction des programmes"),
     ("administration", "Direction administrative"),
-    ("research", "Direction de la recherche"),
+    ("legacy", "Agenda global historique"),
 ]
 
 
@@ -31,6 +31,7 @@ class HrLeave(models.Model):
     _inherit = "hr.leave"
 
     csrs_managed = fields.Boolean(default=False, required=True, index=True, copy=False)
+    csrs_source_id = fields.Integer(index=True, readonly=True, copy=False)
     csrs_kind = fields.Selection(
         [
             ("leave", "Congé"),
@@ -45,6 +46,11 @@ class HrLeave(models.Model):
     csrs_revision = fields.Integer(default=1, required=True, readonly=True, copy=False)
     csrs_cancelled_at = fields.Datetime(readonly=True, copy=False)
     csrs_cancellation_reason = fields.Text(readonly=True, copy=False)
+
+    _csrs_source_unique = models.Constraint(
+        "UNIQUE (csrs_source_id)",
+        "Cette indisponibilité source est déjà importée.",
+    )
 
     @api.constrains("csrs_managed", "csrs_kind")
     def _check_csrs_kind(self):
@@ -94,12 +100,18 @@ class CsrsVisitorVisit(models.Model):
     _description = "Visite CSRS ENT"
     _order = "arrived_at desc, id desc"
 
+    csrs_source_id = fields.Integer(index=True, readonly=True, copy=False)
     party_size = fields.Integer(required=True, default=1)
     visitor_names = fields.Json(default=list)
     arrived_at = fields.Datetime(required=True, default=fields.Datetime.now)
     departed_at = fields.Datetime(readonly=True)
     cancelled_at = fields.Datetime(readonly=True)
+    cancellation_reason = fields.Text(readonly=True)
     revision = fields.Integer(required=True, default=1, readonly=True)
+
+    _csrs_source_unique = models.Constraint(
+        "UNIQUE (csrs_source_id)", "Cette visite source est déjà importée."
+    )
 
     @api.constrains("party_size", "visitor_names")
     def _check_party(self):
@@ -138,6 +150,7 @@ class CsrsAgendaDraft(models.Model):
     _description = "Brouillon d'agenda CSRS ENT"
     _order = "period_start desc, period_end desc"
 
+    csrs_source_id = fields.Integer(index=True, readonly=True, copy=False)
     period_start = fields.Date(required=True, index=True)
     period_end = fields.Date(required=True, index=True)
     major_events = fields.Text(default="")
@@ -149,6 +162,9 @@ class CsrsAgendaDraft(models.Model):
     _period_unique = models.Constraint(
         "UNIQUE (period_start, period_end)",
         "Un brouillon existe déjà pour cette période.",
+    )
+    _csrs_source_unique = models.Constraint(
+        "UNIQUE (csrs_source_id)", "Ce brouillon source est déjà importé."
     )
 
     @api.constrains("period_start", "period_end")
@@ -186,6 +202,8 @@ class CsrsAgendaVersion(models.Model):
     _description = "Version figée d'agenda CSRS ENT"
     _order = "period_start desc, agenda_direction, version desc"
 
+    csrs_source_id = fields.Integer(index=True, readonly=True, copy=False)
+    csrs_source_version = fields.Integer(readonly=True, copy=False)
     draft_id = fields.Many2one(
         "csrs.agenda.draft", required=True, ondelete="restrict", index=True
     )
@@ -210,6 +228,9 @@ class CsrsAgendaVersion(models.Model):
     _version_unique = models.Constraint(
         "UNIQUE (period_start, period_end, agenda_direction, version)",
         "Cette version d'agenda existe déjà.",
+    )
+    _csrs_source_unique = models.Constraint(
+        "UNIQUE (csrs_source_id)", "Cette version source est déjà importée."
     )
 
     @api.model

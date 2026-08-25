@@ -44,7 +44,11 @@ PROPOSAL_LABELS = {
 AGENDA_LABELS = {
     "programs": "Direction des programmes",
     "administration": "Direction administrative",
-    "research": "Direction de la recherche",
+}
+AGENDA_ARCHIVE_LABELS = {
+    **AGENDA_LABELS,
+    "legacy": "Agenda global historique",
+    "research": "Direction de la recherche (archive ENT)",
 }
 ROLE_GROUPS = {
     "AGENDA_HR": "csrs_reporting.group_csrs_hr",
@@ -352,6 +356,34 @@ class CsrsApi(models.AbstractModel):
             ).user_id
         return direct.user_id | delegated | user
 
+    def _reporting_state(self):
+        parameters = self.env["ir.config_parameter"].sudo()
+        mode = parameters.get_param("csrs_reporting.reporting_mode", "native")
+        return {
+            "mode": mode,
+            "write_enabled": mode != "legacy_mirror",
+            "source_url": "https://179.237.107.40/app/",
+            "source_extracted_at": parameters.get_param(
+                "csrs_reporting.legacy_source_extracted_at", ""
+            ),
+            "last_success_at": parameters.get_param(
+                "csrs_reporting.legacy_last_success_at", ""
+            ),
+        }
+
+    def _reporting_write_enabled(self):
+        return self._reporting_state()["write_enabled"]
+
+    def _require_reporting_write(self):
+        if not self._reporting_write_enabled() and not self.env.context.get(
+            "csrs_migration_import"
+        ):
+            raise AccessError(
+                _(
+                    "La saisie des tâches et agendas reste temporairement sur CSRS Report (179.237.107.40)."
+                )
+            )
+
     @api.model
     def api_session(self):
         user = self.env.user
@@ -365,22 +397,25 @@ class CsrsApi(models.AbstractModel):
         ) or user.csrs_has_active_role_grant("AGENDA_HR")
         is_agenda_viewer = user.csrs_has_active_role_grant("AGENDA_VIEWER")
         is_dg = user.has_group("csrs_reporting.group_csrs_dg")
+        reporting = self._reporting_state()
+        write_enabled = reporting["write_enabled"]
         return {
             "user": self._person(user),
+            "reporting": reporting,
             "capabilities": {
-                "create_task": bool(managed) or is_it,
-                "create_proposal": True,
+                "create_task": write_enabled and (bool(managed) or is_it),
+                "create_proposal": write_enabled,
                 "view_team": bool(managed) or is_dg or is_it,
                 "self_assign": is_dg or is_it,
                 "admin": is_it,
-                "manage_visits": is_secretariat or is_it,
-                "manage_availability": is_hr or is_it,
-                "prepare_weekly_agenda": is_secretariat or is_it,
+                "manage_visits": write_enabled and (is_secretariat or is_it),
+                "manage_availability": write_enabled and (is_hr or is_it),
+                "prepare_weekly_agenda": write_enabled and (is_secretariat or is_it),
                 "view_weekly_agenda": is_secretariat
                 or is_agenda_viewer
                 or is_dg
                 or is_it,
-                "delete_tasks": is_it,
+                "delete_tasks": write_enabled and is_it,
                 "manage_users": is_it,
                 "manage_organization": is_it,
                 "manage_partners": is_it,
@@ -464,6 +499,8 @@ class CsrsApi(models.AbstractModel):
                 if task.csrs_institutional_action_id
                 else None
             ),
+            "origin": "legacy" if task.csrs_task_source_id else "odoo",
+            "read_only": not self._reporting_write_enabled(),
         }
 
     def _task_chart(self, task):
@@ -569,9 +606,10 @@ class CsrsApi(models.AbstractModel):
                 "chart": self._task_chart(task),
                 "activities": self._task_activities(task),
                 "capabilities": {
-                    "manage": manage,
-                    "comment": comment,
-                    "update_progress": self.env.user in task.user_ids or manage,
+                    "manage": manage and self._reporting_write_enabled(),
+                    "comment": comment and self._reporting_write_enabled(),
+                    "update_progress": self._reporting_write_enabled()
+                    and (self.env.user in task.user_ids or manage),
                     "self_managed": task.csrs_manager_id in task.user_ids,
                 },
             }
@@ -673,6 +711,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task_create(self, payload):
+        self._require_reporting_write()
         employee = self.env["res.users"].browse(int(payload["employee_id"])).exists()
         if not employee or employee not in self._managed_users():
             raise AccessError(_("Ce collaborateur n'est pas dans votre périmètre."))
@@ -696,6 +735,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task_update(self, task_id, payload):
+        self._require_reporting_write()
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
             raise UserError(_("Tâche introuvable."))
@@ -719,6 +759,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task_progress(self, task_id, payload):
+        self._require_reporting_write()
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
             raise UserError(_("Tâche introuvable."))
@@ -732,6 +773,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task_comment(self, task_id, payload):
+        self._require_reporting_write()
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
             raise UserError(_("Tâche introuvable."))
@@ -744,6 +786,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task_transition(self, task_id, payload):
+        self._require_reporting_write()
         task = self.env["project.task"].browse(int(task_id)).exists()
         if not task:
             raise UserError(_("Tâche introuvable."))
@@ -823,6 +866,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_task_bulk_delete(self, selections, reason):
+        self._require_reporting_write()
         self._require_group("csrs_reporting.group_csrs_it")
         reason = str(reason or "").strip()
         if len(reason) < 3:
@@ -1684,6 +1728,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_proposal_create(self, payload):
+        self._require_reporting_write()
         proposal = self.env["csrs.task.proposal"].create(
             {
                 "title": str(payload["title"]).strip(),
@@ -1699,6 +1744,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_proposal_update(self, proposal_id, payload):
+        self._require_reporting_write()
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
             raise UserError(_("Proposition introuvable."))
@@ -1709,6 +1755,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_proposal_resubmit(self, proposal_id, revision):
+        self._require_reporting_write()
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
             raise UserError(_("Proposition introuvable."))
@@ -1717,6 +1764,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_proposal_decide(self, proposal_id, payload):
+        self._require_reporting_write()
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
         if not proposal:
             raise UserError(_("Proposition introuvable."))
@@ -1921,6 +1969,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visit_create(self, payload):
+        self._require_reporting_write()
         self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
@@ -1940,6 +1989,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_visit_departure(self, visit_id, revision):
+        self._require_reporting_write()
         self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
@@ -2012,6 +2062,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability_save(self, payload, leave_id=None):
+        self._require_reporting_write()
         self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_hr",
@@ -2050,6 +2101,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_availability_cancel(self, leave_id, payload):
+        self._require_reporting_write()
         self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_hr",
@@ -2218,6 +2270,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_update_draft(self, payload):
+        self._require_reporting_write()
         self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",
@@ -2254,14 +2307,17 @@ class CsrsApi(models.AbstractModel):
             "period_start": _iso(version.period_start),
             "period_end": _iso(version.period_end),
             "agenda_direction": version.agenda_direction,
-            "agenda_direction_label": AGENDA_LABELS[version.agenda_direction],
-            "version": version.version,
+            "agenda_direction_label": AGENDA_ARCHIVE_LABELS[
+                version.agenda_direction
+            ],
+            "version": version.csrs_source_version or version.version,
             "snapshot_sha256": version.snapshot_sha256,
             "pdf_sha256": version.pdf_sha256,
             "pdf_size": version.pdf_size,
             "generated_by": self._person(version.generated_by_id),
             "generated_at": _iso(version.generated_at),
             "pdf_url": f"/api/v1/agenda/versions/{version.id}/pdf/",
+            "origin": "legacy" if version.csrs_source_id else "odoo",
         }
 
     @api.model
@@ -2284,6 +2340,7 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_agenda_generate(self, payload):
+        self._require_reporting_write()
         self._require_group_or_feature_role(
             (
                 "csrs_reporting.group_csrs_secretariat",

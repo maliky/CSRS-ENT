@@ -48,9 +48,10 @@ required = {
     "users", "departments", "department_links", "memberships", "reporting_lines",
     "role_grants", "tasks", "task_assignments", "task_proposals", "progress_entries",
     "task_activities", "task_history", "assignment_history", "proposal_history",
-    "progress_history",
+    "progress_history", "visitor_visits", "staff_availability",
+    "agenda_drafts", "agenda_versions",
 }
-if payload.get("version") != 3 or not required.issubset(payload):
+if payload.get("version") != 4 or not required.issubset(payload):
     raise SystemExit("Export CSRS invalide.")
 ' "$TEMP_FILE"
 

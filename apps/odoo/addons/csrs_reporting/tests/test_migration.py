@@ -2,7 +2,7 @@ from passlib.hash import django_pbkdf2_sha256
 
 from odoo import fields
 from odoo.tests.common import TransactionCase, tagged
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 
 @tagged("post_install", "-at_install")
@@ -20,7 +20,7 @@ class CsrsMigrationTests(TransactionCase):
                     "last_name": "Migration",
                     "phone": "",
                     "job_title": "Profil source",
-                    "agenda_direction": "research",
+                    "agenda_direction": "programs",
                     "include_in_direction_agendas": True,
                     "active": True,
                     "is_it_admin": False,
@@ -275,7 +275,7 @@ class CsrsMigrationTests(TransactionCase):
         )
         self.assertEqual(user.csrs_first_name, "Compte")
         self.assertEqual(user.csrs_last_name, "Migration")
-        self.assertEqual(employee.csrs_agenda_direction, "research")
+        self.assertEqual(employee.csrs_agenda_direction, "programs")
         self.assertTrue(employee.csrs_include_in_agenda)
         self.assertEqual(department.csrs_short_name, "Service test")
         self.assertEqual(department.csrs_kind, "unit")
@@ -339,21 +339,20 @@ class CsrsMigrationTests(TransactionCase):
             }
         )
 
-        preserved = importer.import_payload(self.payload_v3(), apply=True)
+        restored = importer.import_payload(self.payload_v3(), apply=True)
         third = importer.import_payload(self.payload_v3(), apply=True)
 
         self.assertEqual(first["created"]["tasks"], 1)
-        self.assertEqual(preserved["unchanged"]["tasks"], 1)
-        self.assertEqual(preserved["unchanged"]["task_source_conflicts"], 1)
+        self.assertEqual(restored["updated"]["tasks"], 1)
         self.assertEqual(
-            preserved["unchanged"]["task_progress_source_conflicts"], 1
+            restored["unchanged"].get("task_progress_source_conflicts", 0), 0
         )
         self.assertEqual(third["unchanged"]["tasks"], 1)
-        self.assertEqual(task.csrs_status, "planned")
-        self.assertEqual(task.csrs_progress_percent, 77)
-        self.assertTrue(task.csrs_blocked)
-        self.assertEqual(task.csrs_revision, 99)
-        self.assertFalse(task.user_ids)
+        self.assertEqual(task.csrs_status, "active")
+        self.assertEqual(task.csrs_progress_percent, 30)
+        self.assertFalse(task.csrs_blocked)
+        self.assertEqual(task.csrs_revision, 2)
+        self.assertEqual(task.user_ids, source_user)
         self.assertEqual(len(task.csrs_progress_entry_ids), 1)
         self.assertEqual(len(task.csrs_legacy_revision_ids), 3)
         proposal = self.env["csrs.task.proposal"].search(
@@ -729,3 +728,126 @@ class CsrsMigrationTests(TransactionCase):
 
         with self.assertRaises(ValidationError):
             self.env["csrs.migration.importer"].import_payload(payload, apply=False)
+
+    def test_v4_imports_legacy_agenda_archives_and_enables_read_only_mirror(self):
+        import base64
+        import hashlib
+        import json
+
+        payload = self.payload()
+        payload["version"] = 4
+        payload["extracted_at"] = "2026-08-25T08:00:00+00:00"
+        payload["users"][0]["agenda_direction"] = "programs"
+        for name in (
+            "strategic_plans",
+            "action_plans",
+            "institutional_actions",
+            "work_calendars",
+            "work_calendar_days",
+            "tasks",
+            "task_assignments",
+            "task_proposals",
+            "progress_entries",
+            "task_activities",
+            "task_history",
+            "assignment_history",
+            "proposal_history",
+            "progress_history",
+        ):
+            payload[name] = []
+        snapshot = {
+            "schema_version": 1,
+            "period_start": "2026-08-24",
+            "period_end": "2026-08-30",
+            "agenda_direction": "programs",
+            "agenda_direction_label": "Direction des programmes",
+            "major_events": "RAS",
+            "unclassified_users": [],
+            "arrivals": [],
+            "departures": [],
+            "availability": [],
+            "units": [],
+        }
+        canonical = json.dumps(
+            snapshot,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        pdf = b"%PDF-1.4\n%%EOF\n"
+        payload.update(
+            {
+                "visitor_visits": [
+                    {
+                        "source_id": 9_100_001,
+                        "party_size": 2,
+                        "visitor_names": ["Visiteur Test"],
+                        "arrived_at": "2026-08-25T08:00:00",
+                        "departed_at": None,
+                        "cancelled_at": None,
+                        "cancellation_reason": "",
+                        "revision": 1,
+                    }
+                ],
+                "staff_availability": [
+                    {
+                        "source_id": 9_100_002,
+                        "employee_source_id": 9_000_101,
+                        "kind": "mission",
+                        "start_date": "2026-08-25",
+                        "end_date": "2026-08-26",
+                        "note": "Mission de test",
+                        "cancelled_at": None,
+                        "cancellation_reason": "",
+                        "revision": 1,
+                    }
+                ],
+                "agenda_drafts": [
+                    {
+                        "source_id": 9_100_003,
+                        "period_start": "2026-08-24",
+                        "period_end": "2026-08-30",
+                        "major_events": "RAS",
+                        "revision": 1,
+                        "updated_by_source_id": 9_000_101,
+                        "updated_at": "2026-08-25T08:00:00",
+                    }
+                ],
+                "agenda_versions": [
+                    {
+                        "source_id": 9_100_004,
+                        "draft_source_id": 9_100_003,
+                        "period_start": "2026-08-24",
+                        "period_end": "2026-08-30",
+                        "agenda_direction": "programs",
+                        "version": 1,
+                        "snapshot": snapshot,
+                        "snapshot_sha256": hashlib.sha256(canonical).hexdigest(),
+                        "pdf_base64": base64.b64encode(pdf).decode(),
+                        "pdf_sha256": hashlib.sha256(pdf).hexdigest(),
+                        "pdf_size": len(pdf),
+                        "generated_by_source_id": 9_000_101,
+                        "generated_at": "2026-08-25T08:00:00",
+                    }
+                ],
+            }
+        )
+
+        importer = self.env["csrs.migration.importer"]
+        importer.import_payload(payload, apply=False)
+        importer.import_payload(payload, apply=True, reconcile=True)
+        second = importer.import_payload(payload, apply=True, reconcile=True)
+
+        version = self.env["csrs.agenda.version"].search(
+            [("csrs_source_id", "=", 9_100_004)]
+        )
+        self.assertEqual(len(version), 1)
+        self.assertEqual(version.pdf_attachment_id.raw, pdf)
+        self.assertEqual(second["unchanged"]["agenda_versions"], 1)
+        session = self.env["csrs.api"].with_user(
+            self.env["res.users"].search([("csrs_source_id", "=", 9_000_101)])
+        ).api_session()
+        self.assertEqual(session["reporting"]["mode"], "legacy_mirror")
+        self.assertFalse(session["reporting"]["write_enabled"])
+        with self.assertRaises(AccessError):
+            self.env["csrs.api"].api_task_create({})

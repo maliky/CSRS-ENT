@@ -16,13 +16,13 @@ test("le compte secrétariat du jeu accède à la préparation des agendas", asy
   ).toBeVisible();
   const direction = page.getByLabel("Direction de l’agenda");
   await expect(direction).toContainText("Direction administrative");
-  await expect(direction).toContainText("Direction de la recherche");
+  await expect(direction).toContainText("Direction des programmes");
   await expect(
     page.getByRole("button", { name: "Générer le PDF" }),
   ).toBeEnabled();
 });
 
-test("le secrétariat génère les agendas administration et recherche", async ({
+test("le secrétariat génère les agendas administration et programmes", async ({
   page,
 }) => {
   test.skip(
@@ -33,7 +33,10 @@ test("le secrétariat génère les agendas administration et recherche", async (
   await authenticateFixtureRole(page, "secretariat");
 
   await page.goto("/app/agenda");
-  for (const direction of ["Administration", "Direction de la recherche"]) {
+  for (const direction of [
+    "Direction administrative",
+    "Direction des programmes",
+  ]) {
     await page
       .getByLabel("Agenda à préparer")
       .selectOption({ label: direction });

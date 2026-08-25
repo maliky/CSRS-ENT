@@ -14,6 +14,21 @@ export type FixtureRole =
   | "fleet"
   | "it";
 
+const MANUAL_ROLE_LOGINS: Readonly<Record<FixtureRole, string>> = {
+  agent: "agent.demandeur@demo.invalid",
+  manager: "responsable.principal@demo.invalid",
+  secondary: "responsable.secondaire@demo.invalid",
+  hr: "responsable.rh@demo.invalid",
+  secretariat: "secretariat.direction@demo.invalid",
+  dg: "direction.generale@demo.invalid",
+  finance: "responsable.finance@demo.invalid",
+  procurement: "responsable.achats@demo.invalid",
+  compliance: "responsable.conformite@demo.invalid",
+  data: "gestionnaire.donnees@demo.invalid",
+  fleet: "responsable.parc@demo.invalid",
+  it: "administration.it@demo.invalid",
+};
+
 export async function authenticateFixtureRole(
   page: Page,
   role: FixtureRole,
@@ -45,7 +60,10 @@ export async function authenticateFixtureRole(
       return response.status;
     },
     {
-      login: `${dataset}-${role}@example.invalid`,
+      login:
+        dataset === "e2e-manual"
+          ? MANUAL_ROLE_LOGINS[role]
+          : `${dataset}-${role}@example.invalid`,
       fixturePassword: password!,
     },
   );

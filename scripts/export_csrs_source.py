@@ -1,5 +1,6 @@
-"""Emit the active CSRS identity snapshot; redirect stdout to a mode-0600 file."""
+"""Emit the CSRS reporting snapshot; redirect stdout to a mode-0600 file."""
 
+import base64
 import json
 import sys
 
@@ -7,6 +8,8 @@ from django.utils import timezone
 
 from access.models import RoleGrant
 from accounts.models import User
+from agenda.models import AgendaDraft, AgendaVersion, StaffAvailability, VisitorVisit
+from agenda.services import agenda_pdf_bytes
 from work.models import (
     ActionPlan,
     HistoricalProgressEntry,
@@ -72,7 +75,7 @@ def history_common(row):
 
 
 payload = {
-    "version": 3,
+    "version": 4,
     "extracted_at": now.isoformat(),
     "users": [
         {
@@ -363,6 +366,67 @@ payload = {
             "updated_at": iso_datetime(row.updated_at),
         }
         for row in HistoricalProgressEntry.objects.order_by("history_date", "history_id")
+    ],
+    "visitor_visits": [
+        {
+            "source_id": row.id,
+            "party_size": row.party_size,
+            "visitor_names": row.visitor_names,
+            "arrived_at": iso_datetime(row.arrived_at),
+            "departed_at": iso_datetime(row.departed_at),
+            "cancelled_at": iso_datetime(row.cancelled_at),
+            "cancellation_reason": row.cancellation_reason,
+            "revision": row.revision,
+            "recorded_by_source_id": row.recorded_by_id,
+            "updated_by_source_id": row.updated_by_id,
+        }
+        for row in VisitorVisit.objects.order_by("id")
+    ],
+    "staff_availability": [
+        {
+            "source_id": row.id,
+            "employee_source_id": row.employee_id,
+            "kind": row.kind,
+            "start_date": iso_date(row.start_date),
+            "end_date": iso_date(row.end_date),
+            "note": row.note,
+            "cancelled_at": iso_datetime(row.cancelled_at),
+            "cancellation_reason": row.cancellation_reason,
+            "revision": row.revision,
+            "recorded_by_source_id": row.recorded_by_id,
+            "updated_by_source_id": row.updated_by_id,
+        }
+        for row in StaffAvailability.objects.order_by("id")
+    ],
+    "agenda_drafts": [
+        {
+            "source_id": row.id,
+            "period_start": iso_date(row.period_start),
+            "period_end": iso_date(row.period_end),
+            "major_events": row.major_events,
+            "revision": row.revision,
+            "updated_by_source_id": row.updated_by_id,
+            "updated_at": iso_datetime(row.updated_at),
+        }
+        for row in AgendaDraft.objects.order_by("id")
+    ],
+    "agenda_versions": [
+        {
+            "source_id": row.id,
+            "draft_source_id": row.draft_id,
+            "period_start": iso_date(row.period_start),
+            "period_end": iso_date(row.period_end),
+            "agenda_direction": row.agenda_direction,
+            "version": row.version,
+            "snapshot": row.snapshot,
+            "snapshot_sha256": row.snapshot_sha256,
+            "pdf_base64": base64.b64encode(agenda_pdf_bytes(row)).decode("ascii"),
+            "pdf_sha256": row.pdf_sha256,
+            "pdf_size": row.pdf_size,
+            "generated_by_source_id": row.generated_by_id,
+            "generated_at": iso_datetime(row.generated_at),
+        }
+        for row in AgendaVersion.objects.order_by("id")
     ],
 }
 

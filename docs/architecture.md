@@ -22,6 +22,8 @@ Django normalise l'identifiant, transmet la tentative à l'API de session Odoo p
 
 La reprise en lecture seule de `csrs_report` crée les comptes, employés, services, rattachements actifs, lignes hiérarchiques et délégations dans Odoo au moyen d'identifiants source stables. Les empreintes Django PBKDF2 sont acceptées transitoirement par Odoo puis converties vers le schéma Odoo après une connexion réussie; un nouvel import ne remplace jamais une empreinte déjà convertie.
 
+Pendant la coexistence, le snapshot v4 ajoute les tâches, progressions, visites, indisponibilités, brouillons et versions PDF. Seuls les objets portant un identifiant source sont mis à jour; les objets natifs Odoo ne sont pas réécrits. Le paramètre Odoo `csrs_reporting.reporting_mode=legacy_mirror` interdit les mutations de reporting côté serveur et expose cet état à React. Les PDF historiques sont importés avec vérification SHA-256 et restent immuables. Les nouveaux PDF Odoo utilisent la marque CSRS ENT avec la structure de lecture du rapport de référence.
+
 ## Correspondance initiale
 
 | Domaine `csrs_report` | Cible Odoo | Décision |

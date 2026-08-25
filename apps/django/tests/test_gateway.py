@@ -361,7 +361,7 @@ class BusinessApiTests(SimpleTestCase):
             "last_name": "Doe",
             "position": "Analyste",
             "phone": "",
-            "agenda_direction": "research",
+            "agenda_direction": "programs",
             "include_in_direction_agendas": True,
             "unit_ids": [3],
             "primary_unit_id": 3,
@@ -377,14 +377,14 @@ class BusinessApiTests(SimpleTestCase):
         call.assert_called_once_with("opaque-session", "api_user_create", [payload])
 
     @patch("gateway.api_views.OdooClient.call")
-    def test_research_agenda_generation_is_validated_then_delegated(
+    def test_programs_agenda_generation_is_validated_then_delegated(
         self, call: MagicMock
     ) -> None:
-        call.return_value = {"id": 51, "agenda_direction": "research"}
+        call.return_value = {"id": 51, "agenda_direction": "programs"}
         payload = {
             "period_start": "2026-08-17",
             "period_end": "2026-08-23",
-            "agenda_direction": "research",
+            "agenda_direction": "programs",
         }
 
         response = self.client.post(

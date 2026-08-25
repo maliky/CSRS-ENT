@@ -41,7 +41,6 @@ import styles from "./agenda.module.css";
 const agendaDirectionLabels: Record<AgendaDirection, string> = {
   programs: "Direction des programmes",
   administration: "Direction administrative",
-  research: "Direction de la recherche",
 };
 
 function localIsoDate(value: Date): string {
@@ -545,7 +544,6 @@ function SecretaryAgenda() {
                   <option value="administration">
                     Direction administrative
                   </option>
-                  <option value="research">Direction de la recherche</option>
                 </select>
               </div>
               <Button

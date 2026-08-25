@@ -167,3 +167,34 @@ test("affiche les outils d'administration uniquement avec les droits Odoo", asyn
     "/administration/organisations",
   );
 });
+
+test("signale le miroir historique et renvoie la saisie vers CSRS Report", async () => {
+  server.use(
+    http.get("/api/v1/session/", () =>
+      HttpResponse.json({
+        ...sessionFixture,
+        reporting: {
+          ...sessionFixture.reporting,
+          mode: "legacy_mirror",
+          write_enabled: false,
+          last_success_at: "2026-08-25 02:18:00",
+        },
+      }),
+    ),
+  );
+  render(
+    <MemoryRouter>
+      <Routes>
+        <Route path="/" element={<AppShell />}>
+          <Route index element={<h1>Consultation</h1>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Consultation synchronisée.")).toBeVisible();
+  expect(screen.getByRole("link", { name: "CSRS Report" })).toHaveAttribute(
+    "href",
+    "https://179.237.107.40/app/",
+  );
+});
