@@ -338,12 +338,19 @@ class CsrsMigrationTests(TransactionCase):
                 "user_ids": [(6, 0, [])],
             }
         )
+        proposal = self.env["csrs.task.proposal"].search(
+            [("csrs_source_id", "=", 9_001_008)]
+        )
+        proposal.with_context(csrs_authorized_mutation=True).write(
+            {"title": "Divergence locale"}
+        )
 
         restored = importer.import_payload(self.payload_v3(), apply=True)
         third = importer.import_payload(self.payload_v3(), apply=True)
 
         self.assertEqual(first["created"]["tasks"], 1)
         self.assertEqual(restored["updated"]["tasks"], 1)
+        self.assertEqual(restored["updated"]["task_proposals"], 1)
         self.assertEqual(
             restored["unchanged"].get("task_progress_source_conflicts", 0), 0
         )
@@ -353,11 +360,12 @@ class CsrsMigrationTests(TransactionCase):
         self.assertFalse(task.csrs_blocked)
         self.assertEqual(task.csrs_revision, 2)
         self.assertEqual(task.user_ids, source_user)
+        self.assertEqual(
+            proposal.title,
+            self.payload_v3()["task_proposals"][0]["title"],
+        )
         self.assertEqual(len(task.csrs_progress_entry_ids), 1)
         self.assertEqual(len(task.csrs_legacy_revision_ids), 3)
-        proposal = self.env["csrs.task.proposal"].search(
-            [("csrs_source_id", "=", 9_001_008)]
-        )
         self.assertEqual(
             self.env["csrs.legacy.task.revision"].search_count(
                 [("proposal_id", "=", proposal.id)]

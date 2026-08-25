@@ -1356,7 +1356,12 @@ class CsrsMigrationImporter(models.AbstractModel):
                 "revision": int(row.get("revision") or 1),
             }
             if record:
-                self._write_or_report(record, values, report, "task_proposals")
+                self._write_or_report(
+                    record.with_context(csrs_authorized_mutation=True),
+                    values,
+                    report,
+                    "task_proposals",
+                )
             else:
                 record = Proposal.with_context(csrs_authorized_mutation=True).create(values)
                 report["created"]["task_proposals"] += 1
