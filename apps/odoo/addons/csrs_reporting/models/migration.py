@@ -20,6 +20,15 @@ class CsrsMigrationImporter(models.AbstractModel):
     @api.model
     def import_payload(self, payload, apply=False, reconcile=False):
         """Validate a versioned snapshot, then optionally upsert it atomically."""
+        if apply:
+            self = self.with_context(
+                tracking_disable=True,
+                mail_notrack=True,
+                mail_create_nolog=True,
+                mail_create_nosubscribe=True,
+                mail_auto_subscribe_no_notify=True,
+                mail_notify_force_send=False,
+            )
         snapshot = self._validate_payload(payload)
         report = {
             "mode": "reconcile" if reconcile else ("apply" if apply else "dry-run"),
@@ -1245,6 +1254,14 @@ class CsrsMigrationImporter(models.AbstractModel):
         assignments = {
             row["task_source_id"]: row for row in snapshot["task_assignments"]
         }
+        progress_assignment_ids = {
+            row["assignment_source_id"] for row in snapshot["progress_entries"]
+        }
+        progress_assignment_ids.update(
+            row["assignment_source_id"]
+            for row in snapshot["progress_history"]
+            if row.get("history_type") != "-"
+        )
         tasks = {}
         imported_task_ids = set()
         for source_id, definition in definitions.items():
@@ -1278,9 +1295,10 @@ class CsrsMigrationImporter(models.AbstractModel):
                     )
                     if assignment.get("completed_at")
                     else False,
-                    "csrs_revision": int(assignment.get("revision") or 1),
                     "csrs_institutional_action_id": action.id if action else False,
                 }
+                if assignment["source_id"] not in progress_assignment_ids:
+                    values["csrs_revision"] = int(assignment.get("revision") or 1)
             else:
                 creator = users[definition["created_by_source_id"]]
                 values = {
@@ -1455,12 +1473,12 @@ class CsrsMigrationImporter(models.AbstractModel):
                     "csrs_revision": source_revision,
                 }
                 if task.id in imported_task_ids or task.csrs_task_source_id:
-                    task.with_context(
-                        csrs_authorized_mutation=True,
-                        csrs_migration_import=True,
-                    ).write(
-                        source_progress
-                    )
+                    changes = self._changes(task, source_progress)
+                    if changes:
+                        task.with_context(
+                            csrs_authorized_mutation=True,
+                            csrs_migration_import=True,
+                        ).write(changes)
                 elif self._changes(task, source_progress):
                     report["unchanged"]["task_progress_source_conflicts"] += 1
 
