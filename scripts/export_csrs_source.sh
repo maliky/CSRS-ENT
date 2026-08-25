@@ -38,7 +38,7 @@ else
   )
 fi
 
-PYTHONDONTWRITEBYTECODE=1 PYENV_VERSION=csrs python -c '
+PYTHONDONTWRITEBYTECODE=1 python3 -c '
 import json
 import pathlib
 import sys
@@ -58,4 +58,4 @@ if payload.get("version") != 4 or not required.issubset(payload):
 chmod 0600 "$TEMP_FILE"
 mv -- "$TEMP_FILE" "$OUTPUT_FILE"
 trap - EXIT
-echo "Export CSRS v3 créé avec un mode 0600; son contenu sensible n'a pas été affiché."
+echo "Export CSRS v4 créé avec un mode 0600; son contenu sensible n'a pas été affiché."
