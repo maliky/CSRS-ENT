@@ -39,7 +39,23 @@ fi
 curl --fail --silent --show-error --header "Host: ${LOCAL_HEALTH_HOST}" http://127.0.0.1:18007/healthz/ >/dev/null
 curl --fail --silent --show-error --header "Host: ${LOCAL_HEALTH_HOST}" http://127.0.0.1:18007/readyz/ >/dev/null
 
+set -a
+source "$ENV_FILE"
+set +a
+: "${ODOO_DB_NAME:?ODOO_DB_NAME absent du fichier environnement}"
+runuser -u jil -- env \
+  CSRS_E2E_APPLY=true \
+  CSRS_E2E_CONFIRM_DATABASE="$ODOO_DB_NAME" \
+  CSRS_E2E_COMPOSE_PROJECT_NAME=csrs_ent_preprod \
+  "${RELEASE_DIR}/scripts/e2e_fixtures.sh" clean e2e-financial-processes "$ENV_FILE"
+runuser -u jil -- "${RELEASE_DIR}/scripts/sync_csrs_legacy.sh" "$ENV_FILE" jil@179.237.107.40
+
 ln -sfn "$RELEASE_DIR" "${DEPLOY_ROOT}/current"
+
+install -m 0644 "${RELEASE_DIR}/infrastructure/systemd/csrs-ent-legacy-sync.service" /etc/systemd/system/csrs-ent-legacy-sync.service
+install -m 0644 "${RELEASE_DIR}/infrastructure/systemd/csrs-ent-legacy-sync.timer" /etc/systemd/system/csrs-ent-legacy-sync.timer
+systemctl daemon-reload
+systemctl enable --now csrs-ent-legacy-sync.timer
 
 find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
   | sort -nr \

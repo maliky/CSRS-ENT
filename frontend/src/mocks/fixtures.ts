@@ -16,6 +16,13 @@ export const sessionFixture: Session = {
     login_alias: "dg",
   },
   csrf_token: "csrf-local",
+  reporting: {
+    mode: "native",
+    write_enabled: true,
+    source_url: "https://179.237.107.40/app/",
+    source_extracted_at: "",
+    last_success_at: "",
+  },
   capabilities: {
     create_task: true,
     create_proposal: true,
@@ -80,6 +87,8 @@ const baseTask = {
   employee: sessionFixture.user,
   manager: sessionFixture.user,
   action: { id: 4, label: "ACT-GOUV — Renforcer le pilotage institutionnel" },
+  origin: "odoo" as const,
+  read_only: false,
 };
 
 export const dashboardFixture: Dashboard = {

@@ -8,114 +8,84 @@
     <field name="report_file">csrs_reporting.report_csrs_agenda_document</field>
     <field name="print_report_name">'Agenda CSRS ENT %s - %s v%s' % (object.period_start, object.period_end, object.version)</field>
   </record>
-
   <template id="report_csrs_agenda_document">
     <t t-call="web.html_container">
       <t t-foreach="docs" t-as="agenda">
         <t t-set="snapshot" t-value="agenda.snapshot"/>
-        <t t-call="web.external_layout">
-          <div class="page">
-            <style>
-              .csrs-agenda { color: #24332c; font-size: 10.5pt; }
-              .csrs-agenda h1 { color: #176b45; font-size: 22pt; margin: 0 0 4px; }
-              .csrs-agenda .period { color: #52615a; font-size: 12pt; margin-bottom: 14px; }
-              .csrs-agenda .meta { border-top: 1px solid #bcd1c4; border-bottom: 1px solid #bcd1c4; color: #52615a; padding: 5px 0; margin-bottom: 12px; }
-              .csrs-agenda .section-title { color: #176b45; font-size: 14pt; margin: 14px 0 7px; }
-              .csrs-agenda .summary-table { width: 100%; border-collapse: separate; border-spacing: 6px; margin: 0 -6px; table-layout: fixed; }
-              .csrs-agenda .summary-card { border: 1px solid #bcd1c4; background: #eaf4ee; padding: 9px; vertical-align: top; }
-              .csrs-agenda .summary-label { color: #176b45; font-size: 9pt; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
-              .csrs-agenda .summary-value { white-space: pre-wrap; }
-              .csrs-agenda .unit { border: 1px solid #bcd1c4; margin: 0 0 12px; page-break-inside: avoid; }
-              .csrs-agenda .unit-title { background: #176b45; color: #fff; font-size: 13pt; font-weight: 700; padding: 7px 9px; }
-              .csrs-agenda .employee-title { background: #eaf4ee; border-bottom: 1px solid #bcd1c4; color: #24332c; font-weight: 700; padding: 6px 9px; }
-              .csrs-agenda .rate { float: right; color: #176b45; }
-              .csrs-agenda table.tasks { border-collapse: collapse; width: 100%; }
-              .csrs-agenda table.tasks th { background: #f4f8f5; color: #52615a; font-size: 8.5pt; text-transform: uppercase; }
-              .csrs-agenda table.tasks th, .csrs-agenda table.tasks td { border: 1px solid #d8e5dc; padding: 5px; vertical-align: top; }
-              .csrs-agenda .muted { color: #52615a; }
-              .csrs-agenda .warning { border: 1px solid #d3a933; background: #fff7dc; padding: 8px; margin: 0 0 10px; }
-              .csrs-agenda .empty { border: 1px dashed #bcd1c4; color: #52615a; padding: 12px; text-align: center; }
-            </style>
-            <div class="csrs-agenda">
-              <h1>AGENDA — <span t-out="snapshot.get('agenda_direction_label', '').upper()"/></h1>
-              <div class="period">Du <span t-out="snapshot.get('period_start')"/> au <span t-out="snapshot.get('period_end')"/></div>
-              <div class="meta">
-                Version <span t-out="agenda.version"/> · Générée le <span t-field="agenda.generated_at"/> · CSRS ENT
-              </div>
-
-              <t t-if="snapshot.get('unclassified_users')">
-                <div class="warning">
-                  <strong>Classement à vérifier :</strong>
-                  <span t-out="', '.join(person.get('name', '') for person in snapshot.get('unclassified_users', []))"/>
+        <t t-set="display_version" t-value="agenda.csrs_source_version or agenda.version"/>
+        <t t-set="direction_title" t-value="'AGENDA DAF' if agenda.agenda_direction == 'administration' else 'AGENDA PROGRAMMES'"/>
+        <div class="page csrs-agenda">
+          <style>
+            @page { size: A4; margin: 12mm 11mm 15mm; }
+            .csrs-agenda { position: relative; color: #25352f; font-family: DejaVu Sans, sans-serif; font-size: 8.7pt; line-height: 1.35; }
+            .csrs-agenda .masthead { border-bottom: 3px solid #176b45; margin-bottom: 9px; padding-bottom: 7px; }
+            .csrs-agenda .brand { color: #176b45; font-size: 9pt; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+            .csrs-agenda h1 { color: #173b35; font-size: 19pt; margin: 2px 0 1px; }
+            .csrs-agenda .period { color: #52615a; font-size: 10.5pt; }
+            .csrs-agenda .summary { width: 100%; border-collapse: separate; border-spacing: 5px; margin: 0 -5px 8px; table-layout: fixed; }
+            .csrs-agenda .summary td { border: 1px solid #bdd3c5; border-radius: 4px; background: #eef7f1; padding: 7px; vertical-align: top; }
+            .csrs-agenda .summary strong { display: block; color: #176b45; font-size: 7.4pt; letter-spacing: .5px; margin-bottom: 3px; text-transform: uppercase; }
+            .csrs-agenda .warning { border-left: 4px solid #c8992f; background: #fff6d9; margin-bottom: 8px; padding: 6px 8px; }
+            .csrs-agenda h2 { color: #176b45; font-size: 11.5pt; margin: 9px 0 5px; }
+            .csrs-agenda .units { font-size: 0; margin: 0 -4px; }
+            .csrs-agenda .unit-wrap { box-sizing: border-box; display: inline-block; padding: 0 4px 8px; vertical-align: top; width: 50%; }
+            .csrs-agenda .unit { border: 1px solid #bdd3c5; border-radius: 4px; font-size: 8.2pt; overflow: hidden; page-break-inside: avoid; }
+            .csrs-agenda .unit-title { background: #176b45; color: white; font-size: 9.2pt; font-weight: 700; padding: 5px 7px; }
+            .csrs-agenda .employee { border-top: 1px solid #dce8df; padding: 5px 7px; }
+            .csrs-agenda .employee:first-child { border-top: 0; }
+            .csrs-agenda .employee-head { color: #173b35; font-weight: 700; margin-bottom: 3px; }
+            .csrs-agenda .rate { color: #176b45; float: right; }
+            .csrs-agenda ul { margin: 2px 0 0 13px; padding: 0; }
+            .csrs-agenda li { margin-bottom: 2px; }
+            .csrs-agenda .task-meta { color: #52615a; font-size: 7.4pt; }
+            .csrs-agenda .empty { border: 1px dashed #bdd3c5; color: #52615a; padding: 12px; text-align: center; }
+            .csrs-agenda .footer { bottom: -10mm; color: #68766f; font-size: 7pt; left: 0; position: fixed; right: 0; text-align: center; }
+          </style>
+          <header class="masthead">
+            <div class="brand">CSRS ENT · Centre Suisse de Recherches Scientifiques</div>
+            <h1 t-out="direction_title"/>
+            <div class="period">Du <span t-out="agenda.period_start.strftime('%d/%m/%Y')"/> au <span t-out="agenda.period_end.strftime('%d/%m/%Y')"/></div>
+          </header>
+          <t t-if="snapshot.get('unclassified_users')">
+            <div class="warning"><strong>Classement à vérifier :</strong> <span t-out="', '.join(person.get('name', '') for person in snapshot.get('unclassified_users', []))"/></div>
+          </t>
+          <table class="summary">
+            <tr>
+              <td><strong>Événements majeurs</strong><span t-out="snapshot.get('major_events') or 'RAS'"/></td>
+              <td>
+                <strong>Arrivées</strong>
+                <t t-if="snapshot.get('arrivals')"><div t-foreach="snapshot.get('arrivals', [])" t-as="visit"><span t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/></div></t>
+                <span t-else="">Aucune arrivée</span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Départs</strong>
+                <t t-if="snapshot.get('departures')"><div t-foreach="snapshot.get('departures', [])" t-as="visit"><span t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/></div></t>
+                <span t-else="">Aucun départ</span>
+              </td>
+              <td>
+                <strong>Congés, absences et missions</strong>
+                <t t-if="snapshot.get('availability')"><div t-foreach="snapshot.get('availability', [])" t-as="item"><span t-out="item.get('employee', {}).get('name')"/> : <span t-out="item.get('kind_label')"/><span t-if="item.get('note')"> · <span t-out="item.get('note')"/></span></div></t>
+                <span t-else="">Aucune indisponibilité</span>
+              </td>
+            </tr>
+          </table>
+          <h2>Activité par unité</h2>
+          <div class="units" t-if="snapshot.get('units')">
+            <div class="unit-wrap" t-foreach="snapshot.get('units', [])" t-as="unit">
+              <section class="unit">
+                <div class="unit-title"><span t-if="unit.get('code')"><span t-out="unit.get('code')"/> · </span><span t-out="unit.get('name')"/></div>
+                <div class="employee" t-foreach="unit.get('employees', [])" t-as="employee">
+                  <div class="employee-head"><span t-out="employee.get('person', {}).get('name')"/><span class="rate"><span t-out="'%.0f' % employee.get('completion_rate', 0)"/> %</span></div>
+                  <ul><li t-foreach="employee.get('tasks', [])" t-as="task"><span t-out="task.get('title')"/><span class="task-meta"> · <span t-out="task.get('status_label')"/> · <span t-out="task.get('percentage')"/> %<span t-if="task.get('observation')"> · <span t-out="task.get('observation')"/></span></span></li></ul>
                 </div>
-              </t>
-
-              <table class="summary-table">
-                <tr>
-                  <td class="summary-card">
-                    <div class="summary-label">Événements majeurs</div>
-                    <div class="summary-value" t-out="snapshot.get('major_events') or 'RAS'"/>
-                  </td>
-                  <td class="summary-card">
-                    <div class="summary-label">Arrivées (<span t-out="len(snapshot.get('arrivals', []))"/>)</div>
-                    <t t-if="snapshot.get('arrivals')">
-                      <div t-foreach="snapshot.get('arrivals', [])" t-as="visit">
-                        <span t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/>
-                        <span class="muted"> — <span t-out="visit.get('arrived_at')"/></span>
-                      </div>
-                    </t>
-                    <span t-else="" class="muted">Aucune arrivée</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="summary-card">
-                    <div class="summary-label">Départs (<span t-out="len(snapshot.get('departures', []))"/>)</div>
-                    <t t-if="snapshot.get('departures')">
-                      <div t-foreach="snapshot.get('departures', [])" t-as="visit">
-                        <span t-out="', '.join(visit.get('visitor_names') or []) or str(visit.get('party_size', 1)) + ' visiteur(s)'"/>
-                        <span class="muted"> — <span t-out="visit.get('departed_at')"/></span>
-                      </div>
-                    </t>
-                    <span t-else="" class="muted">Aucun départ</span>
-                  </td>
-                  <td class="summary-card">
-                    <div class="summary-label">Congés, absences et missions (<span t-out="len(snapshot.get('availability', []))"/>)</div>
-                    <t t-if="snapshot.get('availability')">
-                      <div t-foreach="snapshot.get('availability', [])" t-as="item">
-                        <strong t-out="item.get('employee', {}).get('name')"/> — <span t-out="item.get('kind_label')"/>
-                        <span class="muted"> (<span t-out="item.get('start_date')"/> – <span t-out="item.get('end_date')"/>)</span>
-                        <span t-if="item.get('note')"> : <span t-out="item.get('note')"/></span>
-                      </div>
-                    </t>
-                    <span t-else="" class="muted">Aucune indisponibilité</span>
-                  </td>
-                </tr>
-              </table>
-
-              <h2 class="section-title">Activité par unité</h2>
-              <t t-foreach="snapshot.get('units', [])" t-as="unit">
-                <div class="unit">
-                  <div class="unit-title"><span t-if="unit.get('code')"><span t-out="unit.get('code')"/> — </span><span t-out="unit.get('name')"/></div>
-                  <t t-foreach="unit.get('employees', [])" t-as="employee">
-                    <div class="employee-title">
-                      <span t-out="employee.get('person', {}).get('name')"/>
-                      <span class="rate"><span t-out="'%.1f' % employee.get('completion_rate', 0)"/> %</span>
-                    </div>
-                    <table class="tasks">
-                      <thead><tr><th style="width: 34%">Tâche</th><th style="width: 14%">État</th><th style="width: 12%">Progression</th><th style="width: 12%">Évolution</th><th>Observation</th></tr></thead>
-                      <tbody>
-                        <t t-foreach="employee.get('tasks', [])" t-as="task">
-                          <tr><td t-out="task.get('title')"/><td t-out="task.get('status_label')"/><td><span t-out="task.get('percentage')"/> %</td><td><span t-if="task.get('progress_delta', 0) &gt;= 0">+</span><span t-out="task.get('progress_delta')"/> pts</td><td t-out="task.get('observation') or '—'"/></tr>
-                        </t>
-                      </tbody>
-                    </table>
-                  </t>
-                </div>
-              </t>
-              <div t-if="not snapshot.get('units')" class="empty">Aucune tâche CSRS ENT sur cette période.</div>
+              </section>
             </div>
           </div>
-        </t>
+          <div t-else="" class="empty">Aucune tâche sur cette période.</div>
+          <footer class="footer">CSRS ENT · Version <span t-out="display_version"/> · Générée le <span t-out="agenda.generated_at.strftime('%d/%m/%Y à %H:%M')"/> · Page <span class="page"/> / <span class="topage"/></footer>
+        </div>
       </t>
     </t>
   </template>

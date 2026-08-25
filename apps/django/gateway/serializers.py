@@ -118,7 +118,7 @@ class UserWriteSerializer(serializers.Serializer[dict[str, object]]):
     position = serializers.CharField(max_length=160, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
     agenda_direction = serializers.ChoiceField(
-        choices=("", "programs", "administration", "research"),
+        choices=("", "programs", "administration"),
         required=False,
         allow_blank=True,
     )
@@ -357,7 +357,7 @@ class AgendaDraftSerializer(AgendaPeriodSerializer):
 
 class AgendaGenerateSerializer(AgendaPeriodSerializer):
     agenda_direction = serializers.ChoiceField(
-        choices=("programs", "administration", "research")
+        choices=("programs", "administration")
     )
 
 

@@ -375,7 +375,7 @@ class CsrsE2EFixture(models.AbstractModel):
                         if manual
                         else f"Fonction de recette {role}"
                     ),
-                    "csrs_agenda_direction": "research"
+                    "csrs_agenda_direction": "programs"
                     if role in {"agent", "data"}
                     else "administration",
                 },

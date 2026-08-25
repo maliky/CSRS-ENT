@@ -314,6 +314,10 @@ Seul l'employé modifie son propre profil. Sélectionner =Modifier mon profil=, 
 :CUSTOM_ID: proc-absence
 :END:
 
+Pendant la période de coexistence, les absences restent saisies dans =CSRS Report= à l'adresse =https://179.237.107.40/app/=. CSRS ENT les affiche après la synchronisation quotidienne mais refuse toute modification afin d'éviter deux versions concurrentes.
+
+Dans =CSRS Report= :
+
 1. Le compte RH ouvre =Absences et missions=.
 2. Choisir la semaine avec le sélecteur de date.
 3. Choisir l'agent, la nature, le début, la fin et l'observation facultative.
@@ -335,18 +339,18 @@ En cas d'échec d'annulation, la ligne reste visible et un message explique que 
 :CUSTOM_ID: proc-visiteurs
 :END:
 
-Le secrétariat ouvre =Agenda=. Dans =Visiteurs=, saisir le nombre de personnes et, si disponible, les noms, puis enregistrer l'arrivée. Vérifier la visite dans la liste en cours. Au départ, sélectionner l'action correspondante; l'arrivée et le départ alimentent l'aperçu de la période.
+Le secrétariat ouvre =Agenda= dans =CSRS Report=. Dans =Visiteurs=, saisir le nombre de personnes et, si disponible, les noms, puis enregistrer l'arrivée. Vérifier la visite dans la liste en cours. Au départ, sélectionner l'action correspondante; l'arrivée et le départ alimentent l'aperçu de la période. Dans CSRS ENT, ces données sont consultables après synchronisation et ne sont pas modifiables.
 
 ** Préparer le brouillon et choisir la période
 :PROPERTIES:
 :CUSTOM_ID: proc-agenda
 :END:
 
-1. Ouvrir =Agenda= avec le compte secrétariat.
+1. Ouvrir =Agenda= dans =CSRS Report= avec le compte secrétariat.
 2. Sélectionner le bouton de période. Choisir d'abord la date de début, puis la date de fin dans le calendrier unique.
 3. Utiliser =Appliquer= seulement lorsque la plage est correcte. =Annuler= ferme le panneau sans changer l'agenda. =Semaine prochaine= applique directement le lundi au dimanche proposés.
 4. Saisir les événements majeurs ou =RAS=.
-5. Choisir =Direction des programmes=, =Direction administrative= ou =Direction de la recherche=.
+5. Choisir =Direction des programmes= ou =Direction administrative=. Ce sont les deux seules directions de publication courantes.
 6. Contrôler les arrivées, départs, indisponibilités, services, tâches, pourcentages et observations.
 7. Traiter l'avertissement =Personnes non classées= avec l'administration IT; leurs tâches apparaissent dans tous les agendas jusqu'au classement.
 8. Sélectionner =Enregistrer le brouillon= pour conserver la préparation commune.
@@ -372,13 +376,30 @@ Pendant un changement de période, le dernier agenda reste affiché. Si le charg
 :CUSTOM_ID: proc-agenda-pdf
 :END:
 
-1. Enregistrer le brouillon et choisir la direction attendue.
+La génération se fait dans =CSRS Report= tant que le bandeau =Consultation synchronisée= est visible dans CSRS ENT.
+
+1. Enregistrer le brouillon et choisir la direction attendue dans =CSRS Report=.
 2. Sélectionner =Générer le PDF=.
 3. Attendre le message confirmant que la version est archivée.
 4. Changer de direction et recommencer pour produire un autre support; chaque direction possède ses propres versions.
 5. Dans les versions archivées, contrôler la période, la direction et le numéro puis ouvrir le PDF.
 
 Chaque génération crée une version figée. Une correction ultérieure produit une nouvelle version sans remplacer les archives. La DG consulte et réimprime les versions en lecture seule; elle demande au secrétariat une nouvelle génération lorsqu'une correction est nécessaire.
+
+** Contrôler la synchronisation temporaire
+:PROPERTIES:
+:CUSTOM_ID: proc-agenda-synchronisation
+:END:
+
+CSRS ENT affiche un bandeau jaune lorsque la source de saisie reste =CSRS Report=. Le bandeau donne la date de la dernière synchronisation réussie et un lien direct vers la source. Les tâches, visites, indisponibilités, brouillons et PDF historiques sont recopiés chaque jour. Une donnée saisie après le dernier passage peut donc être absente jusqu'au passage suivant.
+
+Pour un besoin urgent, l'exploitant lance depuis la version déployée :
+
+#+begin_src sh
+./scripts/sync_csrs_legacy.sh /srv/apps/csrs-ent-preprod/config/.env jil@179.237.107.40
+#+end_src
+
+La commande effectue d'abord une simulation complète. Elle n'applique la réconciliation que si les références, tailles et empreintes SHA-256 sont valides. En cas d'échec, conserver CSRS ENT en consultation, corriger la source ou l'accès distant, puis relancer; ne pas saisir la même donnée dans les deux applications.
 
 #+CAPTION: Versions PDF archivées accessibles au secrétariat et à la Direction générale.
 #+ATTR_HTML: :alt "Liste des versions archivées des agendas" :width "100%"

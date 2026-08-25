@@ -40,7 +40,7 @@ class CsrsE2EFixtureTests(TransactionCase):
             {
                 "period_start": draft.period_start.isoformat(),
                 "period_end": draft.period_end.isoformat(),
-                "agenda_direction": "research",
+                "agenda_direction": "programs",
             }
         )
         generated_status = fixture._execute("status", dataset)

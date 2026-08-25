@@ -206,6 +206,24 @@
   display: flex;
   flex-direction: column;
 }
+.mirrorBanner {
+  width: min(calc(100% - 2rem), var(--content-width));
+  margin: 1rem auto -1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #c8992f;
+  border-left: 5px solid #c8992f;
+  border-radius: var(--radius-sm);
+  color: #443515;
+  background: #fff6d9;
+}
+.mirrorBanner a {
+  color: #173b35;
+  font-weight: 800;
+}
+.mirrorBanner small {
+  display: block;
+  margin-top: 0.35rem;
+}
 .main,
 .loadingMain {
   width: min(calc(100% - 2rem), var(--content-width));
