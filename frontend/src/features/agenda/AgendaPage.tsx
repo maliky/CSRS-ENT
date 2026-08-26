@@ -40,7 +40,7 @@ import styles from "./agenda.module.css";
 
 const agendaDirectionLabels: Record<AgendaDirection, string> = {
   programs: "Direction des programmes",
-  administration: "Direction administrative",
+  administration: "Agenda DAF",
 };
 
 function localIsoDate(value: Date): string {

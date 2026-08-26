@@ -36,6 +36,7 @@ class CsrsMigrationImporter(models.AbstractModel):
             "created": defaultdict(int),
             "updated": defaultdict(int),
             "unchanged": defaultdict(int),
+            "deleted": defaultdict(int),
         }
         report.update(
             {
@@ -44,10 +45,13 @@ class CsrsMigrationImporter(models.AbstractModel):
                 if isinstance(rows, list)
             }
         )
+        if snapshot["version"] >= 4:
+            report["target_only_reporting"] = self._native_reporting_counts()
         if not apply:
             report["created"] = {}
             report["updated"] = {}
             report["unchanged"] = {}
+            report["deleted"] = {}
             return report
 
         if reconcile:
@@ -97,9 +101,11 @@ class CsrsMigrationImporter(models.AbstractModel):
             )
             del plans, action_plans
         if snapshot["version"] >= 4:
+            if reconcile:
+                self._reset_native_reporting_records(report)
             self._upsert_legacy_reporting(snapshot, users, employees, report)
             parameters = self.env["ir.config_parameter"].sudo()
-            parameters.set_param("csrs_reporting.reporting_mode", "legacy_mirror")
+            parameters.set_param("csrs_reporting.reporting_mode", "preprod_refresh")
             parameters.set_param(
                 "csrs_reporting.legacy_source_extracted_at",
                 snapshot["extracted_at"],
@@ -112,7 +118,71 @@ class CsrsMigrationImporter(models.AbstractModel):
         report["created"] = dict(report["created"])
         report["updated"] = dict(report["updated"])
         report["unchanged"] = dict(report["unchanged"])
+        report["deleted"] = dict(report["deleted"])
         return report
+
+    def _native_reporting_counts(self):
+        return {
+            "visitor_visits": self.env["csrs.visitor.visit"].sudo().search_count(
+                [("csrs_source_id", "=", False)]
+            ),
+            "staff_availability": self.env["hr.leave"].sudo().search_count(
+                [("csrs_managed", "=", True), ("csrs_source_id", "=", False)]
+            ),
+            "agenda_drafts": self.env["csrs.agenda.draft"].sudo().search_count(
+                [("csrs_source_id", "=", False)]
+            ),
+            "agenda_versions": self.env["csrs.agenda.version"].sudo().search_count(
+                [("csrs_source_id", "=", False)]
+            ),
+        }
+
+    def _reset_native_reporting_records(self, report):
+        """Reset only preproduction Agenda data absent from the Report snapshot."""
+        migration_context = {
+            "csrs_migration_import": True,
+            "csrs_authorized_mutation": True,
+        }
+        Version = self.env["csrs.agenda.version"].sudo()
+        versions = Version.search([("csrs_source_id", "=", False)])
+        attachments = versions.pdf_attachment_id
+        if versions:
+            count = len(versions)
+            versions.with_context(**migration_context).unlink()
+            report["deleted"]["agenda_versions"] += count
+        if attachments:
+            attachments.unlink()
+
+        Draft = self.env["csrs.agenda.draft"].sudo()
+        drafts = Draft.search([("csrs_source_id", "=", False)])
+        if drafts:
+            count = len(drafts)
+            drafts.with_context(**migration_context).unlink()
+            report["deleted"]["agenda_drafts"] += count
+
+        Visit = self.env["csrs.visitor.visit"].sudo()
+        visits = Visit.search([("csrs_source_id", "=", False)])
+        if visits:
+            count = len(visits)
+            visits.with_context(**migration_context).unlink()
+            report["deleted"]["visitor_visits"] += count
+
+        Leave = self.env["hr.leave"].sudo().with_context(active_test=False)
+        leaves = Leave.search(
+            [("csrs_managed", "=", True), ("csrs_source_id", "=", False)]
+        )
+        for leave in leaves:
+            leave.with_context(**migration_context).write(
+                {
+                    "csrs_cancelled_at": fields.Datetime.now(),
+                    "csrs_cancellation_reason": (
+                        "Réinitialisation quotidienne depuis CSRS Report."
+                    ),
+                    "csrs_revision": leave.csrs_revision + 1,
+                }
+            )
+        if leaves:
+            report["deleted"]["staff_availability"] += len(leaves)
 
     @staticmethod
     def _changes(record, values):
@@ -418,7 +488,9 @@ class CsrsMigrationImporter(models.AbstractModel):
         for row in snapshot["task_assignments"]:
             task_id = self._reference(row, "task_source_id", task_ids)
             if task_id in seen_task_assignments:
-                raise ValidationError(_("Une tâche source possède plusieurs affectations."))
+                raise ValidationError(
+                    _("Une tâche source possède plusieurs affectations.")
+                )
             seen_task_assignments.add(task_id)
             self._reference(row, "employee_source_id", user_ids)
             self._reference(row, "manager_source_id", user_ids)
@@ -542,7 +614,9 @@ class CsrsMigrationImporter(models.AbstractModel):
             department = Department.search([("csrs_source_id", "=", source_id)], limit=1)
             by_code = Department.search([("csrs_code", "=ilike", row["code"])], limit=1)
             if department and by_code and department != by_code:
-                raise ValidationError(_("Collision entre identifiant et code de service."))
+                raise ValidationError(
+                    _("Collision entre identifiant et code de service.")
+                )
             department = department or by_code
             values = {
                 "name": row["name"],
@@ -666,7 +740,9 @@ class CsrsMigrationImporter(models.AbstractModel):
             }
             if user:
                 if user.csrs_source_id and user.csrs_source_id != source_id:
-                    raise ValidationError(_("Un compte Odoo appartient à une autre source."))
+                    raise ValidationError(
+                        _("Un compte Odoo appartient à une autre source.")
+                    )
                 self._write_or_report(user, values, report, "users")
             else:
                 values["group_ids"] = [
@@ -929,7 +1005,9 @@ class CsrsMigrationImporter(models.AbstractModel):
             [administrator.id, ids],
         )
         self.env.cr.execute(
-            "DELETE FROM csrs_role_grant WHERE user_id = ANY(%s) OR granted_by_id = ANY(%s) OR revoked_by_id = ANY(%s)",
+            "DELETE FROM csrs_role_grant "
+            "WHERE user_id = ANY(%s) OR granted_by_id = ANY(%s) "
+            "OR revoked_by_id = ANY(%s)",
             [ids, ids, ids],
         )
         self.env["csrs.reporting.line"].sudo().with_context(active_test=False).search(
@@ -1166,7 +1244,9 @@ class CsrsMigrationImporter(models.AbstractModel):
         )
         strategic = {}
         for row in snapshot["strategic_plans"]:
-            record = Strategic.search([("csrs_source_id", "=", row["source_id"])], limit=1)
+            record = Strategic.search(
+                [("csrs_source_id", "=", row["source_id"])], limit=1
+            )
             values = {
                 "csrs_source_id": row["source_id"],
                 "name": row["name"],
@@ -1437,7 +1517,9 @@ class CsrsMigrationImporter(models.AbstractModel):
                     "task_proposals",
                 )
             else:
-                record = Proposal.with_context(csrs_authorized_mutation=True).create(values)
+                record = Proposal.with_context(
+                    csrs_authorized_mutation=True
+                ).create(values)
                 report["created"]["task_proposals"] += 1
             proposals[row["source_id"]] = record
         return proposals

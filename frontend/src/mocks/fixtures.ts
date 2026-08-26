@@ -19,6 +19,8 @@ export const sessionFixture: Session = {
   reporting: {
     mode: "native",
     write_enabled: true,
+    authoritative_refresh: false,
+    refresh_at: "",
     source_url: "https://179.237.107.40/app/",
     source_extracted_at: "",
     last_success_at: "",

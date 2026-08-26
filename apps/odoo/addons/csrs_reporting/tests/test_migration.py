@@ -2,7 +2,7 @@ from passlib.hash import django_pbkdf2_sha256
 
 from odoo import fields
 from odoo.tests.common import TransactionCase, tagged
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import ValidationError
 
 
 @tagged("post_install", "-at_install")
@@ -879,6 +879,21 @@ class CsrsMigrationTests(TransactionCase):
         importer = self.env["csrs.migration.importer"]
         importer.import_payload(payload, apply=False)
         importer.import_payload(payload, apply=True, reconcile=True)
+        local_visit = self.env["csrs.visitor.visit"].create(
+            {
+                "party_size": 1,
+                "visitor_names": ["Essai préproduction"],
+                "arrived_at": "2026-08-25 09:00:00",
+            }
+        )
+        local_draft = self.env["csrs.agenda.draft"].create(
+            {
+                "period_start": "2026-09-07",
+                "period_end": "2026-09-13",
+                "major_events": "Essai local",
+                "updated_by_id": self.env.user.id,
+            }
+        )
         second = importer.import_payload(payload, apply=True, reconcile=True)
 
         version = self.env["csrs.agenda.version"].search(
@@ -887,10 +902,13 @@ class CsrsMigrationTests(TransactionCase):
         self.assertEqual(len(version), 1)
         self.assertEqual(version.pdf_attachment_id.raw, pdf)
         self.assertEqual(second["unchanged"]["agenda_versions"], 1)
+        self.assertFalse(local_visit.exists())
+        self.assertFalse(local_draft.exists())
+        self.assertEqual(second["deleted"]["visitor_visits"], 1)
+        self.assertEqual(second["deleted"]["agenda_drafts"], 1)
         session = self.env["csrs.api"].with_user(
             self.env["res.users"].search([("csrs_source_id", "=", 9_000_101)])
         ).api_session()
-        self.assertEqual(session["reporting"]["mode"], "legacy_mirror")
-        self.assertFalse(session["reporting"]["write_enabled"])
-        with self.assertRaises(AccessError):
-            self.env["csrs.api"].api_task_create({})
+        self.assertEqual(session["reporting"]["mode"], "preprod_refresh")
+        self.assertTrue(session["reporting"]["write_enabled"])
+        self.assertTrue(session["reporting"]["authoritative_refresh"])

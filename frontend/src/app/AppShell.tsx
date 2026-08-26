@@ -423,6 +423,20 @@ export function AppShell() {
             )}
           </div>
         )}
+        {session.reporting.authoritative_refresh && (
+          <div className={styles.mirrorBanner} role="status">
+            <strong>Préproduction actualisée chaque nuit.</strong> Les données
+            provenant de CSRS Report remplacent les essais correspondants à{" "}
+            {session.reporting.refresh_at}. Les projets et procédures propres à
+            CSRS ENT ne sont pas concernés.
+            {session.reporting.last_success_at && (
+              <small>
+                Dernière synchronisation réussie :{" "}
+                {session.reporting.last_success_at.replace("T", " ")}.
+              </small>
+            )}
+          </div>
+        )}
         <main id="contenu" className={styles.main} tabIndex={-1}>
           <Outlet context={session} />
         </main>

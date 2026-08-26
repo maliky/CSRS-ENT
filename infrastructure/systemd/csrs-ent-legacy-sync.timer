@@ -2,9 +2,8 @@
 Description=Planification de la synchronisation CSRS Report vers CSRS ENT
 
 [Timer]
-OnCalendar=*-*-* 02:15:00 UTC
+OnCalendar=*-*-* 02:35:00 UTC
 Persistent=true
-RandomizedDelaySec=10m
 Unit=csrs-ent-legacy-sync.service
 
 [Install]

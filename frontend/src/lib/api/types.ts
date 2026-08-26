@@ -90,8 +90,10 @@ export type Session = {
   user: Person;
   csrf_token: string;
   reporting: {
-    mode: "native" | "legacy_mirror";
+    mode: "native" | "legacy_mirror" | "preprod_refresh";
     write_enabled: boolean;
+    authoritative_refresh: boolean;
+    refresh_at: string;
     source_url: string;
     source_extracted_at: string;
     last_success_at: string;

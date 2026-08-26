@@ -267,3 +267,34 @@ test("signale le miroir historique et renvoie la saisie vers CSRS Report", async
     "https://179.237.107.40/app/",
   );
 });
+
+test("annonce le rafraîchissement autoritaire de la préproduction", async () => {
+  server.use(
+    http.get("/api/v1/session/", () =>
+      HttpResponse.json({
+        ...sessionFixture,
+        reporting: {
+          ...sessionFixture.reporting,
+          mode: "preprod_refresh",
+          write_enabled: true,
+          authoritative_refresh: true,
+          refresh_at: "02:35 UTC",
+        },
+      }),
+    ),
+  );
+  render(
+    <MemoryRouter>
+      <Routes>
+        <Route path="/" element={<AppShell />}>
+          <Route index element={<h1>Accueil</h1>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(
+    await screen.findByText("Préproduction actualisée chaque nuit."),
+  ).toBeVisible();
+  expect(screen.getByText(/02:35 UTC/)).toBeVisible();
+});
