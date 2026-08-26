@@ -611,9 +611,9 @@ function SecretaryAgenda() {
             Les rubriques de contexte seront tout de même présentes dans le PDF.
           </EmptyState>
         ) : (
-          <div className={styles.unitGrid}>
+          <div className={styles.unitGrid} data-testid="agenda-unit-grid">
             {snapshot.units.map((unit) => (
-              <Card key={unit.id}>
+              <Card className={styles.unitCard} key={unit.id}>
                 <h3>{unit.name}</h3>
                 {unit.employees.map((employee) => (
                   <div className={styles.employee} key={employee.person.id}>

@@ -8,6 +8,8 @@ import json
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .agenda_pdf import render_agenda_pdf
+
 
 AGENDA_DIRECTIONS = [
     ("programs", "Direction des programmes"),
@@ -278,10 +280,11 @@ class CsrsAgendaVersion(models.Model):
                 "generated_by_id": self.env.user.id,
             }
         )
-        pdf, output_format = self.env["ir.actions.report"].sudo()._render_qweb_pdf(
-            "csrs_reporting.report_csrs_agenda", res_ids=version.ids
+        pdf = render_agenda_pdf(
+            snapshot,
+            generated_at=version.generated_at,
+            version=version.version,
         )
-        del output_format
         attachment = self.env["ir.attachment"].sudo().create(
             {
                 "name": (

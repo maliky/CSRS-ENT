@@ -22,6 +22,34 @@ test("le compte secrétariat du jeu accède à la préparation des agendas", asy
   ).toBeEnabled();
 });
 
+test("les cartes d'unité coulent sans alignement de ligne imposé", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.CSRS_E2E_MUTATIONS !== "true",
+    "Le scénario attend un jeu de données E2E préparé.",
+  );
+  await authenticateFixtureRole(page, "secretariat");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/app/agenda");
+
+  const grid = page.getByTestId("agenda-unit-grid");
+  await expect(grid).toBeVisible();
+  expect(
+    await grid.evaluate((node) => getComputedStyle(node).columnCount),
+  ).toBe("2");
+  const cards = grid.locator(":scope > *");
+  expect(await cards.count()).toBeGreaterThan(1);
+  expect(
+    await cards.first().evaluate((node) => getComputedStyle(node).breakInside),
+  ).toBe("avoid");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await grid.evaluate((node) => getComputedStyle(node).columnCount),
+  ).toBe("1");
+});
+
 test("le secrétariat génère les agendas administration et programmes", async ({
   page,
 }) => {
