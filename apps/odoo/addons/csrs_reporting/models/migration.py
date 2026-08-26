@@ -145,14 +145,10 @@ class CsrsMigrationImporter(models.AbstractModel):
         }
         Version = self.env["csrs.agenda.version"].sudo()
         versions = Version.search([("csrs_source_id", "=", False)])
-        attachments = versions.pdf_attachment_id
         if versions:
             count = len(versions)
             versions.with_context(**migration_context).unlink()
             report["deleted"]["agenda_versions"] += count
-        if attachments:
-            attachments.unlink()
-
         Draft = self.env["csrs.agenda.draft"].sudo()
         drafts = Draft.search([("csrs_source_id", "=", False)])
         if drafts:
