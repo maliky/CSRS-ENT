@@ -894,6 +894,33 @@ class CsrsMigrationTests(TransactionCase):
                 "updated_by_id": self.env.user.id,
             }
         )
+        imported_version = self.env["csrs.agenda.version"].search(
+            [("csrs_source_id", "=", 9_100_004)]
+        )
+        local_attachment = self.env["ir.attachment"].create(
+            {
+                "name": "agenda-preprod-local.pdf",
+                "type": "binary",
+                "raw": b"%PDF-1.4\nAgenda preprod local\n",
+                "mimetype": "application/pdf",
+            }
+        )
+        local_version = imported_version.with_context(
+            csrs_migration_import=True
+        ).copy(
+            {
+                "csrs_source_id": False,
+                "version": 99,
+                "pdf_attachment_id": local_attachment.id,
+            }
+        )
+        local_attachment.write(
+            {
+                "res_model": "csrs.agenda.version",
+                "res_id": local_version.id,
+            }
+        )
+        local_attachment_id = local_attachment.id
         second = importer.import_payload(payload, apply=True, reconcile=True)
 
         version = self.env["csrs.agenda.version"].search(
@@ -904,8 +931,13 @@ class CsrsMigrationTests(TransactionCase):
         self.assertEqual(second["unchanged"]["agenda_versions"], 1)
         self.assertFalse(local_visit.exists())
         self.assertFalse(local_draft.exists())
+        self.assertFalse(local_version.exists())
+        self.assertFalse(
+            self.env["ir.attachment"].browse(local_attachment_id).exists()
+        )
         self.assertEqual(second["deleted"]["visitor_visits"], 1)
         self.assertEqual(second["deleted"]["agenda_drafts"], 1)
+        self.assertEqual(second["deleted"]["agenda_versions"], 1)
         session = self.env["csrs.api"].with_user(
             self.env["res.users"].search([("csrs_source_id", "=", 9_000_101)])
         ).api_session()
