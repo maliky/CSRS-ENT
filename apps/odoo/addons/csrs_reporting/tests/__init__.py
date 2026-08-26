@@ -1,6 +1,7 @@
 from . import test_migration
 from . import test_permissions
 from . import test_reporting
+from . import test_agenda_pdf
 from . import test_processes
 from . import test_research_projects
 from . import test_e2e_fixtures
