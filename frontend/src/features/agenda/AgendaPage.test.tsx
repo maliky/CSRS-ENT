@@ -202,7 +202,7 @@ test("enregistre le brouillon avant de générer une version PDF", async () => {
 
   expect(
     await screen.findByText(
-      "La nouvelle version PDF « Direction administrative » est archivée et prête à imprimer.",
+      "La nouvelle version PDF « Agenda DAF » est archivée et prête à imprimer.",
     ),
   ).toBeInTheDocument();
   expect(draftRevision).toBe(0);

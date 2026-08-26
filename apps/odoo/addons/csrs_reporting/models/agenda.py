@@ -11,7 +11,7 @@ from odoo.exceptions import UserError, ValidationError
 
 AGENDA_DIRECTIONS = [
     ("programs", "Direction des programmes"),
-    ("administration", "Direction administrative"),
+    ("administration", "Agenda DAF"),
     ("legacy", "Agenda global historique"),
 ]
 
@@ -56,7 +56,9 @@ class HrLeave(models.Model):
     def _check_csrs_kind(self):
         for leave in self:
             if leave.csrs_managed and not leave.csrs_kind:
-                raise ValidationError(_("La nature de l'indisponibilité est obligatoire."))
+                raise ValidationError(
+                    _("La nature de l'indisponibilité est obligatoire.")
+                )
 
     def action_csrs_cancel(self, reason, expected_revision=None):
         self.ensure_one()
@@ -119,7 +121,9 @@ class CsrsVisitorVisit(models.Model):
             if visit.party_size <= 0:
                 raise ValidationError(_("Le nombre de visiteurs doit être positif."))
             names = visit.visitor_names or []
-            if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+            if not isinstance(names, list) or any(
+                not isinstance(name, str) for name in names
+            ):
                 raise ValidationError(_("La liste des visiteurs est invalide."))
 
     def action_departure(self, expected_revision=None):
@@ -142,6 +146,8 @@ class CsrsVisitorVisit(models.Model):
         return super().write(values)
 
     def unlink(self):
+        if self.env.context.get("csrs_migration_import"):
+            return super().unlink()
         raise UserError(_("Une visite auditée ne peut pas être supprimée."))
 
 
@@ -173,7 +179,9 @@ class CsrsAgendaDraft(models.Model):
             if draft.period_end < draft.period_start:
                 raise ValidationError(_("La fin doit suivre le début de la période."))
             if (draft.period_end - draft.period_start).days > 30:
-                raise ValidationError(_("La période ne peut pas dépasser 31 jours inclusifs."))
+                raise ValidationError(
+                    _("La période ne peut pas dépasser 31 jours inclusifs.")
+                )
 
     def action_update(self, major_events, expected_revision=None):
         self.ensure_one()
@@ -194,6 +202,8 @@ class CsrsAgendaDraft(models.Model):
         return super().write(values)
 
     def unlink(self):
+        if self.env.context.get("csrs_migration_import"):
+            return super().unlink()
         raise UserError(_("Un brouillon d'agenda ne peut pas être supprimé."))
 
 
@@ -303,4 +313,6 @@ class CsrsAgendaVersion(models.Model):
         return super().write(values)
 
     def unlink(self):
+        if self.env.context.get("csrs_migration_import"):
+            return super().unlink()
         raise UserError(_("Une version d'agenda est immuable."))

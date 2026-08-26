@@ -339,18 +339,18 @@ En cas d'échec d'annulation, la ligne reste visible et un message explique que 
 :CUSTOM_ID: proc-visiteurs
 :END:
 
-Le secrétariat ouvre =Agenda= dans =CSRS Report=. Dans =Visiteurs=, saisir le nombre de personnes et, si disponible, les noms, puis enregistrer l'arrivée. Vérifier la visite dans la liste en cours. Au départ, sélectionner l'action correspondante; l'arrivée et le départ alimentent l'aperçu de la période. Dans CSRS ENT, ces données sont consultables après synchronisation et ne sont pas modifiables.
+Le secrétariat ouvre =Agenda= dans CSRS ENT. Dans =Visiteurs=, saisir le nombre de personnes et, si disponible, les noms, puis enregistrer l'arrivée. Vérifier la visite dans la liste en cours. Au départ, sélectionner l'action correspondante; l'arrivée et le départ alimentent immédiatement l'aperçu de la période.
 
 ** Préparer le brouillon et choisir la période
 :PROPERTIES:
 :CUSTOM_ID: proc-agenda
 :END:
 
-1. Ouvrir =Agenda= dans =CSRS Report= avec le compte secrétariat.
+1. Ouvrir =Agenda= dans CSRS ENT avec le compte secrétariat.
 2. Sélectionner le bouton de période. Choisir d'abord la date de début, puis la date de fin dans le calendrier unique.
 3. Utiliser =Appliquer= seulement lorsque la plage est correcte. =Annuler= ferme le panneau sans changer l'agenda. =Semaine prochaine= applique directement le lundi au dimanche proposés.
 4. Saisir les événements majeurs ou =RAS=.
-5. Choisir =Direction des programmes= ou =Direction administrative=. Ce sont les deux seules directions de publication courantes.
+5. Choisir =Direction des programmes= ou =Agenda DAF=. Ce sont les deux directions de publication de référence; une direction supplémentaire propre à ENT peut apparaître lorsqu'elle est configurée.
 6. Contrôler les arrivées, départs, indisponibilités, services, tâches, pourcentages et observations.
 7. Traiter l'avertissement =Personnes non classées= avec l'administration IT; leurs tâches apparaissent dans tous les agendas jusqu'au classement.
 8. Sélectionner =Enregistrer le brouillon= pour conserver la préparation commune.
@@ -391,7 +391,9 @@ Chaque génération crée une version figée. Une correction ultérieure produit
 :CUSTOM_ID: proc-agenda-synchronisation
 :END:
 
-CSRS ENT affiche un bandeau jaune lorsque la source de saisie reste =CSRS Report=. Le bandeau donne la date de la dernière synchronisation réussie et un lien direct vers la source. Les tâches, visites, indisponibilités, brouillons et PDF historiques sont recopiés chaque jour. Une donnée saisie après le dernier passage peut donc être absente jusqu'au passage suivant.
+CSRS ENT affiche un bandeau jaune en préproduction. Les tâches, visites, indisponibilités, brouillons et PDF historiques sont relus en lecture seule depuis la production Report puis rapprochés dans Odoo chaque jour à =02:35 UTC=. La date de la dernière synchronisation réussie est affichée.
+
+Les essais réalisés directement dans ENT restent utilisables jusqu'au prochain passage. À =02:35 UTC=, les objets Agenda locaux correspondants peuvent être remplacés par la photographie de production. Les projets et procédures propres à ENT ne sont pas concernés. Ne pas utiliser la préproduction comme archive définitive d'un agenda d'essai.
 
 Pour un besoin urgent, l'exploitant lance depuis la version déployée :
 
@@ -399,7 +401,7 @@ Pour un besoin urgent, l'exploitant lance depuis la version déployée :
 ./scripts/sync_csrs_legacy.sh /srv/apps/csrs-ent-preprod/config/.env jil@179.237.107.40
 #+end_src
 
-La commande effectue d'abord une simulation complète. Elle n'applique la réconciliation que si les références, tailles et empreintes SHA-256 sont valides. En cas d'échec, conserver CSRS ENT en consultation, corriger la source ou l'accès distant, puis relancer; ne pas saisir la même donnée dans les deux applications.
+La commande effectue d'abord une simulation complète. Elle n'applique la réconciliation que si les références, tailles et empreintes SHA-256 sont valides. Le rapport indique aussi les objets Agenda locaux qui seront retirés. En cas d'échec, les données Odoo restent inchangées; corriger l'accès distant ou le mappage puis relancer sans intervenir sur les deux instances Report.
 
 #+CAPTION: Versions PDF archivées accessibles au secrétariat et à la Direction générale.
 #+ATTR_HTML: :alt "Liste des versions archivées des agendas" :width "100%"

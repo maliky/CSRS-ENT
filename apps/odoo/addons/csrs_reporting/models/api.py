@@ -18,6 +18,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command, Domain
 
+from .reporting import reporting_policy, rounded_percentage_average
 from .roles import IT_GROUP, ROLE_PROFILE_BY_CODE, ROLE_PROFILES
 
 
@@ -45,7 +46,7 @@ PROPOSAL_LABELS = {
 }
 AGENDA_LABELS = {
     "programs": "Direction des programmes",
-    "administration": "Direction administrative",
+    "administration": "Agenda DAF",
 }
 AGENDA_ARCHIVE_LABELS = {
     **AGENDA_LABELS,
@@ -364,10 +365,14 @@ class CsrsApi(models.AbstractModel):
 
     def _reporting_state(self):
         parameters = self.env["ir.config_parameter"].sudo()
-        mode = parameters.get_param("csrs_reporting.reporting_mode", "native")
+        policy = reporting_policy(
+            parameters.get_param("csrs_reporting.reporting_mode", "native")
+        )
         return {
-            "mode": mode,
-            "write_enabled": mode != "legacy_mirror",
+            "mode": policy.mode,
+            "write_enabled": policy.write_enabled,
+            "authoritative_refresh": policy.authoritative_refresh,
+            "refresh_at": "02:35 UTC" if policy.authoritative_refresh else "",
             "source_url": "https://179.237.107.40/app/",
             "source_extracted_at": parameters.get_param(
                 "csrs_reporting.legacy_source_extracted_at", ""
@@ -386,7 +391,8 @@ class CsrsApi(models.AbstractModel):
         ):
             raise AccessError(
                 _(
-                    "La saisie des tâches et agendas reste temporairement sur CSRS Report (179.237.107.40)."
+                    "La saisie des tâches et agendas reste temporairement sur "
+                    "CSRS Report (179.237.107.40)."
                 )
             )
 
@@ -591,7 +597,10 @@ class CsrsApi(models.AbstractModel):
         end = max(today, due)
         if (end - start).days > 730:
             end = start + timedelta(days=730)
-        entries = {entry.recorded_at.date(): entry for entry in task.csrs_progress_entry_ids}
+        entries = {
+            entry.recorded_at.date(): entry
+            for entry in task.csrs_progress_entry_ids
+        }
         latest = 0.0
         points = []
         current = start
@@ -641,7 +650,9 @@ class CsrsApi(models.AbstractModel):
                     "percentage_after": entry.progress_percent,
                 }
             )
-        for message in task.message_ids.filtered(lambda item: item.message_type == "comment"):
+        for message in task.message_ids.filtered(
+            lambda item: item.message_type == "comment"
+        ):
             author = message.author_id.user_ids[:1] or task.csrs_manager_id
             plain_message = _plain_html(message.body)
             fingerprint = (_iso(message.date), author.id, plain_message)
@@ -748,7 +759,11 @@ class CsrsApi(models.AbstractModel):
 
     @api.model
     def api_planning_preview(self, payload):
-        calendar = self.env["resource.calendar"].browse(int(payload["calendar_id"])).exists()
+        calendar = (
+            self.env["resource.calendar"]
+            .browse(int(payload["calendar_id"]))
+            .exists()
+        )
         if not calendar:
             raise ValidationError(_("Calendrier introuvable."))
         start = fields.Date.to_date(payload["start_date"])
@@ -1033,13 +1048,21 @@ class CsrsApi(models.AbstractModel):
         unit_ids = [int(value) for value in payload.get("unit_ids", [])]
         if len(unit_ids) != len(set(unit_ids)):
             raise ValidationError(_("Une unité ne peut apparaître qu'une fois."))
-        primary_id = int(payload["primary_unit_id"]) if payload.get("primary_unit_id") else None
+        primary_id = (
+            int(payload["primary_unit_id"])
+            if payload.get("primary_unit_id")
+            else None
+        )
         if primary_id and primary_id not in unit_ids:
             raise ValidationError(_("L'unité principale doit être sélectionnée."))
         Department = self.env["hr.department"].sudo().with_context(active_test=False)
         departments = Department.browse(unit_ids).exists()
-        if len(departments) != len(unit_ids) or any(not item.active for item in departments):
-            raise ValidationError(_("Une unité sélectionnée est introuvable ou inactive."))
+        if len(departments) != len(unit_ids) or any(
+            not item.active for item in departments
+        ):
+            raise ValidationError(
+                _("Une unité sélectionnée est introuvable ou inactive.")
+            )
         Membership = self.env["csrs.organization.membership"].sudo().with_context(
             active_test=False
         )
@@ -1073,15 +1096,21 @@ class CsrsApi(models.AbstractModel):
             else None
         )
         if supervisor_id == user.id:
-            raise ValidationError(_("Une personne ne peut pas être son propre responsable."))
+            raise ValidationError(
+                _("Une personne ne peut pas être son propre responsable.")
+            )
         supervisor = self.env["res.users"].sudo().browse(supervisor_id).exists()
         supervisor_employee = self._employee_for_user(supervisor) if supervisor else False
-        if supervisor_id and (not supervisor or not supervisor_employee or not supervisor.active):
+        if supervisor_id and (
+            not supervisor or not supervisor_employee or not supervisor.active
+        ):
             raise ValidationError(_("Responsable principal invalide."))
         ancestor = supervisor_employee
         while ancestor:
             if ancestor == employee:
-                raise ValidationError(_("Ce rattachement créerait une boucle hiérarchique."))
+                raise ValidationError(
+                    _("Ce rattachement créerait une boucle hiérarchique.")
+                )
             ancestor = ancestor.parent_id
         ReportingLine = self.env["csrs.reporting.line"].sudo().with_context(
             active_test=False
@@ -1094,12 +1123,18 @@ class CsrsApi(models.AbstractModel):
             ],
             limit=1,
         )
-        old_manager = current_line.supervisor_id if current_line else employee.parent_id.user_id
+        old_manager = (
+            current_line.supervisor_id
+            if current_line
+            else employee.parent_id.user_id
+        )
         if current_line and current_line.supervisor_id.id != supervisor_id:
             current_line.write({"end_date": effective, "active": False})
         if supervisor and (not current_line or current_line.supervisor_id != supervisor):
             if not primary_id:
-                raise ValidationError(_("Choisissez une unité principale avant le responsable."))
+                raise ValidationError(
+                    _("Choisissez une unité principale avant le responsable.")
+                )
             ReportingLine.create(
                 {
                     "employee_id": user.id,
@@ -1153,7 +1188,11 @@ class CsrsApi(models.AbstractModel):
         return {
             "today": fields.Date.context_today(self).isoformat(),
             "units": [self._unit_payload(unit) for unit in departments],
-            "users": [self._person(user) for user in users if self._employee_for_user(user)],
+            "users": [
+                self._person(user)
+                for user in users
+                if self._employee_for_user(user)
+            ],
             "agenda_directions": [
                 {"value": value, "label": label}
                 for value, label in AGENDA_LABELS.items()
@@ -1247,7 +1286,9 @@ class CsrsApi(models.AbstractModel):
         if not user or not self._employee_for_user(user):
             raise UserError(_("Compte introuvable."))
         if user.id == self.env.ref("base.user_admin").id and user != self.env.user:
-            raise AccessError(_("Le compte administrateur protégé ne peut pas être modifié."))
+            raise AccessError(
+                _("Le compte administrateur protégé ne peut pas être modifié.")
+            )
         self._check_user_state(user, payload.get("state_token"))
         user.write(self._user_write_values(payload, user))
         self._sync_user_organization(user, self._employee_for_user(user), payload)
@@ -1411,7 +1452,13 @@ class CsrsApi(models.AbstractModel):
         ids = [int(item.get("id", 0)) for item in selections if isinstance(item, dict)]
         if len(ids) != len(selections) or len(set(ids)) != len(ids):
             raise ValidationError(_("Sélection de comptes invalide."))
-        users = self.env["res.users"].sudo().with_context(active_test=False).browse(ids).exists()
+        users = (
+            self.env["res.users"]
+            .sudo()
+            .with_context(active_test=False)
+            .browse(ids)
+            .exists()
+        )
         if len(users) != len(ids):
             raise UserError(_("Compte introuvable."))
         tokens = {int(item["id"]): item.get("state_token") for item in selections}
@@ -1419,8 +1466,14 @@ class CsrsApi(models.AbstractModel):
             self._check_user_state(user, tokens[user.id])
         if action == "deactivate":
             for user in users:
-                if not user.active or user == self.env.user or user.id == self.env.ref("base.user_admin").id:
-                    raise AccessError(_("Un compte sélectionné ne peut pas être désactivé."))
+                if (
+                    not user.active
+                    or user == self.env.user
+                    or user.id == self.env.ref("base.user_admin").id
+                ):
+                    raise AccessError(
+                        _("Un compte sélectionné ne peut pas être désactivé.")
+                    )
             users.write({"active": False})
             self.env["hr.employee"].sudo().search(
                 [("user_id", "in", users.ids)]
@@ -1430,7 +1483,9 @@ class CsrsApi(models.AbstractModel):
         if len(reason) < 3:
             raise ValidationError(_("Le motif de suppression est obligatoire."))
         if any(not self._user_can_be_deleted(user) for user in users):
-            raise AccessError(_("Un compte sélectionné doit être inactif et sans historique."))
+            raise AccessError(
+                _("Un compte sélectionné doit être inactif et sans historique.")
+            )
         audit = self.env["csrs.audit.event"].sudo().create(
             {
                 "event_type": "user_delete",
@@ -1576,7 +1631,9 @@ class CsrsApi(models.AbstractModel):
         if normalized:
             partners = partners.filtered(
                 lambda item: normalized
-                in " ".join([item.name or "", item.email or "", item.phone or ""]).casefold()
+                in " ".join(
+                    [item.name or "", item.email or "", item.phone or ""]
+                ).casefold()
             )
         if state == "active":
             partners = partners.filtered("active")
@@ -1696,7 +1753,12 @@ class CsrsApi(models.AbstractModel):
         reason = str(payload.get("reason") or "").strip()
         if len(reason) < 3:
             raise ValidationError(_("Le motif d'attribution est obligatoire."))
-        user = self.env["res.users"].sudo().browse(int(payload.get("user_id") or 0)).exists()
+        user = (
+            self.env["res.users"]
+            .sudo()
+            .browse(int(payload.get("user_id") or 0))
+            .exists()
+        )
         department = self.env["hr.department"].sudo().browse(
             int(payload.get("department_id") or 0)
         ).exists()
@@ -1972,7 +2034,10 @@ class CsrsApi(models.AbstractModel):
             values["csrs_terms_of_reference_attachment_id"] = attachment.id
         if values:
             employee.sudo().write(values)
-        if old_attachment and old_attachment != employee.csrs_terms_of_reference_attachment_id:
+        if (
+            old_attachment
+            and old_attachment != employee.csrs_terms_of_reference_attachment_id
+        ):
             old_attachment.sudo().unlink()
         return self._employee_profile(user)
 
@@ -2046,7 +2111,11 @@ class CsrsApi(models.AbstractModel):
             ),
             ("AGENDA_SECRETARIAT",),
         )
-        names = [str(name).strip() for name in payload.get("visitor_names", []) if str(name).strip()]
+        names = [
+            str(name).strip()
+            for name in payload.get("visitor_names", [])
+            if str(name).strip()
+        ]
         visit = self.env["csrs.visitor.visit"].sudo().create(
             {
                 "party_size": int(payload["party_size"]),
@@ -2228,11 +2297,13 @@ class CsrsApi(models.AbstractModel):
         units = []
         departments = employees.department_id.sorted("name")
         for order, department in enumerate(departments, start=1):
-            people = employees.filtered(lambda item: item.department_id == department)
+            people = employees.filtered(
+                lambda item, department=department: item.department_id == department
+            )
             employee_payloads = []
             for employee in people:
                 employee_tasks = tasks.filtered(
-                    lambda task: employee.user_id in task.user_ids
+                    lambda task, employee=employee: employee.user_id in task.user_ids
                 )
                 if not employee_tasks:
                     continue
@@ -2253,8 +2324,8 @@ class CsrsApi(models.AbstractModel):
                             "observation": latest.observation if latest else "",
                         }
                     )
-                rate = sum(item["percentage"] for item in task_payloads) / len(
-                    task_payloads
+                rate = rounded_percentage_average(
+                    item["percentage"] for item in task_payloads
                 )
                 employee_payloads.append(
                     {
