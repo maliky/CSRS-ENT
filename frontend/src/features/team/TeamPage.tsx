@@ -21,6 +21,7 @@ import { PeriodNavigation } from "../tasks/PeriodNavigation";
 import styles from "./team.module.css";
 
 type TaskFilter = "all" | "with" | "without";
+type TaskView = "active" | "archives";
 type FilteredTeamNode = Omit<TeamNode, "children"> & {
   children: FilteredTeamNode[];
   matchesFilter: boolean;
@@ -55,6 +56,8 @@ function filterTeamNodes(
 export function TeamPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const taskFilter = selectedTaskFilter(searchParams);
+  const taskView: TaskView =
+    searchParams.get("task_view") === "archives" ? "archives" : "active";
   const apiParams = new URLSearchParams(searchParams);
   apiParams.delete("tasks");
   const apiQuery = apiParams.toString();
@@ -90,7 +93,27 @@ export function TeamPage() {
           <p>Engagements des collaborateurs sur la période sélectionnée.</p>
         </div>
       </header>
-      <PeriodNavigation period={data.period} preserveParams={["tasks"]} />
+      <div className={styles.filters} role="group" aria-label="Vue des tâches">
+        {(["active", "archives"] as const).map((view) => (
+          <button
+            key={view}
+            type="button"
+            aria-pressed={taskView === view}
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              if (view === "active") next.delete("task_view");
+              else next.set("task_view", view);
+              setSearchParams(next);
+            }}
+          >
+            {view === "active" ? "Tâches actives" : "Archives"}
+          </button>
+        ))}
+      </div>
+      <PeriodNavigation
+        period={data.period}
+        preserveParams={["tasks", "task_view"]}
+      />
       {data.nodes.length > 0 && (
         <div
           className={styles.filters}
@@ -116,7 +139,7 @@ export function TeamPage() {
             <TeamTreeNode
               key={node.employee.id}
               node={node}
-              periodQuery={data.period.query}
+              periodQuery={`${data.period.query}&task_view=${taskView}`}
               depth={0}
             />
           ))}

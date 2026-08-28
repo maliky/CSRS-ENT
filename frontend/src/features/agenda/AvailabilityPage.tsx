@@ -1,5 +1,5 @@
 import { CalendarOff, Pencil, Plus, XCircle } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   Button,
   Card,
@@ -36,6 +36,22 @@ export function AvailabilityPage() {
   const [editing, setEditing] = useState<StaffAvailability | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeeId, setEmployeeId] = useState<number | null>(null);
+  const filteredEmployees = useMemo(() => {
+    const normalizedSearch = employeeSearch
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("fr");
+    return (availability.data?.employees ?? []).filter((employee) =>
+      [employee.name, employee.email, employee.position, employee.unit]
+        .join(" ")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("fr")
+        .includes(normalizedSearch),
+    );
+  }, [availability.data?.employees, employeeSearch]);
 
   if (availability.loading)
     return <Skeleton label="Chargement des indisponibilités" />;
@@ -55,8 +71,19 @@ export function AvailabilityPage() {
     setError(null);
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
+    if (!employeeId) {
+      setError(
+        new ApiError(
+          "Sélectionnez un collaborateur dans la liste.",
+          0,
+          "invalid",
+        ),
+      );
+      setSaving(false);
+      return;
+    }
     const payload = {
-      employee_id: Number(form.get("employee_id")),
+      employee_id: employeeId,
       kind: form.get("kind"),
       start_date: form.get("start_date"),
       end_date: form.get("end_date"),
@@ -75,6 +102,8 @@ export function AvailabilityPage() {
         },
       );
       setEditing(null);
+      setEmployeeId(null);
+      setEmployeeSearch("");
       formElement.reset();
       await availability.reload();
     } catch (caught) {
@@ -139,16 +168,38 @@ export function AvailabilityPage() {
           key={editing?.id ?? "new"}
         >
           <div className="form-field">
-            <label htmlFor="employee">Agent</label>
+            <label htmlFor="employee-search">Rechercher un agent</label>
+            <input
+              id="employee-search"
+              type="search"
+              value={employeeSearch}
+              placeholder="Nom, email, fonction ou unité"
+              onChange={(event) => {
+                setEmployeeSearch(event.target.value);
+                setEmployeeId(null);
+              }}
+            />
             <select
               id="employee"
               name="employee_id"
               required
-              defaultValue={editing?.employee.id}
+              size={Math.min(6, Math.max(2, filteredEmployees.length))}
+              value={employeeId ?? ""}
+              onChange={(event) => {
+                const selected = availability.data!.employees.find(
+                  (employee) => employee.id === Number(event.target.value),
+                );
+                setEmployeeId(selected?.id ?? null);
+                if (selected) setEmployeeSearch(selected.name);
+              }}
             >
-              {availability.data.employees.map((employee) => (
+              <option value="" disabled>
+                Sélectionner un collaborateur
+              </option>
+              {filteredEmployees.map((employee) => (
                 <option value={employee.id} key={employee.id}>
-                  {employee.name} — {employee.position}
+                  {employee.name} — {employee.email || employee.position} —{" "}
+                  {employee.unit}
                 </option>
               ))}
             </select>
@@ -238,7 +289,14 @@ export function AvailabilityPage() {
                   </small>
                 </div>
                 <div className={styles.actions}>
-                  <Button variant="secondary" onClick={() => setEditing(item)}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setEditing(item);
+                      setEmployeeId(item.employee.id);
+                      setEmployeeSearch(item.employee.name);
+                    }}
+                  >
                     <Pencil size={17} aria-hidden="true" /> Corriger
                   </Button>
                   <Button variant="danger" onClick={() => void cancel(item)}>

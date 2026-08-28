@@ -21,6 +21,7 @@ const STATUS_OPTIONS = [
   { value: "submitted", label: "Soumises" },
   { value: "accepted", label: "Validées" },
   { value: "rejected", label: "Rejetées" },
+  { value: "withdrawn", label: "Retirées" },
 ] as const;
 const ALL_STATUSES = STATUS_OPTIONS.map((option) => option.value);
 

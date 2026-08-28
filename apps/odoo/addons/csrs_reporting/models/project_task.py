@@ -144,6 +144,35 @@ class ProjectTask(models.Model):
         self.ensure_one()
         return self.env.user == self.csrs_manager_id or self._csrs_is_admin()
 
+    def _csrs_direct_manager(self):
+        """Resolve the single live N+1 shared by every assignee."""
+        self.ensure_one()
+        manager_ids = set()
+        employees = self.env["hr.employee"].sudo()
+        for user in self.user_ids:
+            employee = employees.search(
+                [
+                    ("user_id", "=", user.id),
+                    ("company_id", "in", [False, self.env.company.id]),
+                ],
+                limit=1,
+            )
+            manager = (
+                employee.parent_id.user_id
+                if employee and employee.parent_id
+                else False
+            )
+            if not manager:
+                return self.env["res.users"]
+            manager_ids.add(manager.id)
+        if len(manager_ids) != 1:
+            return self.env["res.users"]
+        return self.env["res.users"].browse(manager_ids.pop())
+
+    def _csrs_can_validate_completion(self):
+        self.ensure_one()
+        return self._csrs_direct_manager() == self.env.user
+
     def _csrs_check_revision(self, expected_revision):
         self.ensure_one()
         if expected_revision is not None and self.csrs_revision != expected_revision:
@@ -221,7 +250,7 @@ class ProjectTask(models.Model):
     def action_csrs_validate_completion(self, expected_revision=None):
         """Let only the primary manager accept a reported 100 percent."""
         self.ensure_one()
-        if not self._csrs_can_manage():
+        if not self._csrs_can_validate_completion():
             raise UserError(_("Seul le responsable principal peut valider la tâche."))
         self._csrs_check_revision(expected_revision)
         if (
@@ -243,7 +272,7 @@ class ProjectTask(models.Model):
         """Return an awaiting task to active work with an auditable reason."""
         self.ensure_one()
         reason = (reason or "").strip()
-        if not self._csrs_can_manage():
+        if not self._csrs_can_validate_completion():
             raise UserError(_("Seul le responsable principal peut demander une reprise."))
         self._csrs_check_revision(expected_revision)
         if self.csrs_status != "awaiting_validation":

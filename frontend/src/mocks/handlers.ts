@@ -283,7 +283,12 @@ export const handlers = [
       decision_note: "",
       created_at: `${taskState.today}T12:00:00Z`,
       can_review: false,
-      capabilities: { edit: true, resubmit: false, review: false },
+      capabilities: {
+        edit: true,
+        resubmit: false,
+        review: false,
+        withdraw: true,
+      },
     };
     proposalState = { ...proposalState, own: [proposal, ...proposalState.own] };
     return HttpResponse.json(proposal, { status: 201 });
@@ -329,7 +334,12 @@ export const handlers = [
       status_label: "Soumise",
       decision_note: "",
       can_review: false,
-      capabilities: { edit: true, resubmit: false, review: false },
+      capabilities: {
+        edit: true,
+        resubmit: false,
+        review: false,
+        withdraw: true,
+      },
     };
     replaceProposal(updated);
     return HttpResponse.json(updated);
@@ -347,7 +357,12 @@ export const handlers = [
       accepted_assignment_id: body.decision === "accept" ? taskState.id : null,
       decision_note: body.reason,
       can_review: false,
-      capabilities: { edit: false, resubmit: false, review: false },
+      capabilities: {
+        edit: false,
+        resubmit: false,
+        review: false,
+        withdraw: false,
+      },
     };
     proposalState = {
       ...proposalState,

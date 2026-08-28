@@ -16,6 +16,7 @@ export const sessionFixture: Session = {
     login_alias: "dg",
   },
   csrf_token: "csrf-local",
+  professional_email: "dg@csrs.example",
   reporting: {
     mode: "native",
     write_enabled: true,
@@ -198,6 +199,8 @@ export const taskDetailFixture: TaskDetail = {
     manage: true,
     comment: true,
     update_progress: true,
+    validate_completion: true,
+    request_rework: true,
     self_managed: true,
   },
 };
@@ -247,7 +250,12 @@ export const proposalsFixture: ProposalGroups = {
       accepted_assignment_id: null,
       decision_note: "Préciser les destinataires et le format attendu.",
       can_review: false,
-      capabilities: { edit: true, resubmit: true, review: false },
+      capabilities: {
+        edit: true,
+        resubmit: true,
+        review: false,
+        withdraw: false,
+      },
     },
   ],
   reviewable: [
@@ -269,7 +277,12 @@ export const proposalsFixture: ProposalGroups = {
       accepted_assignment_id: null,
       decision_note: "",
       can_review: true,
-      capabilities: { edit: false, resubmit: false, review: true },
+      capabilities: {
+        edit: false,
+        resubmit: false,
+        review: true,
+        withdraw: false,
+      },
     },
   ],
   read_only: [
@@ -290,7 +303,12 @@ export const proposalsFixture: ProposalGroups = {
       accepted_assignment_id: 31,
       decision_note: "",
       can_review: false,
-      capabilities: { edit: false, resubmit: false, review: false },
+      capabilities: {
+        edit: false,
+        resubmit: false,
+        review: false,
+        withdraw: false,
+      },
     },
   ],
 };

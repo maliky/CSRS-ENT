@@ -44,6 +44,7 @@ from .serializers import (
     ProgressSerializer,
     ProposalCreateSerializer,
     ProposalDecisionSerializer,
+    ProposalWithdrawSerializer,
     ProposalUpdateSerializer,
     RevisionSerializer,
     TaskCreateSerializer,
@@ -172,6 +173,7 @@ class SessionPasswordView(OdooAPIView):
             "api_change_password",
             [payload["current_password"], payload["new_password"]],
         )
+        request.session.flush()
         return Response(status=204)
 
 
@@ -199,7 +201,11 @@ class DashboardView(OdooAPIView):
             self.rpc(
                 request,
                 "api_dashboard",
-                [request.query_params.get("week"), request.query_params.get("month")],
+                [
+                    request.query_params.get("week"),
+                    request.query_params.get("month"),
+                    request.query_params.get("task_view", "active"),
+                ],
             )
         )
 
@@ -478,6 +484,13 @@ class ProposalDecisionView(OdooAPIView):
         return Response(self.rpc(request, "api_proposal_decide", [pk, payload]))
 
 
+class ProposalWithdrawView(OdooAPIView):
+    @extend_schema(request=ProposalWithdrawSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request: Request, pk: int) -> Response:
+        payload = _payload(ProposalWithdrawSerializer, request.data)
+        return Response(self.rpc(request, "api_proposal_withdraw", [pk, payload]))
+
+
 class TeamView(OdooAPIView):
     @extend_schema(operation_id="team_overview", responses=OpenApiTypes.OBJECT)
     def get(self, request: Request) -> Response:
@@ -485,7 +498,11 @@ class TeamView(OdooAPIView):
             self.rpc(
                 request,
                 "api_team",
-                [request.query_params.get("week"), request.query_params.get("month")],
+                [
+                    request.query_params.get("week"),
+                    request.query_params.get("month"),
+                    request.query_params.get("task_view", "active"),
+                ],
             )
         )
 
@@ -501,6 +518,7 @@ class TeamEmployeeView(OdooAPIView):
                     pk,
                     request.query_params.get("week"),
                     request.query_params.get("month"),
+                    request.query_params.get("task_view", "active"),
                 ],
             )
         )

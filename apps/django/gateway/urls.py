@@ -85,6 +85,10 @@ urlpatterns = [
         "api/v1/proposals/<int:pk>/decision/",
         api_views.ProposalDecisionView.as_view(),
     ),
+    path(
+        "api/v1/proposals/<int:pk>/withdraw/",
+        api_views.ProposalWithdrawView.as_view(),
+    ),
     path("api/v1/team/", api_views.TeamView.as_view()),
     path("api/v1/team/<int:pk>/", api_views.TeamEmployeeView.as_view()),
     path(

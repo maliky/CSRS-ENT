@@ -57,8 +57,10 @@ class ResUsers(models.Model):
     @api.model
     def _get_login_domain(self, login):
         normalized = (login or "").strip().lower()
-        return Domain("login", "=ilike", normalized) | Domain(
-            "csrs_alias", "=ilike", normalized
+        return (
+            Domain("login", "=ilike", normalized)
+            | Domain("email", "=ilike", normalized)
+            | Domain("csrs_alias", "=ilike", normalized)
         )
 
     @tools.ormcache(cache="stable")
@@ -74,7 +76,7 @@ class ResUsers(models.Model):
         )
 
     def _get_session_token_fields(self):
-        return super()._get_session_token_fields() | {"csrs_alias"}
+        return super()._get_session_token_fields() | {"csrs_alias", "email"}
 
     def csrs_active_role_grants(self, role_codes):
         """Return only currently valid grants; groups never stand in for scope."""
@@ -160,6 +162,10 @@ class ResUsers(models.Model):
         if not isinstance(new_password, str) or len(new_password) < 12:
             raise ValidationError(
                 _("Le nouveau mot de passe doit contenir au moins 12 caractères.")
+            )
+        if new_password == current_password:
+            raise ValidationError(
+                _("Le nouveau mot de passe doit être différent du mot de passe actuel.")
             )
         self.password = new_password
         self.csrs_password_change_required = False

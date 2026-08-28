@@ -91,6 +91,18 @@ Les chapitres par fonction et par rôle renvoient à ces procédures pour évite
 
 Le mot de passe temporaire n'est affiché qu'une fois à l'administrateur. Il ne doit pas être placé dans une observation, un email collectif, une capture ou un document partagé.
 
+** Utiliser l'adresse professionnelle et modifier son mot de passe
+
+L'adresse email professionnelle enregistrée par l'administration IT peut être utilisée comme identifiant de connexion, en plus de l'identifiant court existant. L'utilisateur ne modifie pas lui-même cette adresse.
+
+1. Ouvrir =Compte et sécurité= en bas du menu.
+2. Contrôler l'adresse professionnelle affichée en lecture seule.
+3. Saisir le mot de passe actuel, un nouveau mot de passe d'au moins douze caractères et sa confirmation.
+4. Sélectionner =Enregistrer=.
+5. Après confirmation, se reconnecter avec l'adresse professionnelle ou l'identifiant court et le nouveau mot de passe.
+
+Le nouveau mot de passe doit être différent du précédent. Il n'est jamais conservé par Django ni affiché dans l'application.
+
 ** Utiliser la navigation sur ordinateur et téléphone
 :PROPERTIES:
 :CUSTOM_ID: proc-navigation
@@ -227,6 +239,7 @@ Le responsable secondaire peut consulter et commenter, mais ne peut ni modifier 
 6. Choisir l'unité =heures= ou =jours= et contrôler l'équivalence.
 7. Sélectionner =Soumettre=.
 8. Retrouver la proposition dans la liste et suivre son statut.
+9. Tant que la proposition est encore soumise, sélectionner =Retirer la proposition= pour l'annuler. Le motif est facultatif; le retrait reste dans l'historique et ne supprime pas l'enregistrement.
 
 #+CAPTION: Formulaire de proposition avec charge en heures ou en jours.
 #+ATTR_HTML: :alt "Formulaire pour proposer une tâche avec dates et charge" :width "100%"
@@ -240,7 +253,7 @@ Le responsable secondaire peut consulter et commenter, mais ne peut ni modifier 
 :CUSTOM_ID: proc-examiner-proposition
 :END:
 
-Le demandeur utilise les filtres de statut et de période pour retrouver ses propositions. Le responsable peut également filtrer par collaborateur.
+Le demandeur utilise les filtres de statut et de période pour retrouver ses propositions. Le responsable direct N+1 peut également filtrer par collaborateur. Ni un responsable indirect, ni la DG, ni l'administration IT ne peuvent accepter ou rejeter la proposition à sa place.
 
 1. Ouvrir une proposition soumise.
 2. Vérifier le titre, la description, le collaborateur, les dates, la charge et l'action institutionnelle.
@@ -289,6 +302,8 @@ La liste des collaborateurs dépend de la hiérarchie et des délégations activ
 4. Lire les statuts, progressions, charges restantes, blocages et dates.
 5. Sélectionner =Voir la fiche complète= pour ouvrir le profil et l'ensemble des tâches de la période.
 
+Les vues personnelles et d'équipe affichent =Tâches actives= par défaut. Sélectionner =Archives= pour consulter, sur la même période, les tâches terminées ou clôturées avant achèvement. Cette séparation ne supprime aucune tâche.
+
 Le filtre s'applique récursivement: une branche peut rester visible uniquement pour donner accès à un descendant correspondant. L'ouverture d'une branche ne doit pas être confondue avec l'ouverture du profil.
 
 #+CAPTION: Synthèse hiérarchique et tâches d'une équipe.
@@ -314,16 +329,15 @@ Seul l'employé modifie son propre profil. Sélectionner =Modifier mon profil=, 
 :CUSTOM_ID: proc-absence
 :END:
 
-Pendant la période de coexistence, les absences restent saisies dans =CSRS Report= à l'adresse =https://179.237.107.40/app/=. CSRS ENT les affiche après la synchronisation quotidienne mais refuse toute modification afin d'éviter deux versions concurrentes.
+Le Capital Humain saisit les absences directement dans CSRS ENT. Odoo conserve l'indisponibilité et contrôle les autorisations.
 
-Dans =CSRS Report= :
-
-1. Le compte RH ouvre =Absences et missions=.
+1. Le compte Capital Humain ouvre =Absences et missions=.
 2. Choisir la semaine avec le sélecteur de date.
-3. Choisir l'agent, la nature, le début, la fin et l'observation facultative.
-4. Sélectionner =Ajouter= ou =Enregistrer= lors d'une modification.
-5. Pour corriger une ligne, sélectionner =Modifier=, enregistrer puis contrôler la liste.
-6. Pour annuler, sélectionner =Annuler= et saisir le motif demandé.
+3. Rechercher l'agent par nom, adresse professionnelle, fonction ou unité, puis le sélectionner dans la liste. Une saisie libre qui ne correspond à aucun compte actif ne peut pas être enregistrée.
+4. Choisir la nature, le début, la fin et l'observation facultative.
+5. Sélectionner =Ajouter= ou =Enregistrer= lors d'une modification.
+6. Pour corriger une ligne, sélectionner =Modifier=, enregistrer puis contrôler la liste.
+7. Pour annuler, sélectionner =Annuler= et saisir le motif demandé.
 
 En cas d'échec d'annulation, la ligne reste visible et un message explique que la modification n'a pas été enregistrée. Ne pas considérer la période annulée avant la confirmation.
 
@@ -834,6 +848,8 @@ Le compte administrateur Odoo protégé ne peut pas être réinitialisé ou supp
 9. Réactiver un compte inactif depuis la même fiche lorsque l'accès doit être restauré.
 
 Changer le responsable principal clôt la ligne hiérarchique actuelle, crée la nouvelle à la date d'effet et transfère les tâches actives avec une nouvelle révision. Contrôler ensuite =Mon équipe= avec le nouveau responsable.
+
+L'adresse email renseignée est l'adresse professionnelle et l'un des identifiants de connexion. Odoo refuse une adresse, un identifiant ou un alias déjà utilisé, sans tenir compte des majuscules. Seule l'administration IT peut modifier cette adresse.
 
 #+CAPTION: Fiche d'identité, d'agenda, d'organigramme et d'accès d'un compte.
 #+ATTR_HTML: :alt "Formulaire complet d'administration d'un utilisateur" :width "100%"

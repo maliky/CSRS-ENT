@@ -13,6 +13,8 @@ const availability: AvailabilityOptions = {
       id: 8,
       name: "Agent de recette",
       position: "Agent",
+      email: "agent@csrs.example",
+      unit: "Programmes",
     },
   ],
   kinds: [

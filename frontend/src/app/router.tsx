@@ -20,6 +20,7 @@ import { ResearchProjectsPage } from "../features/projects/ResearchProjectsPage"
 import { ResearchProjectDetailPage } from "../features/projects/ResearchProjectDetailPage";
 import { ProcessesPage } from "../features/processes/ProcessesPage";
 import { ProcessDetailPage } from "../features/processes/ProcessDetailPage";
+import { AccountSecurityPage } from "../features/users/AccountSecurityPage";
 
 export function AppRouter() {
   return (
@@ -53,6 +54,7 @@ export function AppRouter() {
           <Route path="equipe/:employeeId" element={<EmployeePage />} />
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="absences" element={<AvailabilityPage />} />
+          <Route path="compte/securite" element={<AccountSecurityPage />} />
           <Route path="projets" element={<ResearchProjectsPage />} />
           <Route
             path="projets/:projectId"

@@ -20,6 +20,7 @@ from odoo.fields import Command, Domain
 
 from .reporting import reporting_policy, rounded_percentage_average
 from .roles import IT_GROUP, ROLE_PROFILE_BY_CODE, ROLE_PROFILES
+from .project_task import TERMINAL_STATUSES
 
 
 TAG_RE = re.compile(r"<[^>]+>")
@@ -43,6 +44,7 @@ PROPOSAL_LABELS = {
     "submitted": "Soumise",
     "rejected": "Rejetée",
     "accepted": "Acceptée",
+    "withdrawn": "Retirée",
 }
 AGENDA_LABELS = {
     "programs": "Direction des programmes",
@@ -416,6 +418,7 @@ class CsrsApi(models.AbstractModel):
         write_enabled = reporting["write_enabled"]
         return {
             "user": self._person(user),
+            "professional_email": user.email or user.login or "",
             "reporting": reporting,
             "role_switcher": {
                 "can_switch": can_switch_role,
@@ -505,12 +508,19 @@ class CsrsApi(models.AbstractModel):
             ("project_id.csrs_supervisor_user_ids", "in", [user_id]),
         ]
 
-    def _task_domain_for_period(self, period):
+    def _task_view_domain(self, task_view):
+        if task_view == "archives":
+            return [("csrs_status", "in", sorted(TERMINAL_STATUSES))]
+        if task_view == "active":
+            return [("csrs_status", "not in", sorted(TERMINAL_STATUSES))]
+        return []
+
+    def _task_domain_for_period(self, period, task_view=None):
         return [
             ("csrs_managed", "=", True),
             ("csrs_start_date", "<=", period["end"]),
             ("date_deadline", ">=", period["start"]),
-        ] + self._effective_task_scope_domain()
+        ] + self._task_view_domain(task_view) + self._effective_task_scope_domain()
 
     def _task(self, task_id):
         task = self.env["project.task"].search(
@@ -680,6 +690,7 @@ class CsrsApi(models.AbstractModel):
         summary = self._task_summary(task)
         is_admin = task._csrs_is_admin()
         manage = task.csrs_manager_id == self.env.user or is_admin
+        validate_completion = task._csrs_can_validate_completion()
         comment = (
             self.env.user in task.user_ids
             or manage
@@ -702,6 +713,10 @@ class CsrsApi(models.AbstractModel):
                     "comment": comment and self._reporting_write_enabled(),
                     "update_progress": self._reporting_write_enabled()
                     and (self.env.user in task.user_ids or manage),
+                    "validate_completion": self._reporting_write_enabled()
+                    and validate_completion,
+                    "request_rework": self._reporting_write_enabled()
+                    and validate_completion,
                     "self_managed": task.csrs_manager_id in task.user_ids,
                 },
             }
@@ -709,10 +724,10 @@ class CsrsApi(models.AbstractModel):
         return summary
 
     @api.model
-    def api_dashboard(self, week=None, month=None):
+    def api_dashboard(self, week=None, month=None, task_view="active"):
         period = self._period(week, month)
         tasks = self.env["project.task"].search(
-            self._task_domain_for_period(period)
+            self._task_domain_for_period(period, task_view)
             + [("user_ids", "in", [self.env.user.id])],
             order="date_deadline, name",
         )
@@ -1794,7 +1809,13 @@ class CsrsApi(models.AbstractModel):
         return self._grant_payload(grant)
 
     def _proposal_payload(self, proposal):
-        review = proposal.manager_id == self.env.user and proposal.state == "submitted"
+        employee = self.env["hr.employee"].sudo().search(
+            [("user_id", "=", proposal.author_id.id)], limit=1
+        )
+        current_manager = (
+            employee.parent_id.user_id if employee and employee.parent_id else False
+        )
+        review = current_manager == self.env.user and proposal.state == "submitted"
         return {
             "id": proposal.id,
             "revision": proposal.revision,
@@ -1828,6 +1849,8 @@ class CsrsApi(models.AbstractModel):
                 "resubmit": proposal.author_id == self.env.user
                 and proposal.state == "rejected",
                 "review": review,
+                "withdraw": proposal.author_id == self.env.user
+                and proposal.state == "submitted",
             },
         }
 
@@ -1894,6 +1917,17 @@ class CsrsApi(models.AbstractModel):
         return self._proposal_payload(proposal)
 
     @api.model
+    def api_proposal_withdraw(self, proposal_id, payload):
+        self._require_reporting_write()
+        proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
+        if not proposal:
+            raise UserError(_("Proposition introuvable."))
+        proposal.action_csrs_withdraw(
+            payload.get("reason", ""), payload.get("revision")
+        )
+        return self._proposal_payload(proposal)
+
+    @api.model
     def api_proposal_decide(self, proposal_id, payload):
         self._require_reporting_write()
         proposal = self.env["csrs.task.proposal"].browse(int(proposal_id)).exists()
@@ -1906,18 +1940,20 @@ class CsrsApi(models.AbstractModel):
         )
         return self._proposal_payload(proposal)
 
-    def _team_node(self, employee, period):
+    def _team_node(self, employee, period, task_view="active"):
         children = self.env["hr.employee"].search(
             [("parent_id", "=", employee.id), ("user_id", "!=", False)], order="name"
         )
         task_count = self.env["project.task"].search_count(
-            self._task_domain_for_period(period)
+            self._task_domain_for_period(period, task_view)
             + [("user_ids", "in", [employee.user_id.id])]
         )
         return {
             "employee": self._person(employee.user_id),
             "task_count": task_count,
-            "children": [self._team_node(child, period) for child in children],
+            "children": [
+                self._team_node(child, period, task_view) for child in children
+            ],
         }
 
     def _team_user(self, user_id):
@@ -1957,7 +1993,7 @@ class CsrsApi(models.AbstractModel):
         }
 
     @api.model
-    def api_team(self, week=None, month=None):
+    def api_team(self, week=None, month=None, task_view="active"):
         period = self._period(week, month)
         users = self._managed_users()
         employees = self.env["hr.employee"].sudo().search(
@@ -1966,15 +2002,18 @@ class CsrsApi(models.AbstractModel):
         roots = employees.filtered(lambda item: item.parent_id not in employees)
         return {
             "period": period,
-            "nodes": [self._team_node(employee, period) for employee in roots],
+            "nodes": [
+                self._team_node(employee, period, task_view) for employee in roots
+            ],
         }
 
     @api.model
-    def api_team_employee(self, user_id, week=None, month=None):
+    def api_team_employee(self, user_id, week=None, month=None, task_view="active"):
         user = self._team_user(user_id)
         period = self._period(week, month)
         tasks = self.env["project.task"].search(
-            self._task_domain_for_period(period) + [("user_ids", "in", [user.id])],
+            self._task_domain_for_period(period, task_view)
+            + [("user_ids", "in", [user.id])],
             order="date_deadline, name",
         )
         return {
@@ -2173,12 +2212,24 @@ class CsrsApi(models.AbstractModel):
             order="request_date_from, employee_id",
         )
         employees = self.env["hr.employee"].sudo().search(
-            [("user_id", "!=", False)], order="name"
+            [
+                ("active", "=", True),
+                ("user_id", "!=", False),
+                ("user_id.active", "=", True),
+            ],
+            order="name",
         )
         return {
             "week_start": period["start"],
             "items": [self._availability_payload(leave) for leave in leaves],
-            "employees": [self._person(employee.user_id) for employee in employees],
+            "employees": [
+                {
+                    **self._person(employee.user_id),
+                    "email": employee.work_email or employee.user_id.email or "",
+                    "unit": employee.department_id.name or "",
+                }
+                for employee in employees
+            ],
             "kinds": [
                 {"value": "leave", "label": "Congé"},
                 {"value": "absence", "label": "Absence"},
@@ -2209,7 +2260,12 @@ class CsrsApi(models.AbstractModel):
             ("AGENDA_HR",),
         )
         employee = self.env["hr.employee"].sudo().search(
-            [("user_id", "=", int(payload["employee_id"]))], limit=1
+            [
+                ("active", "=", True),
+                ("user_id", "=", int(payload["employee_id"])),
+                ("user_id.active", "=", True),
+            ],
+            limit=1,
         )
         if not employee:
             raise ValidationError(_("Collaborateur introuvable."))

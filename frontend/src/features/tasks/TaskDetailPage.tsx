@@ -74,7 +74,9 @@ export function TaskDetailPage() {
           </div>
         </div>
         <div className="cluster">
-          {data.capabilities.manage && (
+          {(data.capabilities.manage ||
+            data.capabilities.validate_completion ||
+            data.capabilities.request_rework) && (
             <ButtonLink to="modifier" variant="secondary">
               Modifier
             </ButtonLink>
@@ -352,68 +354,76 @@ function TransitionActions({
     <Card>
       <div className={styles.actions}>
         <h2>Décision</h2>
-        {task.status === "awaiting_validation" && (
-          <>
-            <Button
-              disabled={saving}
-              onClick={() =>
-                void submit({
-                  revision: task.revision,
-                  transition: "validate",
-                  reason: "",
-                })
-              }
-            >
-              Valider l'achèvement
-            </Button>
-            <div className="form-field">
-              <label htmlFor="decision-reason">Motif</label>
-              <textarea
-                id="decision-reason"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
-            </div>
-            <Button
-              variant="secondary"
-              disabled={saving || !reason.trim()}
-              onClick={() =>
-                void submit({
-                  revision: task.revision,
-                  transition: "reject",
-                  reason,
-                })
-              }
-            >
-              Demander une reprise
-            </Button>
-          </>
-        )}
-        {task.status !== "closed_early" && task.status !== "completed" && (
-          <>
-            <div className="form-field">
-              <label htmlFor="close-reason">Motif de clôture anticipée</label>
-              <textarea
-                id="close-reason"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
-            </div>
-            <Button
-              variant="danger"
-              disabled={saving || !reason.trim()}
-              onClick={() =>
-                void submit({
-                  revision: task.revision,
-                  transition: "close_early",
-                  reason,
-                })
-              }
-            >
-              Clôturer avant achèvement
-            </Button>
-          </>
-        )}
+        {task.status === "awaiting_validation" &&
+          (task.capabilities.validate_completion ||
+            task.capabilities.request_rework) && (
+            <>
+              {task.capabilities.validate_completion && (
+                <Button
+                  disabled={saving}
+                  onClick={() =>
+                    void submit({
+                      revision: task.revision,
+                      transition: "validate",
+                      reason: "",
+                    })
+                  }
+                >
+                  Valider l'achèvement
+                </Button>
+              )}
+              <div className="form-field">
+                <label htmlFor="decision-reason">Motif</label>
+                <textarea
+                  id="decision-reason"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </div>
+              {task.capabilities.request_rework && (
+                <Button
+                  variant="secondary"
+                  disabled={saving || !reason.trim()}
+                  onClick={() =>
+                    void submit({
+                      revision: task.revision,
+                      transition: "reject",
+                      reason,
+                    })
+                  }
+                >
+                  Demander une reprise
+                </Button>
+              )}
+            </>
+          )}
+        {task.capabilities.manage &&
+          task.status !== "closed_early" &&
+          task.status !== "completed" && (
+            <>
+              <div className="form-field">
+                <label htmlFor="close-reason">Motif de clôture anticipée</label>
+                <textarea
+                  id="close-reason"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </div>
+              <Button
+                variant="danger"
+                disabled={saving || !reason.trim()}
+                onClick={() =>
+                  void submit({
+                    revision: task.revision,
+                    transition: "close_early",
+                    reason,
+                  })
+                }
+              >
+                Clôturer avant achèvement
+              </Button>
+            </>
+          )}
       </div>
     </Card>
   );

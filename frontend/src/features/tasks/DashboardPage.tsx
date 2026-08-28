@@ -1,4 +1,4 @@
-import { useLocation } from "../../lib/router";
+import { useLocation, useSearchParams } from "../../lib/router";
 import type { Dashboard } from "../../lib/api/types";
 import { useApi } from "../../lib/useApi";
 import {
@@ -12,6 +12,9 @@ import { TaskCard } from "./TaskCard";
 
 export function DashboardPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const taskView =
+    searchParams.get("task_view") === "archives" ? "archives" : "active";
   const { data, error, loading, reload } = useApi<Dashboard>(
     `/api/v1/dashboard/${location.search}`,
   );
@@ -40,7 +43,34 @@ export function DashboardPage() {
       {error && <ErrorState error={error} retry={reload} />}
       {data && (
         <>
-          <PeriodNavigation period={data.period} />
+          <div className="cluster" role="group" aria-label="Vue des tâches">
+            <button
+              type="button"
+              aria-pressed={taskView === "active"}
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete("task_view");
+                setSearchParams(next);
+              }}
+            >
+              Tâches actives
+            </button>
+            <button
+              type="button"
+              aria-pressed={taskView === "archives"}
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.set("task_view", "archives");
+                setSearchParams(next);
+              }}
+            >
+              Archives
+            </button>
+          </div>
+          <PeriodNavigation
+            period={data.period}
+            preserveParams={["task_view"]}
+          />
           {data.tasks.length ? (
             <div className="grid">
               {data.tasks.map((task) => (
@@ -49,7 +79,11 @@ export function DashboardPage() {
             </div>
           ) : (
             <EmptyState
-              title="Aucune tâche sur cette période"
+              title={
+                taskView === "archives"
+                  ? "Aucune tâche archivée sur cette période"
+                  : "Aucune tâche sur cette période"
+              }
               action={
                 <ButtonLink to="/propositions/nouvelle">
                   Proposer une tâche

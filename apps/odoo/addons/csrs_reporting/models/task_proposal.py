@@ -41,6 +41,7 @@ class CsrsTaskProposal(models.Model):
             ("submitted", "Soumise"),
             ("rejected", "Rejetée"),
             ("accepted", "Acceptée"),
+            ("withdrawn", "Retirée"),
         ],
         required=True,
         default="submitted",
@@ -125,13 +126,31 @@ class CsrsTaskProposal(models.Model):
         self.message_post(body=_("Proposition corrigée et resoumise."))
         return True
 
+    def action_csrs_withdraw(self, reason="", expected_revision=None):
+        """Let the author withdraw a pending proposal without erasing its audit."""
+        self.ensure_one()
+        self._check_revision(expected_revision)
+        if self.author_id != self.env.user or self.state != "submitted":
+            raise UserError(_("Seule votre proposition soumise peut être retirée."))
+        note = (reason or "").strip()
+        if len(note) > 500:
+            raise ValidationError(_("Le motif ne peut pas dépasser 500 caractères."))
+        self.with_context(csrs_authorized_mutation=True).write(
+            {
+                "state": "withdrawn",
+                "decision_note": note,
+                "revision": self.revision + 1,
+            }
+        )
+        self.message_post(body=note or _("Proposition retirée par son auteur."))
+        return True
+
     def action_csrs_decide(self, decision, note="", expected_revision=None):
         """Accept atomically into one task or reject with a required reason."""
         self.ensure_one()
         self._check_revision(expected_revision)
-        if self.manager_id != self.env.user and not self.env.user.csrs_has_effective_group(
-            "csrs_reporting.group_csrs_it"
-        ):
+        current_manager = self._manager_for_user(self.author_id)
+        if current_manager != self.env.user:
             raise UserError(_("Seul le responsable principal peut décider."))
         if self.state != "submitted":
             raise UserError(_("Cette proposition a déjà été examinée."))
@@ -160,7 +179,7 @@ class CsrsTaskProposal(models.Model):
                 "csrs_institutional_action_id": self.institutional_action_id.id,
                 "user_ids": [Command.set(self.author_id.ids)],
                 "csrs_managed": True,
-                "csrs_manager_id": self.manager_id.id,
+                "csrs_manager_id": current_manager.id,
                 "csrs_calendar_id": self.calendar_id.id,
                 "csrs_start_date": self.start_date,
                 "date_deadline": self.due_date,

@@ -7,9 +7,13 @@ import styles from "./users.module.css";
 export function PasswordChangePage({
   onComplete,
   onLogout,
+  forced = true,
+  professionalEmail = "",
 }: {
   onComplete: () => Promise<unknown> | unknown;
   onLogout: () => Promise<unknown> | unknown;
+  forced?: boolean;
+  professionalEmail?: string;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -41,14 +45,22 @@ export function PasswordChangePage({
   }
 
   return (
-    <main className={styles.passwordPage}>
+    <section className={styles.passwordPage}>
       <Card className={styles.passwordCard}>
         <p className="eyebrow">Sécurité du compte</p>
-        <h1>Choisir un nouveau mot de passe</h1>
+        <h1>
+          {forced ? "Choisir un nouveau mot de passe" : "Compte et sécurité"}
+        </h1>
         <p>
-          Le mot de passe transmis par l’administrateur est temporaire.
-          Remplacez-le avant d’accéder à l’application.
+          {forced
+            ? "Le mot de passe transmis par l’administrateur est temporaire. Remplacez-le avant d’accéder à l’application."
+            : "Modifiez votre mot de passe local. Vous devrez ensuite vous reconnecter."}
         </p>
+        {professionalEmail && (
+          <p>
+            <strong>Adresse professionnelle :</strong> {professionalEmail}
+          </p>
+        )}
         {error && (
           <p className="error-banner" role="alert">
             {error}
@@ -56,7 +68,9 @@ export function PasswordChangePage({
         )}
         <form className="stack" onSubmit={(event) => void submit(event)}>
           <div className="form-field">
-            <label htmlFor="temporary-password">Mot de passe temporaire</label>
+            <label htmlFor="temporary-password">
+              {forced ? "Mot de passe temporaire" : "Mot de passe actuel"}
+            </label>
             <input
               id="temporary-password"
               name="current_password"
@@ -103,6 +117,6 @@ export function PasswordChangePage({
           </div>
         </form>
       </Card>
-    </main>
+    </section>
   );
 }

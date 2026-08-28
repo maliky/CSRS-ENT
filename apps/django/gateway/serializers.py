@@ -276,6 +276,12 @@ class ProposalDecisionSerializer(RevisionSerializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class ProposalWithdrawSerializer(RevisionSerializer):
+    reason = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=500
+    )
+
+
 class PlanningPreviewSerializer(serializers.Serializer[dict[str, object]]):
     calendar_id = serializers.IntegerField(min_value=1)
     start_date = serializers.DateField()
@@ -309,6 +315,10 @@ class PasswordSerializer(serializers.Serializer[dict[str, object]]):
         if attrs["new_password"] != attrs["new_password_confirmation"]:
             raise serializers.ValidationError(
                 {"new_password_confirmation": "Les deux mots de passe sont différents."}
+            )
+        if attrs["new_password"] == attrs["current_password"]:
+            raise serializers.ValidationError(
+                {"new_password": "Le nouveau mot de passe doit être différent."}
             )
         return attrs
 

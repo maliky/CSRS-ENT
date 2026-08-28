@@ -1,4 +1,10 @@
-import { CircleCheckBig, Pencil, RotateCcw, XCircle } from "lucide-react";
+import {
+  CircleCheckBig,
+  Pencil,
+  RotateCcw,
+  Undo2,
+  XCircle,
+} from "lucide-react";
 import { useState } from "react";
 import { useParams } from "../../lib/router";
 import type { Proposal } from "../../lib/api/types";
@@ -122,6 +128,26 @@ export function ProposalDetailPage() {
             }
           >
             <RotateCcw size={18} aria-hidden="true" /> Corriger et resoumettre
+          </Button>
+        </div>
+      )}
+      {data.capabilities.withdraw && (
+        <div className={styles.detailActions}>
+          <Button
+            variant="danger"
+            disabled={saving}
+            onClick={() => {
+              const withdrawalReason = window.prompt(
+                "Motif du retrait (facultatif)",
+              );
+              if (withdrawalReason === null) return;
+              void mutate(`/api/v1/proposals/${data.id}/withdraw/`, {
+                revision: data.revision,
+                reason: withdrawalReason,
+              });
+            }}
+          >
+            <Undo2 size={18} aria-hidden="true" /> Retirer la proposition
           </Button>
         </div>
       )}

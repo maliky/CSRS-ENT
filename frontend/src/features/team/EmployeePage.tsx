@@ -83,7 +83,7 @@ export function EmployeePage() {
         profile={data.profile}
         onSaved={reload}
       />
-      <PeriodNavigation period={data.period} />
+      <PeriodNavigation period={data.period} preserveParams={["task_view"]} />
       {data.tasks.length ? (
         <div className="grid">
           {data.tasks.map((task) => (

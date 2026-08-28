@@ -19,6 +19,7 @@ import {
   UserRoundCheck,
   UserRoundCog,
   ListX,
+  KeyRound,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -109,7 +110,14 @@ export function AppShell() {
   }
 
   if (session.capabilities.password_change_required)
-    return <PasswordChangePage onComplete={reload} onLogout={signOut} />;
+    return (
+      <PasswordChangePage
+        forced
+        professionalEmail={session.professional_email}
+        onComplete={() => window.location.assign("/connexion/")}
+        onLogout={signOut}
+      />
+    );
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -364,6 +372,14 @@ export function AppShell() {
               {roleError && <small role="alert">{roleError}</small>}
             </div>
           )}
+          <NavLink
+            to="/compte/securite"
+            className={navClass}
+            title="Compte et sécurité"
+          >
+            <KeyRound size={iconSize} aria-hidden="true" />
+            <span className={styles.navLabel}>Compte et sécurité</span>
+          </NavLink>
           <button
             type="button"
             className={styles.navItem}

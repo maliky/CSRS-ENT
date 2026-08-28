@@ -82,12 +82,15 @@ export type TaskDetail = Omit<
     manage: boolean;
     comment: boolean;
     update_progress: boolean;
+    validate_completion: boolean;
+    request_rework: boolean;
     self_managed: boolean;
   };
 };
 
 export type Session = {
   user: Person;
+  professional_email: string;
   csrf_token: string;
   reporting: {
     mode: "native" | "legacy_mirror" | "preprod_refresh";
@@ -523,7 +526,7 @@ export type StaffAvailability = {
 export type AvailabilityOptions = {
   week_start: string;
   items: StaffAvailability[];
-  employees: AgendaPerson[];
+  employees: Array<AgendaPerson & { email: string; unit: string }>;
   kinds: { value: StaffAvailability["kind"]; label: string }[];
 };
 
@@ -712,6 +715,7 @@ export type Proposal = {
     edit: boolean;
     resubmit: boolean;
     review: boolean;
+    withdraw: boolean;
   };
 };
 
